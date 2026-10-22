@@ -7,6 +7,7 @@
     "apps/*"
   ],
   "scripts": {
+    "serve": "npx -y serve -p 3000 .",
     "dev": "npm run dev --workspace=@shareplate/web",
     "dev:api": "npm run dev --workspace=@shareplate/api",
     "dev:all": "concurrently \"npm run dev:api\" \"npm run dev\"",
