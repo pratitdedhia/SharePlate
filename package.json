@@ -1,0 +1,33 @@
+{
+  "name": "shareplate",
+  "version": "1.0.0",
+  "description": "SharePlate - Community-Driven Food Rescue Platform for Hacktober HackDays 2026",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=@shareplate/web",
+    "dev:api": "npm run dev --workspace=@shareplate/api",
+    "dev:all": "concurrently \"npm run dev:api\" \"npm run dev\"",
+    "build": "npm run build --workspaces",
+    "build:web": "npm run build --workspace=@shareplate/web",
+    "build:api": "npm run build --workspace=@shareplate/api",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present"
+  },
+  "keywords": [
+    "food-rescue",
+    "social-good",
+    "sustainability",
+    "cloudinary",
+    "supabase",
+    "hacktober-hackdays-2026",
+    "shebuilds"
+  ],
+  "author": "SharePlate Team (Hacktober HackDays 2026)",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
