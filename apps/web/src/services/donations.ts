@@ -58,7 +58,9 @@ export const donationsService = {
 
     try {
       const res = await apiRequest(`/donations/${id}`);
-      return res.data;
+      const data = res?.data || res;
+      if (data && data.id) return data;
+      throw new Error('Donation not found in API');
     } catch {
       const donation = demoStore.getDonationById(id);
       if (!donation) throw new Error('Donation not found');

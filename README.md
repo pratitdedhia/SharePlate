@@ -155,25 +155,25 @@ All automated tests execute with 100% passing results across 38 tests:
 
 ### Run Backend API Tests:
 ```bash
-cmd /c npm test --workspace=@shareplate/api
+npm test --workspace=@shareplate/api
 # Result: 2 passed, 0 failed
 ```
 
 ### Run Frontend Unit & Integration Tests:
 ```bash
-cmd /c npm test --workspace=@shareplate/web
+npm test --workspace=@shareplate/web
 # Result: 36 passed, 0 failed (App, Impact Math, Claim Flow, Upload Fallback)
 ```
 
 ### Run All Workspace Tests:
 ```bash
-cmd /c npm test
+npm test
 # Total: 38 passed, 0 failed
 ```
 
 ### Verify Production Compilation:
 ```bash
-cmd /c npm run build
+npm run build
 # Compiles apps/api (tsc) and bundles apps/web (vite build) with exit code 0
 ```
 

@@ -73,20 +73,20 @@ Our test strategy covers frontend unit tests, core domain math validation, state
 
 ### Backend Tests
 ```bash
-cmd /c npm test --workspace=@shareplate/api
+npm test --workspace=@shareplate/api
 ```
 
 ### Frontend Tests
 ```bash
-cmd /c npm test --workspace=@shareplate/web
+npm test --workspace=@shareplate/web
 ```
 
 ### Full Workspace Test Suite
 ```bash
-cmd /c npm test
+npm test
 ```
 
 ### Production Builds
 ```bash
-cmd /c npm run build
+npm run build
 ```

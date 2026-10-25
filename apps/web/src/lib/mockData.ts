@@ -319,8 +319,23 @@ export const INITIAL_DEMO_CLAIMS: Claim[] = [
  * Enforces atomic quantity safety and expired deadline rejection client-side.
  */
 class DemoStore {
-  private donations: Donation[] = [...INITIAL_DEMO_DONATIONS];
-  private claims: Claim[] = [...INITIAL_DEMO_CLAIMS];
+  private static seed(): { donations: Donation[]; claims: Claim[] } {
+    const donations: Donation[] = JSON.parse(JSON.stringify(INITIAL_DEMO_DONATIONS));
+    const claims: Claim[] = JSON.parse(JSON.stringify(INITIAL_DEMO_CLAIMS));
+
+    for (const claim of claims) {
+      const donation = donations.find((d) => d.id === claim.donation_id);
+      if (donation) {
+        claim.donation = donation;
+      }
+    }
+
+    return { donations, claims };
+  }
+
+  private initialSeed = DemoStore.seed();
+  private donations: Donation[] = this.initialSeed.donations;
+  private claims: Claim[] = this.initialSeed.claims;
 
   /**
    * Helper that evaluates and updates status for expired pickup deadlines.
@@ -350,7 +365,7 @@ class DemoStore {
   createDonation(donation: Omit<Donation, 'id' | 'created_at' | 'quantity_available' | 'status'>): Donation {
     const newDonation: Donation = {
       ...donation,
-      id: `demo-${Date.now()}`,
+      id: `demo-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       created_at: new Date().toISOString(),
       quantity_available: donation.quantity_total,
       status: 'available',
@@ -394,7 +409,7 @@ class DemoStore {
     }
 
     const newClaim: Claim = {
-      id: `claim-${Date.now()}`,
+      id: `claim-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       donation_id: donationId,
       recipient_id: recipientId,
       quantity_claimed: quantity,
@@ -433,15 +448,26 @@ class DemoStore {
     if (!claim) throw new Error('Claim not found');
 
     if (newStatus === 'collected') {
+      if (claim.status !== 'claimed') {
+        throw new Error(`Claim cannot be marked collected from status: ${claim.status}`);
+      }
       claim.status = 'collected';
       claim.collected_at = new Date().toISOString();
     } else if (newStatus === 'delivered') {
+      if (claim.status !== 'collected') {
+        throw new Error('Claim must be collected before it can be delivered');
+      }
       claim.status = 'delivered';
       claim.delivered_at = new Date().toISOString();
 
       const donation = this.donations.find((d) => d.id === claim.donation_id);
       if (donation && donation.quantity_available === 0) {
-        donation.status = 'delivered';
+        const hasOpenClaims = this.claims.some(
+          (c) => c.donation_id === donation.id && c.status !== 'delivered' && c.status !== 'cancelled'
+        );
+        if (!hasOpenClaims) {
+          donation.status = 'delivered';
+        }
       }
     }
 
@@ -461,7 +487,7 @@ class DemoStore {
   }
 
   // Users & Admin Moderation
-  private users: UserProfile[] = Object.values(DEMO_PROFILES);
+  private users: UserProfile[] = JSON.parse(JSON.stringify(Object.values(DEMO_PROFILES)));
   private reports: any[] = [
     {
       id: 'rep-001',
@@ -580,7 +606,7 @@ class DemoStore {
 
   addActivityLog(action: string, details: Record<string, any>) {
     this.activityLogs.unshift({
-      id: `act-${Date.now()}`,
+      id: `act-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       action,
       details,
       created_at: new Date().toISOString(),
@@ -588,9 +614,10 @@ class DemoStore {
   }
 
   reset() {
-    this.donations = [...INITIAL_DEMO_DONATIONS];
-    this.claims = [...INITIAL_DEMO_CLAIMS];
-    this.users = Object.values(DEMO_PROFILES);
+    const { donations, claims } = DemoStore.seed();
+    this.donations = donations;
+    this.claims = claims;
+    this.users = JSON.parse(JSON.stringify(Object.values(DEMO_PROFILES)));
   }
 }
 

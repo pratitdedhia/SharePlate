@@ -461,6 +461,18 @@ BEGIN
     FROM public.donations
     WHERE id = v_claim.donation_id;
 
+    -- Check caller authorization
+    IF NOT (
+        p_user_id = v_claim.recipient_id OR 
+        p_user_id = v_donation.donor_id OR 
+        EXISTS (
+            SELECT 1 FROM public.profiles 
+            WHERE id = p_user_id AND role IN ('volunteer', 'admin')
+        )
+    ) THEN
+        RAISE EXCEPTION 'Unauthorized to update this claim';
+    END IF;
+
     -- Validate transitions
     IF p_new_status = 'collected' THEN
         IF v_claim.status != 'claimed' THEN
@@ -524,6 +536,16 @@ BEGIN
     );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Security Hardening: Revoke RPC execution from public/anon/authenticated and grant to service_role
+REVOKE EXECUTE ON FUNCTION public.claim_donation_atomic(UUID, UUID, INTEGER, TEXT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.claim_donation_atomic(UUID, UUID, INTEGER, TEXT) TO service_role;
+
+REVOKE EXECUTE ON FUNCTION public.cancel_claim_atomic(UUID, UUID, TEXT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.cancel_claim_atomic(UUID, UUID, TEXT) TO service_role;
+
+REVOKE EXECUTE ON FUNCTION public.update_claim_status(UUID, TEXT, UUID, TEXT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.update_claim_status(UUID, TEXT, UUID, TEXT) TO service_role;
 
 -- 15. ROW LEVEL SECURITY (RLS) POLICIES
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;

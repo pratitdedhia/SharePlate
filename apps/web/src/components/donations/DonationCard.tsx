@@ -46,7 +46,14 @@ export const DonationCard: React.FC<DonationCardProps> = ({ donation }) => {
       }`}
     >
       {/* Food Image with Cloudinary Optimization */}
-      <div className="relative h-48 w-full bg-warm-200 overflow-hidden">
+      <div
+        onClick={handleCardReserve}
+        className="relative h-48 w-full bg-warm-200 overflow-hidden cursor-pointer"
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleCardReserve(); }}
+        aria-label={`View details for ${donation.title}`}
+      >
         <CloudinaryImage
           publicId={donation.cloudinary_public_id}
           src={donation.image_url || undefined}
@@ -88,7 +95,10 @@ export const DonationCard: React.FC<DonationCardProps> = ({ donation }) => {
       {/* Card Content */}
       <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
         <div>
-          <h3 className="text-base font-bold text-stone-900 group-hover:text-forest-900 transition line-clamp-1 mb-1.5">
+          <h3
+            onClick={handleCardReserve}
+            className="text-base font-bold text-stone-900 group-hover:text-forest-900 transition line-clamp-1 mb-1.5 cursor-pointer"
+          >
             {donation.title}
           </h3>
           <p className="text-xs text-stone-600 line-clamp-2 leading-relaxed mb-3">

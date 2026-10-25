@@ -83,7 +83,7 @@ export const VolunteerDashboard: React.FC = () => {
   const pickupOpportunitiesCount = availableDonations.length;
   const assignedPickupsCount = assignedRoutes.length;
   const activeDeliveriesCount = assignedRoutes.length;
-  const completedActivitiesCount = 14; // Lifetime activities logged
+  const completedActivitiesCount = activityLogs.filter((log) => log.action === 'delivery_completed').length;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -224,7 +224,7 @@ export const VolunteerDashboard: React.FC = () => {
                 </div>
               ) : (
                 assignedRoutes.map((routeId) => {
-                  const donation = availableDonations.find((d) => d.id === routeId) || availableDonations[0];
+                  const donation = availableDonations.find((d) => d.id === routeId);
                   if (!donation) return null;
                   return (
                     <div

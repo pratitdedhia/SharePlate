@@ -57,6 +57,20 @@ export const DonationDetailPage: React.FC = () => {
     }
   };
 
+  const timeInfo = donation
+    ? formatTimeRemaining(donation.pickup_deadline)
+    : { text: '', isUrgent: false, isExpired: false };
+  const isExpired = Boolean(donation && (donation.status === 'expired' || timeInfo.isExpired));
+  const isOwnDonation = Boolean(user && donation && user.id === donation.donor_id);
+  const canClaim = Boolean(
+    donation &&
+    (isRecipient || isAdmin) &&
+    !isOwnDonation &&
+    !isExpired &&
+    donation.status === 'available' &&
+    donation.quantity_available > 0
+  );
+
   useEffect(() => {
     fetchDonation();
   }, [id]);
@@ -65,7 +79,7 @@ export const DonationDetailPage: React.FC = () => {
     if (user && canClaim && (location.state as any)?.autoReserve) {
       setShowClaimModal(true);
     }
-  }, [user, donation, location.state]);
+  }, [user, canClaim, location.state]);
 
   const handleClaim = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -112,16 +126,6 @@ export const DonationDetailPage: React.FC = () => {
       </div>
     );
   }
-
-  const timeInfo = formatTimeRemaining(donation.pickup_deadline);
-  const isExpired = donation.status === 'expired' || timeInfo.isExpired;
-  const isOwnDonation = user?.id === donation.donor_id;
-  const canClaim =
-    (isRecipient || isAdmin) &&
-    !isOwnDonation &&
-    !isExpired &&
-    donation.status === 'available' &&
-    donation.quantity_available > 0;
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">

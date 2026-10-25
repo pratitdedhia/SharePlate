@@ -91,4 +91,79 @@ describe('Demo Claim Safety Flow', () => {
     expect(donation.quantity_available).toBe(0);
     expect(donation.status).toBe('reserved');
   });
+
+  it('delivering a claim that was never collected throws and leaves status "claimed"', () => {
+    const claim = demoStore.claimDonation(
+      'd0000000-0000-0000-0000-000000000001',
+      'b0000000-0000-0000-0000-000000000001',
+      5
+    );
+    expect(claim.status).toBe('claimed');
+
+    expect(() => {
+      demoStore.updateClaimStatus(claim.id, 'delivered');
+    }).toThrow('Claim must be collected before it can be delivered');
+
+    expect(claim.status).toBe('claimed');
+  });
+
+  it('collecting or delivering a cancelled claim throws', () => {
+    const claim = demoStore.claimDonation(
+      'd0000000-0000-0000-0000-000000000001',
+      'b0000000-0000-0000-0000-000000000001',
+      5
+    );
+    demoStore.cancelClaim(claim.id);
+    expect(claim.status).toBe('cancelled');
+
+    expect(() => {
+      demoStore.updateClaimStatus(claim.id, 'collected');
+    }).toThrow();
+
+    expect(() => {
+      demoStore.updateClaimStatus(claim.id, 'delivered');
+    }).toThrow();
+  });
+
+  it('the donation is not marked "delivered" while another claim on it is still open', () => {
+    const donation = demoStore.getDonationById('d0000000-0000-0000-0000-000000000001')!;
+    const half = Math.floor(donation.quantity_available / 2);
+    const remainder = donation.quantity_available - half;
+
+    const claim1 = demoStore.claimDonation(donation.id, 'b0000000-0000-0000-0000-000000000001', half);
+    const claim2 = demoStore.claimDonation(donation.id, 'b0000000-0000-0000-0000-000000000001', remainder);
+
+    expect(donation.quantity_available).toBe(0);
+    expect(donation.status).toBe('reserved');
+
+    // Collect and deliver claim1, but claim2 is still 'claimed' (open)
+    demoStore.updateClaimStatus(claim1.id, 'collected');
+    demoStore.updateClaimStatus(claim1.id, 'delivered');
+
+    expect(claim1.status).toBe('delivered');
+    expect(claim2.status).toBe('claimed');
+    expect(donation.status).not.toBe('delivered');
+
+    // Now collect and deliver claim2
+    demoStore.updateClaimStatus(claim2.id, 'collected');
+    demoStore.updateClaimStatus(claim2.id, 'delivered');
+
+    expect(claim2.status).toBe('delivered');
+    expect(donation.status).toBe('delivered');
+  });
+
+  it('two rapid successive claims get different IDs', () => {
+    const claim1 = demoStore.claimDonation(
+      'd0000000-0000-0000-0000-000000000001',
+      'b0000000-0000-0000-0000-000000000001',
+      2
+    );
+    const claim2 = demoStore.claimDonation(
+      'd0000000-0000-0000-0000-000000000001',
+      'b0000000-0000-0000-0000-000000000001',
+      2
+    );
+
+    expect(claim1.id).not.toBe(claim2.id);
+  });
 });
