@@ -13,12 +13,11 @@
 ### 1.1 Clone & Install
 ```bash
 # Clone the repository
-git clone https://github.com/your-team/shareplate.git
+git clone https://github.com/pratitdedhia/SharePlate.git
 cd shareplate
 
-# Install dependencies in both workspaces
-npm install --workspace=@shareplate/api
-npm install --workspace=@shareplate/web
+# Install dependencies from the root lockfile
+npm ci
 ```
 
 ### 1.2 Environment Setup
@@ -74,26 +73,25 @@ npm run dev
 4. Configure `apps/web/.env`:
    ```bash
    VITE_CLOUDINARY_CLOUD_NAME=your_cloud_name
+   VITE_CLOUDINARY_UPLOAD_PRESET=your_unsigned_upload_preset
    ```
+
+The static demo uses the unsigned preset directly. Keep the API secret only in `apps/api/.env`; never add it to a Vite variable.
 
 ---
 
-## 4. Production Deployment
+## 4. GitHub Pages Demo Deployment
 
-### Frontend (Vercel)
-- Connect your GitHub repository to Vercel.
-- Set **Root Directory** to `apps/web`.
-- Configure Environment Variables:
-  - `VITE_SUPABASE_URL`
-  - `VITE_SUPABASE_ANON_KEY`
-  - `VITE_API_BASE_URL` (your deployed backend URL)
-  - `VITE_CLOUDINARY_CLOUD_NAME`
-  - `VITE_DEMO_MODE=false`
-- Build Command: `npm run build`
-- Output Directory: `dist`
+The workflow at `.github/workflows/deploy-pages.yml` runs on pushes to `main`, installs with `npm ci`, builds `apps/web` with `VITE_DEMO_MODE=true`, and deploys only `apps/web/dist` to Pages. The Vite base path and `HashRouter` support the repository URL `https://pratitdedhia.github.io/SharePlate/`.
 
-### Backend (Render / Railway / Fly.io)
-- Connect repository and select `apps/api`.
-- Build Command: `npm run build`
-- Start Command: `npm start`
-- Add all required environment variables (`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `CLOUDINARY_*`, `FRONTEND_ORIGIN`).
+In GitHub repository **Settings > Secrets and variables > Actions > Variables**, add:
+
+- `VITE_CLOUDINARY_CLOUD_NAME` (public Cloudinary cloud name)
+- `VITE_CLOUDINARY_UPLOAD_PRESET` (public unsigned preset name)
+- `VITE_NOTION_URL` (public Notion project page URL; omit or leave empty to hide the link)
+
+These are public values and are read from `vars.*`, not Actions secrets. The Pages site is configured for demo mode and stores donation/claim data in the visitor's browser. Supabase and Express have not been deployed as part of this demo. A successful workflow run is required before describing the target URL as an active deployment.
+
+## 5. Deploying the Production Architecture
+
+Deploying Supabase and Express is not covered by the Pages workflow. Configure Supabase and a hosted API separately, then set the corresponding client environment variables and disable demo mode only after the production path is ready and verified.

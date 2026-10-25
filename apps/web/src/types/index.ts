@@ -93,6 +93,10 @@ export interface ImpactMetrics {
   portionsListed: number;
   portionsReserved: number;
   portionsDelivered: number;
+  portionsAvailable: number;
+  deliveredPercent: number;
+  reservedPercent: number;
+  availablePercent: number;
   completedRescues: number;
   activeDonors: number;
   participatingRecipients: number;

@@ -3,10 +3,12 @@
 [![Hacktober HackDays 2026](https://img.shields.io/badge/Event-Hacktober_HackDays_2026-15803d?style=for-the-badge)](https://shebuilds.dev)
 [![Track](https://img.shields.io/badge/Track-Tech_for_Social_Good-047857?style=for-the-badge)]()
 [![Powered by](https://img.shields.io/badge/Powered_by-MLH-E11D48?style=for-the-badge)](https://mlh.io)
-[![Cloudinary](https://img.shields.io/badge/Media-Cloudinary_Signed_Uploads-3B82F6?style=for-the-badge)](https://cloudinary.com)
+[![Cloudinary](https://img.shields.io/badge/Media-Cloudinary_Uploads-3B82F6?style=for-the-badge)](https://cloudinary.com)
 [![Supabase](https://img.shields.io/badge/Database-Supabase_PostgreSQL-10B981?style=for-the-badge)](https://supabase.com)
 
-**SharePlate** is a full-stack, community-driven food rescue web application built for **Hacktober HackDays 2026** (organized by the SheBuilds Delhi Chapter and powered by Major League Hacking).
+**Project Journey (Notion):** <<FILL: public Notion page URL>>
+
+**SharePlate** is a community food-rescue prototype built for **Hacktober HackDays 2026** (SheBuilds Delhi, powered by Major League Hacking). The GitHub Pages target is the React app in `apps/web`; the Pages workflow builds it in demo mode. Supabase and Express are present in the repository as the production architecture, but are not deployed for the demo.
 
 SharePlate bridges the critical communication gap between high-volume commercial food institutions (university canteens, banquet caterers, corporate cafeterias, and bakeries) and local community organizations (NGOs, community kitchens, shelter coordinators, and volunteer runners) to redistribute wholesome surplus food before it spoils.
 
@@ -14,15 +16,13 @@ SharePlate bridges the critical communication gap between high-volume commercial
 
 ## 📸 Overview & Key Features
 
-- **🔐 Hospital-Grade Food Rescue Authentication:** Professional email/password authentication with password visibility toggles, session persistence, inline error handling, and PKCE password recovery (`/forgot-password`, `/reset-password`).
-- **⚡ 1-Click Quick Demo Access:** Instant evaluation buttons for Judges on `/login` to continue immediately as Donor, Recipient, Volunteer, or Admin with seeded personas and guaranteed role-based redirects.
-- **🛡️ Strict Role-Based Dashboards & RBAC:** Dedicated, purpose-built dashboards for all 4 roles (`/dashboard/donor`, `/dashboard/recipient`, `/dashboard/volunteer`, `/dashboard/admin`), protected against unauthorized cross-role URL tampering via `RoleGuard` and Express RBAC.
+- **Demo workflows:** Sample donor, recipient, volunteer, and admin accounts exercise the app. Demo listings and claims are stored in the browser.
+- **Role-based views:** The React app includes donor, recipient, volunteer, and admin dashboards. Express authorization is part of the repository architecture but is not deployed with the Pages demo.
 - **📋 Dynamic Role Onboarding:** Multi-role registration (`/register`) with interactive cards and conditional fields for canteens, NGOs, and couriers without state loss. Self-registration as Administrator is strictly barred.
-- **🚀 60-Second Surplus Food Posting:** Canteens specify portion counts, food category, preparation timestamp, allergen tags, and future pickup deadlines.
-- **📸 Mandatory Cloudinary Pipeline:** Cryptographically signed browser uploads (`/api/uploads/signature`) with live upload progress, client-side preview, automatic responsive cropping (`c_fill, w_800`), and modern format delivery (`f_auto, q_auto`).
-- **🔒 ACID Atomic Reservations:** Concurrency-safe PostgreSQL stored procedures (`claim_donation_atomic`) prevent double-reserving or overselling batches under concurrent demand.
-- **🛡️ Privacy-Preserving Logistics:** Sensitive loading-dock access instructions and personal donor phone numbers are masked in public queries and revealed strictly to confirmed claimants.
-- **📊 Defensible Live Impact Metrics:** Dynamically aggregates meals listed, reserved, and actually delivered. Computes CO₂e emissions avoided based on UNEP and FAO food waste benchmarks without fabricating statistics.
+- **Donation listings and claims:** Demo actions update the local browser store; a local reset restores the seeded data.
+- **Cloudinary image path:** With a cloud name and unsigned upload preset configured, the static demo uploads directly to Cloudinary. If the Express signature API is running and configured, signed upload is tried first. Without either, uploads are clearly labeled local previews.
+- **Production claim path:** The Supabase schema includes `claim_donation_atomic`; it is not used by the deployed demo and does not imply cross-device protection in demo mode.
+- **Impact snapshot:** Home and Impact use the same data calculation. Rescue rate is delivered portions divided by listed portions; food-weight and emissions figures are estimates.
 
 ---
 
@@ -32,12 +32,12 @@ SharePlate bridges the critical communication gap between high-volume commercial
 | :--- | :--- | :--- |
 | **Frontend** | React 18, Vite, TypeScript | Fast HMR, modular component architecture, Rollup production bundle |
 | **Styling** | Tailwind CSS | Curated social-good palette (Forest Green `#14532D`, Warm White `#FAF9F6`) |
-| **Backend API** | Node.js 24 LTS, Express, TypeScript | REST API, Zod schema validation, Helmet security headers, CORS |
-| **Database** | PostgreSQL 15+ (Supabase) | Multi-tenant Row Level Security (RLS), atomic stored procedures, triggers |
-| **Authentication** | Supabase Auth | Secure email/password auth, JWT verification, role-based access control |
-| **Media & Images** | Cloudinary | Server-signed direct browser uploads, dynamic transformations, CDN delivery |
-| **Testing** | Vitest, Node.js Test Runner | Unit testing, portion math validation, endpoint health checks |
-| **Documentation** | Notion (Mandatory Platform) | 12 complete structured markdown guides under `docs/notion/` |
+| **Backend API** | Node.js, Express, TypeScript | Repository implementation; not deployed for the Pages demo |
+| **Database** | PostgreSQL via Supabase | Repository schema includes RLS and production atomic stored procedures |
+| **Authentication** | Demo auth in browser; Supabase Auth integration in repository | Cloud production auth is not deployed for the Pages demo |
+| **Media & Images** | Cloudinary | Direct unsigned preset uploads in static demo; signed uploads when the API is configured |
+| **Testing** | Vitest, Node.js Test Runner | Unit tests and API tests; see `CHANGES.md` for the checks observed for this revision |
+| **Documentation** | Notion-ready Markdown | Source pages are in `docs/notion/`; publishing the public Notion page remains a manual step |
 
 ---
 
@@ -48,7 +48,8 @@ graph TD
     subgraph Client ["Frontend (apps/web)"]
         Browser["React 18 + Vite Web App"]
         Uploader["ImageUploader Component"]
-        Auth["AuthContext (Supabase / Demo Switcher)"]
+        Auth["AuthContext (browser demo; Supabase integration in repo)"]
+        DemoStore["Browser-local demo store"]
     end
 
     subgraph Media ["Cloudinary Media Cloud"]
@@ -68,11 +69,10 @@ graph TD
         Tables["profiles, donations, claims, reports, logs"]
     end
 
-    Browser -->|1. Request Upload Signature| Signer
-    Signer -->|2. Cryptographic SHA Signature| Browser
-    Browser -->|3. Direct Binary Upload| CloudAPI
+    Browser -->|Signed when API is available; otherwise unsigned preset| CloudAPI
     CloudAPI --> EdgeCDN
-    Browser -->|4. Publish / Claim Mutation| Controllers
+    Browser -->|Demo mode| DemoStore
+    Browser -->|Production mode, when deployed| Controllers
     Controllers --> AtomicRPC
     Controllers --> Tables
     Tables --> RLS
@@ -84,18 +84,17 @@ graph TD
 ## ⚡ Quickstart & Local Installation
 
 ### Prerequisites
-- Node.js (v20+ LTS recommended, v24 LTS verified)
+- Node.js 20 or newer
 - Git
 
 ### 1. Install Workspace Dependencies
 ```bash
 # Clone the repository
-git clone https://github.com/your-team/shareplate.git
-cd shareplate
+git clone https://github.com/pratitdedhia/SharePlate.git
+cd SharePlate
 
-# Install dependencies for both apps
-npm install --workspace=@shareplate/api
-npm install --workspace=@shareplate/web
+# Install all workspace dependencies from the lockfile
+npm ci
 ```
 
 ### 2. Configure Environment Variables
@@ -104,7 +103,7 @@ Copy the example files in both workspaces:
 cp apps/api/.env.example apps/api/.env
 cp apps/web/.env.example apps/web/.env
 ```
-*(By default, `VITE_DEMO_MODE=true` is enabled in `.env` to allow seamless local testing even before configuring external cloud credentials!)*
+`VITE_DEMO_MODE=true` runs the browser-local demo. Real Cloudinary uploads require the public cloud name and unsigned preset. Express and Supabase are not required for the demo flow.
 
 ### 3. Launch Development Servers
 Open two terminal windows:
@@ -128,43 +127,22 @@ Open **`http://localhost:5173`** in your browser.
 
 ## 🧪 Automated Testing & Verification
 
-All automated tests have been executed with 100% passing results:
+Run the current checks locally from the repository root:
 
-### Run Backend API Tests:
+### Run tests and builds:
 ```bash
-cd apps/api
 npm test
-# Result: 2 passed, 0 failed
+npm run build:web
+npm run build:api
 ```
 
-### Run Frontend Unit Tests:
-```bash
-cd apps/web
-npm test
-# Result: 2 passed, 0 failed
-```
-
-### Verify Production Compilation:
-```bash
-# Verify backend TypeScript compilation
-cd apps/api && npm run build
-# Exit code: 0
-
-# Verify frontend Vite/Rollup production bundling
-cd apps/web && npm run build
-# Built in 3.35s with 0 errors
-```
+Observed results for this revision are recorded in [CHANGES.md](CHANGES.md), without substituting expected results for checks that could not be run.
 
 ---
 
 ## 🎬 Recommended 2–3 Minute Evaluation Demo Script
 
-1. **Homepage:** Open `http://localhost:5173`. Review the mission statement, live trust metrics strip (Delivered portions, Active Donors, Partner NGOs, CO₂e avoided), and food safety guidance.
-2. **List Surplus Food (Donor):** Switch to the **Canteen / Donor** persona using the top navigation role switcher. Click **+ Donate Food** (`/donations/new`). Upload a photo via the Cloudinary uploader (or select a verified sample preset). Enter 45 portions of *Vegetable Pulao*, add *Dairy* allergen tags, set a 4-hour pickup deadline, and publish.
-3. **Reserve Portions (NGO):** Switch persona to **NGO / Recipient** (Robin Hood Army). Find the Pulao listing in `/donations`. Open `/donations/:id` and claim 20 portions. Observe the available count drop immediately from 45 to 25.
-4. **Pickup & Delivery Progression:** Open **My Claims** (`/my-claims`). View the revealed private pickup instructions. Click **Mark Picked Up** (`collected`), then **Confirm Delivery** (`delivered`).
-5. **Impact Dashboard:** Open `/impact`. Show the real-time portion funnel updating and the CO₂e avoided metric recalculating dynamically.
-6. **Cloudinary Evidence:** Open `/about` to inspect our server-signed upload architecture and dynamic image transformations.
+Use [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md) for the demo flow and setup caveats. Cloudinary upload requires the public cloud name and unsigned preset repository variables; without them the uploader only creates a labeled local preview.
 
 ---
 
@@ -207,10 +185,10 @@ shareplate/
 │   ├── cloudinary.md           # Mandatory Cloudinary integration evidence
 │   ├── security.md             # Threat modeling & security mitigation
 │   ├── testing.md              # QA test plan & automated execution logs
-│   ├── deployment.md           # Production deployment guide (Vercel & Render)
+│   ├── deployment.md           # GitHub Pages demo and production architecture setup
 │   ├── team-contributions.md   # 4-member task allocation & contribution breakdown
 │   ├── notion-documentation-outline.md
-│   └── notion/                 # 12 complete Notion-ready documentation subpages
+│   └── notion/                 # Notion-ready Markdown source pages
 ├── scripts/
 │   └── reset-demo-data.js      # Idempotent demo data restorer
 ├── .env.example
@@ -221,20 +199,21 @@ shareplate/
 
 ---
 
-## 📑 Notion-Ready Architecture & Implementation Summary
+## 📑 Demo And Production Paths
 
-> **Copy-paste ready for Notion Portfolio / Hackathon Submission Page**
+> The deployed demo and production architecture are different paths. Supabase and Express code in this repository is not deployed with the GitHub Pages site.
 
 ### Authentication & Authorization System Design
 - **Architecture Philosophy:** Adopts the design rigor, input validation, and access isolation of enterprise hospital and care-management portals, mapped directly onto food rescue operations.
-- **Authoritative Identity:** Client state never unilaterally dictates authorized user privileges. Upon login via Supabase Auth or seeded development preview, the authenticated role is verified against `public.profiles` in PostgreSQL and guarded via frontend `RoleGuard` and backend Express middleware `requireRoles`.
+- **Demo identity:** Demo users are selected in the browser and are not verified against a deployed Supabase service.
+- **Production identity path:** Supabase Auth and Express middleware are present in the repository; their deployment is a roadmap item.
 - **4 Dedicated Operational Portals:**
   - **Donor (`/dashboard/donor`):** Kitchen surplus management, batch publishing, active claims monitoring, and collection confirmation.
-  - **Recipient (`/dashboard/recipient`):** Real-time city-wide food discovery, atomic portion reservation, pickup deadline timers, and distribution logging.
-  - **Volunteer (`/dashboard/volunteer`):** Live dispatch board, delivery corridor route claiming, donor pickup instructions access, and drop-off completion.
-  - **Administrator (`/dashboard/admin`):** Platform-wide metrics, safety & allergen moderation queue, user privilege controls (activation/deactivation), and immutable audit streams.
+- **Recipient (`/dashboard/recipient`):** Demo listing discovery, browser-local portion reservations, pickup deadline timers, and delivery status updates.
+- **Volunteer (`/dashboard/volunteer`):** Demo dispatch board, pickup instructions, and delivery status updates.
+- **Administrator (`/dashboard/admin`):** Demo views for metrics, reports, and user controls.
 - **Judges Quick Demo Authentication:** Four 1-click access buttons on `/login` authenticate instantly as fictional seeded personas (Priya Sharma - DTU Canteen, Rajesh Kumar - Robin Hood Army, Ananya Sen - Youth For Food Relief, Ops Admin - SharePlate Foundation) and route to the corresponding dashboard.
-- **Evaluation Reset Command:** `npm run db:reset-demo` restores all demo data to pristine condition in under 2 seconds.
+- **Evaluation reset:** `npm run db:reset-demo` runs the repository reset script; browser-local demo data can also be cleared from browser storage.
 
 ---
 
@@ -246,17 +225,25 @@ SharePlate is a community coordination platform designed to eliminate food waste
 
 ---
 
-## 👥 Four-Member Team Task Allocation
+## 👥 Team Contributions (Confirm Before Submission)
 
-- **Member 1 (Frontend & UI/UX):** Design system, responsive layouts, donation browsing, detail views, and reusable components.
-- **Member 2 (Backend & Business Logic):** Express API, JWT verification, Zod input validation, RBAC, and claim lifecycle endpoints.
-- **Member 3 (Database & Cloudinary):** PostgreSQL schema, RLS policies, atomic RPC functions (`claim_donation_atomic`), and Cloudinary signed upload pipeline.
-- **Member 4 (QA, Notion & Submission):** Automated test suites (Vitest), FAO/UNEP impact methodology, 12 Notion documentation guides, and demo walkthrough.
+- **<<FILL: real name>>:** TODO: confirm which frontend files and changes they authored.
+- **<<FILL: real name>>:** TODO: confirm which API and validation changes they authored.
+- **<<FILL: real name>>:** TODO: confirm which Supabase and Cloudinary changes they authored.
+- **<<FILL: real name>>:** TODO: confirm which tests and documentation they authored.
+
+## Limitations & Roadmap
+
+- Deploy Supabase and the Express API, then connect the UI to shared production data.
+- Add real OTP/SMS verification and NGO verification.
+- Add route optimization for volunteer pickups.
+- Add multilingual UI and content.
 
 ---
 
 ## 📄 License
 
 This project is licensed under the [MIT License](LICENSE) for Hacktober HackDays 2026.
-#   S h a r e P l a t e  
+#   S h a r e P l a t e 
+ 
  

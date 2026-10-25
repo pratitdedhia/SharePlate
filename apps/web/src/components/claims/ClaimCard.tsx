@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Claim } from '../../types';
 import { StatusBadge } from '../common/StatusBadge';
 import { ClaimTimeline } from './ClaimTimeline';
-import { getCloudinaryUrl } from '../../lib/cloudinary';
+import { DEFAULT_FALLBACK_IMAGE, getCloudinarySrcSet, getCloudinaryUrl, isCloudinaryAsset } from '../../lib/cloudinary';
 import { formatDate } from '../../lib/utils';
 import { MapPin, Phone, CheckCircle, Truck, XCircle, AlertCircle } from 'lucide-react';
 import { ConfirmDialog } from '../common/ConfirmDialog';
@@ -22,13 +22,19 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
 }) => {
   const [confirmCancelOpen, setConfirmCancelOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
 
   const donation = claim.donation;
-  const imageUrl = getCloudinaryUrl(donation?.cloudinary_public_id || donation?.image_url, {
-    width: 300,
+  const imageSource = donation?.cloudinary_public_id || donation?.image_url;
+  const imageUrl = getCloudinaryUrl(imageSource, {
+    width: 800,
     height: 200,
     crop: 'fill',
+    gravity: 'auto',
+    quality: 'auto',
+    format: 'auto',
   });
+  const imageSrcSet = getCloudinarySrcSet(imageSource, { height: 200, crop: 'fill', gravity: 'auto', quality: 'auto', format: 'auto' });
 
   const handleAction = async (actionFn: () => Promise<void>) => {
     setLoading(true);
@@ -44,7 +50,23 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
       {/* Header with Title & Status */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-warm-100">
         <div className="flex items-center gap-3">
-          <img src={imageUrl} alt={donation?.title || 'Food'} className="w-14 h-14 rounded-xl object-cover shrink-0" />
+          <div className="relative shrink-0">
+            <img
+              src={imageUrl}
+              srcSet={imageSrcSet}
+              sizes="56px"
+              loading="lazy"
+              alt={donation?.title || 'Food'}
+              className="w-14 h-14 rounded-xl object-cover"
+              onError={(event) => {
+                event.currentTarget.onerror = null;
+                event.currentTarget.srcset = '';
+                event.currentTarget.src = DEFAULT_FALLBACK_IMAGE;
+                setImageFailed(true);
+              }}
+            />
+            {(!isCloudinaryAsset(imageUrl) || imageFailed) && <span className="absolute -bottom-1 left-0 bg-stone-950/75 text-white text-[8px] px-1 rounded">Unsplash fallback</span>}
+          </div>
           <div>
             <h4 className="text-sm font-bold text-stone-900 line-clamp-1">{donation?.title || 'Food Donation'}</h4>
             <p className="text-xs text-stone-500">

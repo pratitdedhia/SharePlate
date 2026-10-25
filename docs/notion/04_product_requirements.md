@@ -21,13 +21,13 @@
 - Status toggle (`Available Now`, `Reserved`, `Delivered`, `All`).
 
 ### FR-4: Concurrency-Safe Portion Reservation
-- Atomically reserve a specified quantity of portions via `claim_donation_atomic`.
+- Production path: atomically reserve a specified quantity via `claim_donation_atomic`. The deployed browser demo uses the local demo store instead.
 - Prevent overclaiming or claiming by the listing's own donor.
 - Update listing status to `reserved` when available quantity reaches 0.
 
 ### FR-5: Protected Logistics & Lifecycle Execution
 - Restrict exact pickup notes to authorized claimants and donors.
-- Recipient can cancel claim (restoring portions atomically).
+- Recipient can cancel a demo claim, restoring portions in the browser-local store; production restoration is handled by the database path.
 - Recipient/Volunteer can mark claim as `collected`.
 - Recipient/Volunteer can mark claim as `delivered`.
 
@@ -40,4 +40,4 @@
 ## 2. Non-Functional Requirements
 - **Performance:** Initial page load under 1.5s; Cloudinary transformations loaded from edge CDN.
 - **Accessibility:** Keyboard navigable controls, high-contrast text (`#1C1917` on `#FAF9F6`), visible focus rings.
-- **Reliability:** Graceful fallback to verified in-memory demo data if external cloud credentials are offline.
+- **Reliability:** The browser demo uses seeded data stored in localStorage. Missing upload configuration yields a labeled local preview, not a Cloudinary upload.

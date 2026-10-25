@@ -3,9 +3,15 @@ import { Link } from 'react-router-dom';
 import { UtensilsCrossed, ShieldAlert, Heart, ExternalLink } from 'lucide-react';
 
 export const Footer: React.FC = () => {
+  const notionUrl = import.meta.env.VITE_NOTION_URL;
+
   return (
     <footer className="bg-warm-100 border-t border-warm-200 mt-20 pt-16 pb-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="mb-8 border-l-4 border-amber-500 bg-amber-50 px-4 py-3 text-xs text-amber-950" role="note">
+          <strong>Demo mode:</strong> donation and claim data is stored in this browser. Supabase and Express are the production architecture in this repository; they are not deployed in this demo.
+          {notionUrl && <a href={notionUrl} target="_blank" rel="noreferrer" className="ml-2 font-semibold underline">Project Journey (Notion)</a>}
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-10">
           {/* Brand & Mission */}
           <div className="md:col-span-1 space-y-4">
@@ -16,14 +22,8 @@ export const Footer: React.FC = () => {
               <span className="text-lg font-bold text-forest-950">SharePlate</span>
             </div>
             <p className="text-xs text-stone-600 leading-relaxed">
-              A community food rescue platform connecting college canteens, restaurants, and caterers with nearby NGOs
-              to redirect surplus food before it goes to waste.
+              A browser-based prototype for coordinating surplus food listings, community claims, and delivery updates.
             </p>
-            <div className="pt-2">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-emerald-100/80 text-forest-900 border border-emerald-200">
-                ⚡ Powered by Cloudinary
-              </span>
-            </div>
           </div>
 
           {/* Platform Links */}
@@ -60,12 +60,7 @@ export const Footer: React.FC = () => {
               <li className="font-medium text-forest-900">Hacktober HackDays 2026</li>
               <li>SheBuilds Delhi Chapter · Powered by MLH</li>
               <li>Theme: Tech for Social Good</li>
-              <li>Team Size: 4 Student Engineers</li>
-              <li>
-                <Link to="/about" className="hover:text-forest-900 transition inline-flex items-center gap-1">
-                  Read Development Journey <ExternalLink className="w-3 h-3" />
-                </Link>
-              </li>
+              {notionUrl && <li><a href={notionUrl} target="_blank" rel="noreferrer" className="hover:text-forest-900 transition inline-flex items-center gap-1">Project Journey (Notion) <ExternalLink className="w-3 h-3" /></a></li>}
             </ul>
           </div>
 

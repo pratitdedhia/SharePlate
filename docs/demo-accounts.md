@@ -1,6 +1,8 @@
 # SharePlate Demo Accounts & Presentation Guide
 **Hacktober HackDays 2026 | SheBuilds Delhi Chapter | Powered by MLH**
 
+**Deployment status:** These are fictional browser demo profiles. The static Pages app stores listing and claim data in the current browser. Supabase and Express are in the repository but are not deployed with this demo.
+
 ---
 
 ## 1. Quick Demo Login for Judges
@@ -21,7 +23,7 @@ Clicking any demo button authenticates into a realistic fictional persona and ro
 - **Dashboard:** `/dashboard/donor`
 - **Features to Explore:**
   - View total listings, active portions, and meals saved.
-  - Inspect "+ Create Donation" with Cloudinary food photo upload.
+  - Inspect "+ Create Donation". A real Cloudinary upload requires configured public cloud and unsigned preset values; otherwise it remains a labeled local preview.
   - Review incoming claims from Robin Hood Army.
   - Mark food batches collected or delivered.
 
@@ -33,7 +35,7 @@ Clicking any demo button authenticates into a realistic fictional persona and ro
 - **Dashboard:** `/dashboard/recipient`
 - **Features to Explore:**
   - Browse food donations available across Delhi NCR.
-  - Reserve food batches with atomic portion reservations.
+  - Reserve available quantities in the browser-local demo store; cross-device atomicity is not provided by the demo.
   - Monitor upcoming pickups before expiration deadlines.
   - Update claim status to "Collected" or "Delivered".
 
@@ -59,7 +61,7 @@ Clicking any demo button authenticates into a realistic fictional persona and ro
   - Monitor aggregate impact metrics (meals rescued, active claims, carbon offset).
   - Safety & Allergen moderation queue with resolve/dismiss controls.
   - User privilege management and account deactivation toggle.
-  - Immutable system audit trail.
+  - Demo activity records; they are not an immutable audit trail.
 
 ---
 
@@ -76,4 +78,4 @@ Or execute the SQL migration in Supabase SQL Editor:
 supabase/seed.sql
 ```
 
-This clears transient session records while safely retaining the 4 standard demo personas, 6 realistic donation listings, and verified claims.
+This script resets repository demo data where configured. It does not clear a visitor's browser-local store. In the demo browser, clear the `shareplate_demo_store` localStorage entry to restore initial local data. The sample profiles and listings are fictional demo content, not verified partner organizations.

@@ -2,6 +2,8 @@
 
 **Hacktober HackDays 2026 | SheBuilds Delhi Chapter**  
 
+**Scope:** The controls below describe the Express/Supabase production architecture in the repository. The GitHub Pages demo is browser-local and does not inherit deployed API, RLS, or atomic-transaction guarantees.
+
 ---
 
 ## 1. Threat Model & Defense Strategy

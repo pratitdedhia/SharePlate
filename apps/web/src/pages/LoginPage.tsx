@@ -324,7 +324,7 @@ export const LoginPage: React.FC = () => {
         {/* Security Assurance */}
         <div className="flex items-center justify-center gap-2 text-[11px] text-stone-500 mt-4">
           <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-          <span>PostgreSQL RLS & Cloudinary security verified</span>
+          <span>Demo sign-in runs in this browser; production services are not deployed</span>
         </div>
       </div>
     </div>

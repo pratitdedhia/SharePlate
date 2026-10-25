@@ -4,64 +4,28 @@
 
 ---
 
-## 1. Test Suite Overview
+## 1. Test Suite And Status
 
-Our test strategy covers frontend units, backend API controllers, and end-to-end user journeys:
+This page is a test plan, not a historical execution report. Earlier pass counts and “verified” journey results were removed because they were not independently observed for the current revision. Check [CHANGES.md](../CHANGES.md) for exact results of checks actually run.
 
-| Scope | Tooling | Target | Status |
-| :--- | :--- | :--- | :--- |
-| **Frontend Unit & Logic** | Vitest (`apps/web`) | Portion math, environmental calculations | ✅ Passed (2/2) |
-| **Backend API Health** | Node.js Test Runner (`apps/api`) | Health route, express bootstrap | ✅ Passed (2/2) |
-| **TypeScript Type Checks** | `tsc --noEmit` | Strict compilation on web & API | ✅ Passed (0 errors) |
-| **Production Build** | `vite build` | Asset bundling, CSS/JS generation | ✅ Passed (3.35s) |
+Current test sources include the API tests in `apps/api/tests/api.test.js`, the frontend suite in `apps/web/src/App.test.tsx`, and mocked upload-flow coverage in `apps/web/src/tests/uploads.test.ts`.
 
----
+## 2. Important Test Scenarios
 
-## 2. Test Scenarios Executed
-
-### Scenario 1: Donation Creation
-- **Action:** Donor submits title, 45 portions of Vegetable Biryani, 4-hour deadline, and Cloudinary photo.
-- **Expected:** Listing appears immediately with status `available` and `quantity_available: 45`.
-- **Result:** Verified.
-
-### Scenario 2: Concurrency-Safe Claiming
-- **Action:** Recipient claims 20 portions.
-- **Expected:** Available quantity decrements to 25. Claim row created with status `claimed`.
-- **Result:** Verified via `claim_donation_atomic`.
-
-### Scenario 3: Double Reservation Prevention
-- **Action:** Attempting to claim 30 portions when only 25 remain.
-- **Expected:** Request rejected with descriptive error message: "Requested quantity exceeds available quantity".
-- **Result:** Verified.
-
-### Scenario 4: Claim Cancellation & Portion Release
-- **Action:** Recipient cancels claim.
-- **Expected:** Claim status changes to `cancelled`. 20 portions returned back to available pool.
-- **Result:** Verified via `cancel_claim_atomic`.
-
-### Scenario 5: Full Lifecycle Delivery (Claimed → Collected → Delivered)
-- **Action:** Recipient marks food collected upon pickup, then confirms delivery to community shelter.
-- **Expected:** Claim status updates to `collected`, then `delivered`. Impact metrics increment delivered portions by 20.
-- **Result:** Verified.
+- Demo claim rejects an amount greater than remaining quantity.
+- Demo claim rejects an expired listing.
+- Impact calculations use delivered portions divided by listed portions and share portion totals with the funnel.
+- Upload tests cover signed API success, unsigned-preset fallback, and labeled local preview.
+- Production SQL/API checks must be run against separately deployed services; the static Pages demo does not exercise them.
 
 ---
 
 ## 3. Running Automated Checks Locally
 
-### Backend Tests
+### Root Workspace Checks
 ```bash
-cd apps/api
+npm ci
 npm test
-```
-
-### Frontend Tests
-```bash
-cd apps/web
-npm test
-```
-
-### Production Builds
-```bash
-cd apps/api && npm run build
-cd apps/web && npm run build
+npm run build:web
+npm run build:api
 ```

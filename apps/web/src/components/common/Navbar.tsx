@@ -15,6 +15,7 @@ import {
   LogIn,
   UserPlus,
   Compass,
+  ExternalLink,
 } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
@@ -22,6 +23,7 @@ export const Navbar: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const notionUrl = import.meta.env.VITE_NOTION_URL;
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -133,6 +135,12 @@ export const Navbar: React.FC = () => {
             >
               About
             </Link>
+
+            {notionUrl && (
+              <a href={notionUrl} target="_blank" rel="noreferrer" className="px-3 py-2 rounded-xl text-sm font-semibold text-stone-700 hover:text-stone-900 hover:bg-warm-200 transition inline-flex items-center gap-1">
+                Project Journey (Notion) <ExternalLink className="w-3 h-3" />
+              </a>
+            )}
 
             {/* Authenticated Links Dynamically Adapting to Role */}
             {user && (
@@ -440,6 +448,12 @@ export const Navbar: React.FC = () => {
             >
               About & Safety
             </Link>
+
+            {notionUrl && (
+              <a href={notionUrl} target="_blank" rel="noreferrer" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2 rounded-xl text-stone-800 hover:bg-warm-100 inline-flex items-center gap-1">
+                Project Journey (Notion) <ExternalLink className="w-3 h-3" />
+              </a>
+            )}
 
             {user && (
               <>

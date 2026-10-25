@@ -3,8 +3,8 @@
  * Mandatory technology for Hacktober HackDays 2026
  */
 
-const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'shareplate-demo';
-const DEFAULT_FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80';
+const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+export const DEFAULT_FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80';
 
 export interface CloudinaryTransformOptions {
   width?: number;
@@ -15,6 +15,18 @@ export interface CloudinaryTransformOptions {
   format?: 'auto' | 'webp' | 'jpg' | 'png';
 }
 
+export interface CloudinaryUploadResponse {
+  secure_url: string;
+  public_id: string;
+  bytes: number;
+  format: string;
+  width: number;
+  height: number;
+}
+
+export const isCloudinaryAsset = (url?: string | null): boolean =>
+  Boolean(url?.includes('res.cloudinary.com/'));
+
 /**
  * Builds an optimized Cloudinary delivery URL with automatic format and quality compression.
  */
@@ -24,29 +36,28 @@ export const getCloudinaryUrl = (
 ): string => {
   if (!publicIdOrUrl) return DEFAULT_FALLBACK_IMAGE;
 
-  // If it's already a full HTTP(S) URL (e.g. Unsplash sample or existing Cloudinary URL)
+  const { width = 800, height = 600, crop = 'fill', gravity = 'auto', quality = 'auto', format = 'auto' } = options;
+  const transformPart = `c_${crop},w_${width},h_${height},g_${gravity},q_${quality},f_${format}/`;
+
   if (publicIdOrUrl.startsWith('http://') || publicIdOrUrl.startsWith('https://')) {
-    // If it is a Cloudinary URL, inject transformations
-    if (publicIdOrUrl.includes('res.cloudinary.com') && !publicIdOrUrl.includes('/c_')) {
-      const { width = 800, height = 600, crop = 'fill', quality = 'auto', format = 'auto' } = options;
-      const transformPart = `c_${crop},w_${width},h_${height},q_${quality},f_${format}/`;
-      return publicIdOrUrl.replace('/upload/', `/upload/${transformPart}`);
-    }
+    if (isCloudinaryAsset(publicIdOrUrl)) return publicIdOrUrl.replace('/upload/', `/upload/${transformPart}`);
     return publicIdOrUrl;
   }
 
-  // Build from Cloudinary public ID
-  const { width = 800, height = 600, crop = 'fill', gravity = 'auto', quality = 'auto', format = 'auto' } = options;
-  const transforms = [
-    `c_${crop}`,
-    `w_${width}`,
-    `h_${height}`,
-    `g_${gravity}`,
-    `q_${quality}`,
-    `f_${format}`,
-  ].join(',');
+  if (!CLOUD_NAME) return DEFAULT_FALLBACK_IMAGE;
 
-  return `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/${transforms}/${publicIdOrUrl}`;
+  return `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/${transformPart}${publicIdOrUrl}`;
+};
+
+export const getCloudinarySrcSet = (
+  publicIdOrUrl?: string | null,
+  options: Omit<CloudinaryTransformOptions, 'width'> = {}
+): string | undefined => {
+  if (!publicIdOrUrl || (!isCloudinaryAsset(publicIdOrUrl) && !CLOUD_NAME)) return undefined;
+  if (publicIdOrUrl.startsWith('http') && !isCloudinaryAsset(publicIdOrUrl)) return undefined;
+  return [400, 800, 1200]
+    .map((width) => `${getCloudinaryUrl(publicIdOrUrl, { ...options, width })} ${width}w`)
+    .join(', ');
 };
 
 /**
@@ -62,7 +73,7 @@ export const uploadToCloudinary = async (
     cloudName: string;
   },
   onProgress?: (percent: number) => void
-): Promise<{ secure_url: string; public_id: string }> => {
+): Promise<CloudinaryUploadResponse> => {
   const formData = new FormData();
   formData.append('file', file);
   formData.append('api_key', signatureData.apiKey);
@@ -89,10 +100,7 @@ export const uploadToCloudinary = async (
       if (xhr.status >= 200 && xhr.status < 300) {
         try {
           const response = JSON.parse(xhr.responseText);
-          resolve({
-            secure_url: response.secure_url,
-            public_id: response.public_id,
-          });
+          resolve(response);
         } catch (e) {
           reject(new Error('Invalid JSON response from Cloudinary'));
         }
@@ -101,6 +109,45 @@ export const uploadToCloudinary = async (
       }
     };
 
+    xhr.onerror = () => reject(new Error('Network error during Cloudinary image upload'));
+    xhr.send(formData);
+  });
+};
+
+export const uploadUnsignedToCloudinary = async (
+  file: File,
+  cloudName: string,
+  uploadPreset: string,
+  onProgress?: (percent: number) => void
+): Promise<CloudinaryUploadResponse> => {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', uploadPreset);
+  formData.append('folder', 'shareplate/donations');
+  formData.append('tags', 'shareplate,food-donation');
+  formData.append('context', `source=shareplate|category=food-donation|filename=${file.name}`);
+
+  const xhr = new XMLHttpRequest();
+  const url = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
+
+  return new Promise((resolve, reject) => {
+    xhr.open('POST', url);
+    if (xhr.upload && onProgress) {
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) onProgress(Math.round((event.loaded / event.total) * 100));
+      };
+    }
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          resolve(JSON.parse(xhr.responseText));
+        } catch {
+          reject(new Error('Invalid JSON response from Cloudinary'));
+        }
+      } else {
+        reject(new Error(`Cloudinary upload failed: ${xhr.statusText || xhr.responseText}`));
+      }
+    };
     xhr.onerror = () => reject(new Error('Network error during Cloudinary image upload'));
     xhr.send(formData);
   });

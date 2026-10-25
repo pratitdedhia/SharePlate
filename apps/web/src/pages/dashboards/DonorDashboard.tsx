@@ -8,6 +8,7 @@ import { demoStore } from '../../lib/mockData';
 import { Donation, Claim } from '../../types';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { DemoAccountBanner } from '../../components/common/DemoAccountBanner';
+import { DEFAULT_FALLBACK_IMAGE, getCloudinarySrcSet, getCloudinaryUrl, isCloudinaryAsset } from '../../lib/cloudinary';
 import {
   UtensilsCrossed,
   PlusCircle,
@@ -152,7 +153,7 @@ export const DonorDashboard: React.FC = () => {
             </div>
           </div>
           <div className="text-2xl sm:text-3xl font-black text-amber-700">{claimedDonations}</div>
-          <div className="text-[11px] text-stone-500 font-medium">Reserved by verified NGOs</div>
+          <div className="text-[11px] text-stone-500 font-medium">Reserved by demo recipients</div>
         </div>
 
         {/* Completed Rescues */}
@@ -177,7 +178,7 @@ export const DonorDashboard: React.FC = () => {
             <div className="p-6 border-b border-warm-100 flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-black text-stone-900">My Food Donations</h2>
-                <p className="text-xs text-stone-500">Live inventory of surplus meal batches</p>
+                <p className="text-xs text-stone-500">Browser-local demo listings</p>
               </div>
               <Link
                 to="/my-donations"
@@ -196,12 +197,24 @@ export const DonorDashboard: React.FC = () => {
                 donations.slice(0, 4).map((d) => (
                   <div key={d.id} className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-warm-50/50 transition">
                     <div className="flex items-start gap-3.5">
-                      {d.image_url ? (
+                      {d.cloudinary_public_id || d.image_url ? (
+                        <div className="relative shrink-0">
                         <img
-                          src={d.image_url}
+                          src={getCloudinaryUrl(d.cloudinary_public_id || d.image_url, { width: 800, height: 600, crop: 'fill', gravity: 'auto' })}
+                          srcSet={getCloudinarySrcSet(d.cloudinary_public_id || d.image_url, { height: 600, crop: 'fill', gravity: 'auto' })}
+                          sizes="56px"
+                          loading="lazy"
                           alt={d.title}
                           className="w-14 h-14 rounded-2xl object-cover shrink-0 border border-warm-200"
+                          onError={(event) => {
+                            event.currentTarget.onerror = null;
+                            event.currentTarget.src = DEFAULT_FALLBACK_IMAGE;
+                            event.currentTarget.srcset = '';
+                            event.currentTarget.parentElement?.querySelector('[data-fallback-label]')?.classList.remove('hidden');
+                          }}
                         />
+                        <span data-fallback-label className={`absolute -bottom-1 left-0 bg-stone-950/75 text-white text-[8px] px-1 rounded ${isCloudinaryAsset(getCloudinaryUrl(d.cloudinary_public_id || d.image_url)) ? 'hidden' : ''}`}>Unsplash fallback</span>
+                        </div>
                       ) : (
                         <div className="w-14 h-14 rounded-2xl bg-warm-100 flex items-center justify-center shrink-0 text-stone-400">
                           <UtensilsCrossed className="w-6 h-6" />

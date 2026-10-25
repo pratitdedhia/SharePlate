@@ -5,7 +5,8 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
 export const isDemoMode = () => {
-  return import.meta.env.VITE_DEMO_MODE === 'true' || localStorage.getItem('shareplate_force_demo') === 'true';
+  return import.meta.env.VITE_DEMO_MODE === 'true' ||
+    (typeof localStorage !== 'undefined' && localStorage.getItem('shareplate_force_demo') === 'true');
 };
 
 export async function apiRequest<T = any>(

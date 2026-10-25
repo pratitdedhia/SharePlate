@@ -11,6 +11,8 @@ import {
 } from 'lucide-react';
 
 export const AboutPage: React.FC = () => {
+  const notionUrl = import.meta.env.VITE_NOTION_URL;
+
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12">
       {/* Header */}
@@ -27,6 +29,10 @@ export const AboutPage: React.FC = () => {
         </p>
       </div>
 
+      <div className="border-l-4 border-amber-500 bg-amber-50 px-4 py-3 text-xs text-amber-950" role="note">
+        <strong>Demo mode:</strong> donation and claim data is stored in this browser. Supabase and Express are the production architecture in this repository; they are not deployed in this demo.
+      </div>
+
       {/* Problem & Reality in India */}
       <div className="bg-white p-8 rounded-3xl border border-warm-200 shadow-xs space-y-4">
         <h2 className="text-xl font-black text-stone-900">The Problem We Are Solving</h2>
@@ -35,18 +41,9 @@ export const AboutPage: React.FC = () => {
           cafeterias, marriage caterers, and bakeries are discarded every single day due to lack of immediate,
           reliable coordination with local NGOs. Meanwhile, community shelters struggle daily with grocery costs.
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-          <div className="p-4 rounded-2xl bg-warm-50 border border-warm-200 space-y-1">
-            <span className="text-2xl font-black text-forest-900">~68M Tonnes</span>
-            <span className="text-xs font-semibold text-stone-800 block">Food Wasted Annually in India</span>
-            <p className="text-[11px] text-stone-500">According to UNEP Food Waste Index Report benchmarks.</p>
-          </div>
-          <div className="p-4 rounded-2xl bg-warm-50 border border-warm-200 space-y-1">
-            <span className="text-2xl font-black text-emerald-700">8–10%</span>
-            <span className="text-xs font-semibold text-stone-800 block">Global Greenhouse Gases</span>
-            <p className="text-[11px] text-stone-500">Methane emissions generated when food rots in open landfills.</p>
-          </div>
-        </div>
+        <p className="text-xs text-stone-500 border-t border-warm-200 pt-4">
+          This is the product's problem framing, not a measured result from the SharePlate demo. Quantitative research claims are intentionally omitted until their source and scope are verified.
+        </p>
       </div>
 
       {/* Cloudinary Integration Section */}
@@ -57,8 +54,7 @@ export const AboutPage: React.FC = () => {
         </div>
         <h2 className="text-xl sm:text-2xl font-black text-white">How SharePlate Uses Cloudinary</h2>
         <p className="text-xs sm:text-sm text-emerald-100/80 leading-relaxed">
-          High-quality visual verification is crucial for recipients to assess food condition, hygiene, and packaging.
-          SharePlate integrates Cloudinary end-to-end:
+          When the public Cloudinary cloud name and unsigned preset are configured, the deployed static demo uploads directly to Cloudinary. If the API runs with Cloudinary configured, the signed upload path is used first. Without either configuration, the image remains a labeled local preview.
         </p>
         <ul className="space-y-2.5 text-xs text-emerald-100/90 pt-1">
           <li className="flex items-start gap-2">
@@ -66,8 +62,7 @@ export const AboutPage: React.FC = () => {
               ✓
             </span>
             <span>
-              <strong>Cryptographically Signed Uploads:</strong> The Express API server generates constrained SHA signatures
-              for user-scoped folders (<code className="text-emerald-300">shareplate/donations/:userId</code>), protecting API secrets.
+              <strong>Upload options:</strong> The static demo uses an unsigned upload preset; the Express API can issue signed upload parameters. The Cloudinary API secret is never included in browser code.
             </span>
           </li>
           <li className="flex items-start gap-2">
@@ -75,7 +70,7 @@ export const AboutPage: React.FC = () => {
               ✓
             </span>
             <span>
-              <strong>Automatic Responsive Format & Quality:</strong> Images are served with Cloudinary's dynamic <code className="text-emerald-300">f_auto,q_auto</code> transformations, reducing mobile payload sizes by up to 70%.
+              <strong>Responsive delivery:</strong> Cloudinary-hosted listing images request <code className="text-emerald-300">c_fill,g_auto,f_auto,q_auto</code> variants at responsive widths. The uploader displays measured delivered bytes when the transformed image can be fetched.
             </span>
           </li>
           <li className="flex items-start gap-2">
@@ -83,7 +78,7 @@ export const AboutPage: React.FC = () => {
               ✓
             </span>
             <span>
-              <strong>Enforced Size & Type Restrictions:</strong> Prevents malicious uploads by restricting payloads to validated image formats under 5MB.
+              <strong>Client validation:</strong> The uploader accepts JPEG, PNG, and WebP files up to 5 MB. This client-side check does not replace server-side policy enforcement.
             </span>
           </li>
         </ul>
@@ -120,11 +115,7 @@ export const AboutPage: React.FC = () => {
           Our entire product development journey, architectural decisions, and testing protocols are structured
           for Notion in accordance with Hacktober HackDays 2026 submission guidelines.
         </p>
-        <div className="pt-2">
-          <span className="text-xs font-semibold text-emerald-800 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 inline-block">
-            See docs/notion/ in repository for all 12 complete subpages
-          </span>
-        </div>
+        {notionUrl && <a href={notionUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-800 underline">Project Journey (Notion) <ExternalLink className="w-3 h-3" /></a>}
       </div>
     </div>
   );

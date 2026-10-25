@@ -4,6 +4,8 @@
 **Authentication Scheme:** HTTP Bearer Token (`Authorization: Bearer <supabase_access_token>`)  
 **Standard Response Format:** JSON `{ "success": boolean, "message"?: string, "data"?: any, "errors"?: any[] }`
 
+**Deployment note:** This describes the Express API in the repository. It is not deployed with the static GitHub Pages demo. Example response values below are illustrative, not a live health check.
+
 ---
 
 ## 1. System Health & Integration Status

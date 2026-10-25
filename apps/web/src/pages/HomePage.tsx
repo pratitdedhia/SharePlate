@@ -123,7 +123,7 @@ export const HomePage: React.FC = () => {
                 </div>
                 <div className="flex items-center justify-center gap-4 text-xs font-semibold text-stone-500 pt-1">
                   <Link to="/donations" className="hover:text-stone-900 transition flex items-center gap-1">
-                    Browse live batches as guest <ArrowRight className="w-3 h-3 text-emerald-600" />
+                    Browse demo listings <ArrowRight className="w-3 h-3 text-emerald-600" />
                   </Link>
                   <span>·</span>
                   <Link to="/impact" className="hover:text-stone-900 transition">
@@ -134,7 +134,7 @@ export const HomePage: React.FC = () => {
             )}
           </div>
 
-          {/* Live Trust Metrics Strip */}
+          {/* Demo impact metrics */}
           {impactMetrics && (
             <div className="pt-4 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl mx-auto">
               <div className="bg-white/90 backdrop-blur-xs p-4 rounded-2xl border border-warm-200 shadow-xs text-center">
@@ -143,15 +143,15 @@ export const HomePage: React.FC = () => {
               </div>
               <div className="bg-white/90 backdrop-blur-xs p-4 rounded-2xl border border-warm-200 shadow-xs text-center">
                 <div className="text-2xl font-black text-stone-900">{impactMetrics.activeDonors}</div>
-                <div className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider">Active Donors</div>
+                <div className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider">Demo Donors</div>
               </div>
               <div className="bg-white/90 backdrop-blur-xs p-4 rounded-2xl border border-warm-200 shadow-xs text-center">
                 <div className="text-2xl font-black text-stone-900">{impactMetrics.participatingRecipients}</div>
-                <div className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider">Partner NGOs</div>
+                <div className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider">Demo Recipients</div>
               </div>
               <div className="bg-white/90 backdrop-blur-xs p-4 rounded-2xl border border-warm-200 shadow-xs text-center">
                 <div className="text-2xl font-black text-emerald-700">~{impactMetrics.estimatedCo2eSavedKg} kg</div>
-                <div className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider">CO₂e Avoided</div>
+                <div className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider">CO₂e Avoided (est.)</div>
               </div>
             </div>
           )}
@@ -163,11 +163,11 @@ export const HomePage: React.FC = () => {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
           <div>
             <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-forest-900 mb-1 border border-emerald-300">
-              <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
-              Live Rescue Inventory
+              <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
+              Demo Rescue Inventory
             </div>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-stone-900 mt-1">Available Food Batches</h2>
-            <p className="text-xs text-stone-500 mt-0.5">Fresh surplus meals ready for immediate, verified NGO pickup.</p>
+            <p className="text-xs text-stone-500 mt-0.5">Sample listings for trying the donation and claim flow.</p>
           </div>
           <Link
             to="/donations"
@@ -201,7 +201,7 @@ export const HomePage: React.FC = () => {
               </div>
               <h3 className="text-lg font-bold text-stone-900">Canteens & Donors</h3>
               <p className="text-xs text-stone-600 leading-relaxed">
-                Publish daily surplus meal batches in 60 seconds with food photos and coordinate atomic, double-claim-proof shelter collections.
+                Publish surplus meal batches with food photos. Demo reservations use browser-local data; atomic claims are available through the repository's production SQL path, which is not deployed here.
               </p>
             </div>
             <div className="pt-2 space-y-2">
@@ -242,7 +242,7 @@ export const HomePage: React.FC = () => {
                 to="/register"
                 className="w-full py-2.5 rounded-xl text-xs font-bold bg-blue-50 text-blue-900 hover:bg-blue-100 border border-blue-200 transition text-center block"
               >
-                Register Verified NGO
+                Register Recipient Organization
               </Link>
             </div>
           </div>
@@ -305,7 +305,7 @@ export const HomePage: React.FC = () => {
             </div>
             <h3 className="text-base font-bold text-stone-900">NGO Reserves Portions</h3>
             <p className="text-xs text-stone-600 leading-relaxed">
-              Nearby verified recipient claims needed portions atomically. Concurrency-safe reservations prevent overselling.
+              A recipient reserves available portions in the demo flow. The production database includes an atomic claim procedure; the demo does not provide cross-device concurrency guarantees.
             </p>
           </div>
 
@@ -325,7 +325,7 @@ export const HomePage: React.FC = () => {
             </div>
             <h3 className="text-base font-bold text-stone-900">Verified Delivery</h3>
             <p className="text-xs text-stone-600 leading-relaxed">
-              Recipient verifies distribution. Live platform metrics update with actual rescued meals and carbon offsets.
+              A demo user can mark a delivery complete. The impact snapshot updates from the same browser-local claims and uses estimates for food weight and emissions.
             </p>
           </div>
         </div>

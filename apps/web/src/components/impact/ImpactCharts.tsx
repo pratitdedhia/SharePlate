@@ -7,15 +7,7 @@ interface ImpactChartsProps {
 }
 
 export const ImpactCharts: React.FC<ImpactChartsProps> = ({ metrics }) => {
-  const portionsAvailable = Math.max(
-    0,
-    metrics.portionsListed - metrics.portionsDelivered - metrics.portionsReserved
-  );
-
-  const totalPortions = Math.max(1, metrics.portionsListed);
-  const deliveredPct = Math.round((metrics.portionsDelivered / totalPortions) * 100);
-  const reservedPct = Math.round((metrics.portionsReserved / totalPortions) * 100);
-  const availablePct = Math.max(0, 100 - deliveredPct - reservedPct);
+  const { portionsAvailable, deliveredPercent: deliveredPct, reservedPercent: reservedPct, availablePercent: availablePct } = metrics;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 my-8">
@@ -93,7 +85,7 @@ export const ImpactCharts: React.FC<ImpactChartsProps> = ({ metrics }) => {
           </h3>
           <p className="text-xs text-emerald-100/80 leading-relaxed">
             When food rots in landfills, it emits methane—a greenhouse gas 28× more potent than carbon dioxide.
-            Every verified delivery prevents food waste at the source.
+            The demo estimate counts portions marked delivered in the local data.
           </p>
         </div>
 

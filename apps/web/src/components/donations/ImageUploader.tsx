@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { UploadCloud, CheckCircle2, AlertCircle, Image as ImageIcon, X, Loader2 } from 'lucide-react';
+import { UploadCloud, CheckCircle2, AlertCircle, X, Loader2 } from 'lucide-react';
 import { uploadService } from '../../services/uploads';
 
 interface ImageUploaderProps {
@@ -15,28 +15,12 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
   const [uploading, setUploading] = useState<boolean>(false);
   const [progress, setProgress] = useState<number>(0);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [uploadResult, setUploadResult] = useState<Awaited<ReturnType<typeof uploadService.uploadDonationImage>> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const samplePresets = [
-    {
-      name: 'Fresh Biryani',
-      url: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&w=800&q=80',
-      publicId: 'shareplate/demo/vegetable_biryani_01',
-    },
-    {
-      name: 'Roti & Sabzi',
-      url: 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80',
-      publicId: 'shareplate/demo/paneer_roti_02',
-    },
-    {
-      name: 'Bakery Loaves',
-      url: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=800&q=80',
-      publicId: 'shareplate/demo/artisan_bread_03',
-    },
-  ];
 
   const handleFile = async (file: File) => {
     setErrorMsg(null);
+    setUploadResult(null);
 
     // 1. File Type Validation
     const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
@@ -63,7 +47,8 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
       });
 
       setPreviewUrl(result.imageUrl);
-      onUploadComplete(result.imageUrl, result.publicId);
+      setUploadResult(result);
+      onUploadComplete(result.mode === 'cloudinary' ? result.imageUrl : '', result.publicId);
     } catch (err: any) {
       setErrorMsg(err.message || 'Image upload failed. You can choose a sample photo below.');
     } finally {
@@ -71,14 +56,9 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
     }
   };
 
-  const handleSelectPreset = (preset: { url: string; publicId: string }) => {
-    setPreviewUrl(preset.url);
-    setErrorMsg(null);
-    onUploadComplete(preset.url, preset.publicId);
-  };
-
   const clearImage = () => {
     setPreviewUrl('');
+    setUploadResult(null);
     onUploadComplete('', '');
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -87,7 +67,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <label className="block text-xs font-bold text-stone-700">
-          Food Photograph <span className="text-emerald-700 font-semibold">(Cloudinary Hosted)</span>
+          Food Photograph
         </label>
         <span className="text-[11px] text-stone-400">JPG, PNG, WebP up to 5MB</span>
       </div>
@@ -115,8 +95,11 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
           </div>
 
           <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-md bg-forest-950/80 text-[10px] text-emerald-300 font-semibold flex items-center gap-1 backdrop-blur-xs">
-            <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-            Cloudinary Ready
+            {uploadResult?.mode === 'cloudinary' ? (
+              <><CheckCircle2 className="w-3 h-3 text-emerald-400" /> Cloudinary uploaded</>
+            ) : (
+              <>Demo preview — not uploaded to Cloudinary</>
+            )}
           </div>
         </div>
       ) : (
@@ -170,6 +153,15 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
         </div>
       )}
 
+      {uploadResult?.mode === 'cloudinary' && (
+        <p className="text-[11px] text-stone-600" aria-live="polite">
+          Original: {(uploadResult.originalBytes / 1024).toFixed(1)} KB
+          {uploadResult.deliveredBytes !== undefined && ` · Delivered: ${(uploadResult.deliveredBytes / 1024).toFixed(1)} KB`}
+          {uploadResult.format && ` · ${uploadResult.format.toUpperCase()}`}
+          {uploadResult.width && uploadResult.height && ` · ${uploadResult.width} × ${uploadResult.height}`}
+        </p>
+      )}
+
       {errorMsg && (
         <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 flex items-center gap-2 text-xs text-rose-800">
           <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
@@ -177,25 +169,9 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
         </div>
       )}
 
-      {/* Demo sample preset selector */}
-      <div className="pt-1">
-        <span className="text-[11px] font-semibold text-stone-500 block mb-1.5">
-          Or choose a verified sample image for evaluation:
-        </span>
-        <div className="flex flex-wrap gap-2">
-          {samplePresets.map((preset) => (
-            <button
-              key={preset.name}
-              type="button"
-              onClick={() => handleSelectPreset(preset)}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-warm-100 hover:bg-emerald-50 hover:text-forest-900 border border-warm-200 transition"
-            >
-              <ImageIcon className="w-3 h-3 text-emerald-600" />
-              {preset.name}
-            </button>
-          ))}
-        </div>
-      </div>
+      {uploadResult?.mode === 'demo-preview' && (
+        <p className="text-[11px] text-amber-800" role="status">Cloudinary not configured. Photos will be local demo previews.</p>
+      )}
     </div>
   );
 };

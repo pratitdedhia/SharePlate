@@ -1,5 +1,5 @@
 import { apiRequest } from './api';
-import { uploadToCloudinary } from '../lib/cloudinary';
+import { getCloudinaryUrl, uploadToCloudinary, uploadUnsignedToCloudinary } from '../lib/cloudinary';
 
 export interface UploadSignatureResponse {
   success: boolean;
@@ -10,7 +10,17 @@ export interface UploadSignatureResponse {
   apiKey?: string;
   cloudName?: string;
   message?: string;
-  sampleImages?: Array<{ name: string; url: string; publicId: string }>;
+}
+
+export interface DonationImageUploadResult {
+  imageUrl: string;
+  publicId: string;
+  mode: 'cloudinary' | 'demo-preview';
+  originalBytes: number;
+  deliveredBytes?: number;
+  format?: string;
+  width?: number;
+  height?: number;
 }
 
 export const uploadService = {
@@ -19,72 +29,66 @@ export const uploadService = {
       const res = await apiRequest('/uploads/signature', { method: 'POST' });
       return res;
     } catch {
-      return {
-        success: true,
-        isConfigured: false,
-        sampleImages: [
-          {
-            name: 'Vegetable Biryani',
-            url: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&w=800&q=80',
-            publicId: 'shareplate/sample/biryani',
-          },
-          {
-            name: 'Fresh Chapati & Sabzi',
-            url: 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80',
-            publicId: 'shareplate/sample/roti',
-          },
-          {
-            name: 'Bakery Breads',
-            url: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=800&q=80',
-            publicId: 'shareplate/sample/bread',
-          },
-        ],
-      };
+      return { success: false, isConfigured: false };
     }
   },
 
   async uploadDonationImage(
     file: File,
     onProgress?: (percent: number) => void
-  ): Promise<{ imageUrl: string; publicId: string }> {
+  ): Promise<DonationImageUploadResult> {
     const signatureData = await this.getSignature();
 
     if (signatureData.isConfigured && signatureData.signature && signatureData.apiKey && signatureData.cloudName && signatureData.folder) {
-      // Perform genuine signed upload directly to Cloudinary
-      const res = await uploadToCloudinary(
-        file,
-        {
+      try {
+        const response = await uploadToCloudinary(file, {
           signature: signatureData.signature,
           timestamp: signatureData.timestamp!,
           folder: signatureData.folder,
           apiKey: signatureData.apiKey,
           cloudName: signatureData.cloudName,
-        },
-        onProgress
-      );
-
-      return {
-        imageUrl: res.secure_url,
-        publicId: res.public_id,
-      };
+        }, onProgress);
+        return this.buildResult(file, response);
+      } catch {
+        if (!import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET) throw new Error('Signed Cloudinary upload failed.');
+      }
     }
 
-    // Demo/offline mode simulation: simulate upload progress
-    return new Promise((resolve) => {
-      let progress = 0;
-      const interval = setInterval(() => {
-        progress += 25;
-        if (onProgress) onProgress(progress);
-        if (progress >= 100) {
-          clearInterval(interval);
-          // Create local object URL for preview and assign demo public ID
-          const localUrl = URL.createObjectURL(file);
-          resolve({
-            imageUrl: localUrl,
-            publicId: `shareplate/local/${file.name.replace(/\.[^/.]+$/, '')}`,
-          });
-        }
-      }, 100);
-    });
+    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+    const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+    if (cloudName && uploadPreset) {
+      const response = await uploadUnsignedToCloudinary(file, cloudName, uploadPreset, onProgress);
+      return this.buildResult(file, response);
+    }
+
+    onProgress?.(100);
+    return {
+      imageUrl: URL.createObjectURL(file),
+      publicId: '',
+      mode: 'demo-preview',
+      originalBytes: file.size,
+    };
+  },
+
+  async buildResult(file: File, response: Awaited<ReturnType<typeof uploadToCloudinary>>): Promise<DonationImageUploadResult> {
+    const transformedUrl = getCloudinaryUrl(response.secure_url, { width: 800, height: 600 });
+    let deliveredBytes: number | undefined;
+    try {
+      const delivery = await fetch(transformedUrl);
+      if (delivery.ok) deliveredBytes = (await delivery.blob()).size;
+    } catch {
+      deliveredBytes = undefined;
+    }
+
+    return {
+      imageUrl: response.secure_url,
+      publicId: response.public_id,
+      mode: 'cloudinary',
+      originalBytes: file.size,
+      deliveredBytes,
+      format: response.format,
+      width: response.width,
+      height: response.height,
+    };
   },
 };

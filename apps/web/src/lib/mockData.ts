@@ -1,5 +1,63 @@
 import { Donation, Claim, UserProfile, ImpactMetrics } from '../types';
 
+export const DEMO_SEED_IMAGES = [
+  { name: 'Vegetable biryani', publicId: 'shareplate/seed/vegetable-biryani' },
+  { name: 'Roti and paneer', publicId: 'shareplate/seed/roti-paneer' },
+  { name: 'Multigrain bread', publicId: 'shareplate/seed/multigrain-bread' },
+  { name: 'Idli and sambar', publicId: 'shareplate/seed/idli-sambar' },
+  { name: 'Seasonal fruit', publicId: 'shareplate/seed/seasonal-fruit' },
+  { name: 'Dal and rice', publicId: 'shareplate/seed/dal-rice' },
+] as const;
+
+export const calculateImpactMetrics = (donations: Donation[], claims: Claim[]): ImpactMetrics => {
+  const portionsListed = donations.reduce((total, donation) => total + donation.quantity_total, 0);
+  const portionsDelivered = claims
+    .filter((claim) => claim.status === 'delivered')
+    .reduce((total, claim) => total + claim.quantity_claimed, 0);
+  const portionsReserved = claims
+    .filter((claim) => claim.status === 'claimed' || claim.status === 'collected')
+    .reduce((total, claim) => total + claim.quantity_claimed, 0);
+  const portionsAvailable = Math.max(0, portionsListed - portionsDelivered - portionsReserved);
+  const deliveredPercent = portionsListed === 0 ? 0 : Math.round((portionsDelivered / portionsListed) * 100);
+  const reservedPercent = portionsListed === 0 ? 0 : Math.round((portionsReserved / portionsListed) * 100);
+  const availablePercent = Math.max(0, 100 - deliveredPercent - reservedPercent);
+  const estimatedFoodRescuedKg = Math.round(portionsDelivered * 0.4);
+
+  return {
+    donationsListed: donations.length,
+    portionsListed,
+    portionsReserved,
+    portionsDelivered,
+    portionsAvailable,
+    deliveredPercent,
+    reservedPercent,
+    availablePercent,
+    completedRescues: claims.filter((claim) => claim.status === 'delivered').length,
+    activeDonors: new Set(donations.map((donation) => donation.donor_id)).size,
+    participatingRecipients: new Set(claims.map((claim) => claim.recipient_id)).size,
+    activeClaims: claims.filter((claim) => claim.status === 'claimed' || claim.status === 'collected').length,
+    completionRatePercent: deliveredPercent,
+    estimatedFoodRescuedKg,
+    estimatedCo2eSavedKg: Math.round(estimatedFoodRescuedKg * 2.5),
+    methodologyNote: 'Rescue rate is delivered portions divided by listed portions. Environmental values are estimates based on 400 g per portion and 2.5 kg CO2e per kg of food.',
+  };
+};
+
+const DEMO_STORAGE_KEY = 'shareplate_demo_store';
+
+const loadDemoState = (): { donations: Donation[]; claims: Claim[] } | null => {
+  if (typeof localStorage === 'undefined') return null;
+  try {
+    const saved = localStorage.getItem(DEMO_STORAGE_KEY);
+    if (!saved) return null;
+    const parsed = JSON.parse(saved);
+    if (Array.isArray(parsed.donations) && Array.isArray(parsed.claims)) return parsed;
+  } catch {
+    localStorage.removeItem(DEMO_STORAGE_KEY);
+  }
+  return null;
+};
+
 export const DEMO_PROFILES: Record<string, UserProfile> = {
   donor: {
     id: 'a0000000-0000-0000-0000-000000000001',
@@ -12,7 +70,6 @@ export const DEMO_PROFILES: Record<string, UserProfile> = {
     service_area: 'Rohini & Pitampura',
     donor_type: 'canteen',
     contact_person: 'Priya Sharma (Canteen Operations Lead)',
-    avatar_url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=256&q=80',
     is_active: true,
   },
   recipient: {
@@ -26,7 +83,6 @@ export const DEMO_PROFILES: Record<string, UserProfile> = {
     service_area: 'North & West Delhi',
     recipient_type: 'ngo',
     contact_person: 'Rajesh Kumar (Distribution Coordinator)',
-    avatar_url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=256&q=80',
     is_active: true,
   },
   volunteer: {
@@ -40,7 +96,6 @@ export const DEMO_PROFILES: Record<string, UserProfile> = {
     service_area: 'South Delhi & Noida',
     availability: 'evenings',
     bio: 'Dedicated food rescue cyclist and delivery coordinator with 2+ years field experience.',
-    avatar_url: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=256&q=80',
     is_active: true,
   },
   admin: {
@@ -52,7 +107,6 @@ export const DEMO_PROFILES: Record<string, UserProfile> = {
     phone: '+91 11 2345 6789',
     city: 'Delhi NCR',
     service_area: 'Pan-India',
-    avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=256&q=80',
     is_active: true,
   },
 };
@@ -67,8 +121,7 @@ export const INITIAL_DEMO_DONATIONS: Donation[] = [
     quantity_total: 45,
     quantity_available: 45,
     quantity_unit: 'portions',
-    image_url: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&w=800&q=80',
-    cloudinary_public_id: 'shareplate/demo/vegetable_biryani_01',
+    cloudinary_public_id: DEMO_SEED_IMAGES[0].publicId,
     ingredients: 'Basmati rice, green peas, carrots, beans, onions, ghee, cumin, coriander',
     allergens: 'Dairy (ghee)',
     preparation_time: new Date(Date.now() - 3 * 3600000).toISOString(),
@@ -95,8 +148,7 @@ export const INITIAL_DEMO_DONATIONS: Donation[] = [
     quantity_total: 60,
     quantity_available: 20,
     quantity_unit: 'portions',
-    image_url: 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80',
-    cloudinary_public_id: 'shareplate/demo/paneer_roti_02',
+    cloudinary_public_id: DEMO_SEED_IMAGES[1].publicId,
     ingredients: 'Whole wheat flour, cottage cheese (paneer), tomatoes, bell peppers, turmeric, mustard oil',
     allergens: 'Gluten, Dairy',
     preparation_time: new Date(Date.now() - 2 * 3600000).toISOString(),
@@ -123,8 +175,7 @@ export const INITIAL_DEMO_DONATIONS: Donation[] = [
     quantity_total: 35,
     quantity_available: 35,
     quantity_unit: 'packs',
-    image_url: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=800&q=80',
-    cloudinary_public_id: 'shareplate/demo/artisan_bread_03',
+    cloudinary_public_id: DEMO_SEED_IMAGES[2].publicId,
     ingredients: 'Wheat flour, rye, oats, flax seeds, active yeast, rock salt, water',
     allergens: 'Gluten (wheat, rye, oats)',
     preparation_time: new Date(Date.now() - 5 * 3600000).toISOString(),
@@ -151,8 +202,7 @@ export const INITIAL_DEMO_DONATIONS: Donation[] = [
     quantity_total: 40,
     quantity_available: 0,
     quantity_unit: 'portions',
-    image_url: 'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?auto=format&fit=crop&w=800&q=80',
-    cloudinary_public_id: 'shareplate/demo/idli_sambar_04',
+    cloudinary_public_id: DEMO_SEED_IMAGES[3].publicId,
     ingredients: 'Rice, urad dal, fenugreek, toor dal, drumsticks, pumpkin, curry leaves, tamarind',
     allergens: 'Mustard, Coconut',
     preparation_time: new Date(Date.now() - 24 * 3600000).toISOString(),
@@ -179,8 +229,7 @@ export const INITIAL_DEMO_DONATIONS: Donation[] = [
     quantity_total: 50,
     quantity_available: 50,
     quantity_unit: 'portions',
-    image_url: 'https://images.unsplash.com/photo-1610832958506-aa56368176cf?auto=format&fit=crop&w=800&q=80',
-    cloudinary_public_id: 'shareplate/demo/fresh_fruits_05',
+    cloudinary_public_id: DEMO_SEED_IMAGES[4].publicId,
     ingredients: 'Shimla apples, Robusta bananas, Kinnow oranges',
     allergens: 'None',
     preparation_time: new Date(Date.now() - 4 * 3600000).toISOString(),
@@ -207,8 +256,7 @@ export const INITIAL_DEMO_DONATIONS: Donation[] = [
     quantity_total: 50,
     quantity_available: 0,
     quantity_unit: 'portions',
-    image_url: 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80',
-    cloudinary_public_id: 'shareplate/demo/dal_makhani_06',
+    cloudinary_public_id: DEMO_SEED_IMAGES[5].publicId,
     ingredients: 'Black urad dal, kidney beans, butter, cream, basmati rice, cumin',
     allergens: 'Dairy',
     preparation_time: new Date(Date.now() - 48 * 3600000).toISOString(),
@@ -273,10 +321,30 @@ export const INITIAL_DEMO_CLAIMS: Claim[] = [
  * Keeps state reactive during user interactions in demo mode.
  */
 class DemoStore {
-  private donations: Donation[] = [...INITIAL_DEMO_DONATIONS];
-  private claims: Claim[] = [...INITIAL_DEMO_CLAIMS];
+  private savedState = loadDemoState();
+  private donations: Donation[] = this.savedState?.donations || [...INITIAL_DEMO_DONATIONS];
+  private claims: Claim[] = this.savedState?.claims || [...INITIAL_DEMO_CLAIMS];
+
+  private persist() {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify({ donations: this.donations, claims: this.claims }));
+    }
+  }
+
+  private expirePastDonations() {
+    const now = Date.now();
+    let changed = false;
+    this.donations.forEach((donation) => {
+      if (donation.status === 'available' && new Date(donation.pickup_deadline).getTime() <= now) {
+        donation.status = 'expired';
+        changed = true;
+      }
+    });
+    if (changed) this.persist();
+  }
 
   getDonations(): Donation[] {
+    this.expirePastDonations();
     return [...this.donations];
   }
 
@@ -293,12 +361,20 @@ class DemoStore {
       status: 'available',
     };
     this.donations.unshift(newDonation);
+    this.persist();
     return newDonation;
   }
 
   claimDonation(donationId: string, recipientId: string, quantity: number, notes?: string): Claim {
     const donation = this.donations.find((d) => d.id === donationId);
     if (!donation) throw new Error('Donation not found');
+    if (!Number.isInteger(quantity) || quantity <= 0) throw new Error('Requested quantity must be a positive whole number');
+    if (new Date(donation.pickup_deadline).getTime() <= Date.now()) {
+      donation.status = 'expired';
+      this.persist();
+      throw new Error('This donation has passed its pickup deadline');
+    }
+    if (donation.status !== 'available') throw new Error('Donation is no longer available');
     if (donation.quantity_available < quantity) throw new Error('Requested quantity exceeds available');
 
     donation.quantity_available -= quantity;
@@ -319,6 +395,7 @@ class DemoStore {
     };
 
     this.claims.unshift(newClaim);
+    this.persist();
     return newClaim;
   }
 
@@ -338,6 +415,7 @@ class DemoStore {
       }
     }
 
+    this.persist();
     return claim;
   }
 
@@ -358,6 +436,7 @@ class DemoStore {
       }
     }
 
+    this.persist();
     return claim;
   }
 
@@ -369,33 +448,7 @@ class DemoStore {
   }
 
   getImpactMetrics(): ImpactMetrics {
-    const portionsListed = this.donations.reduce((acc, d) => acc + d.quantity_total, 0);
-    const portionsDelivered = this.claims
-      .filter((c) => c.status === 'delivered')
-      .reduce((acc, c) => acc + c.quantity_claimed, 0);
-    const portionsReserved = this.claims
-      .filter((c) => c.status === 'claimed' || c.status === 'collected')
-      .reduce((acc, c) => acc + c.quantity_claimed, 0);
-    const completedRescues = this.claims.filter((c) => c.status === 'delivered').length;
-    const activeClaims = this.claims.filter((c) => c.status === 'claimed' || c.status === 'collected').length;
-
-    const estimatedFoodRescuedKg = Math.round(portionsDelivered * 0.4);
-    const estimatedCo2eSavedKg = Math.round(estimatedFoodRescuedKg * 2.5);
-
-    return {
-      donationsListed: this.donations.length,
-      portionsListed,
-      portionsReserved,
-      portionsDelivered,
-      completedRescues,
-      activeDonors: 4,
-      participatingRecipients: 3,
-      activeClaims,
-      completionRatePercent: 100,
-      estimatedFoodRescuedKg,
-      estimatedCo2eSavedKg,
-      methodologyNote: 'Estimates based on FAO average meal portion (400g) and UNEP food waste emission factor (2.5 kg CO2e/kg food). Only delivered portions are counted.',
-    };
+    return calculateImpactMetrics(this.donations, this.claims);
   }
 
   // Users & Admin Moderation
@@ -491,6 +544,7 @@ class DemoStore {
     this.donations = [...INITIAL_DEMO_DONATIONS];
     this.claims = [...INITIAL_DEMO_CLAIMS];
     this.users = Object.values(DEMO_PROFILES);
+    if (typeof localStorage !== 'undefined') localStorage.removeItem(DEMO_STORAGE_KEY);
   }
 }
 

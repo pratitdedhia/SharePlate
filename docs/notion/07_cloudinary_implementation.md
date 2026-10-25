@@ -6,7 +6,7 @@
 
 ## 1. Architectural Implementation Details
 
-Cloudinary is deeply integrated into SharePlate across both the backend Express API and the React frontend.
+Cloudinary is used by the React frontend when public Cloudinary configuration is supplied. The Pages demo uses an unsigned preset. The Express API contains an optional signed-upload path; it is not deployed with GitHub Pages.
 
 ### 1.1 Backend Signature Endpoint (`apps/api/src/routes/uploads.ts`)
 ```typescript
@@ -22,8 +22,10 @@ router.post('/signature', authenticateToken, (req, res) => {
 ### 1.2 Frontend Image Uploader Component (`apps/web/src/components/donations/ImageUploader.tsx`)
 - Drag-and-drop or file selection.
 - Validates JPEG, PNG, or WebP under 5MB.
-- Renders an instant preview while tracking direct-to-Cloudinary upload progress (0%–100%) via `XMLHttpRequest.upload.onprogress`.
-- Displays the verified **Cloudinary Ready** badge upon completion.
+- Validates image MIME types (JPEG, PNG, WebP) and a 5 MB maximum before upload.
+- Upload order is signed API path, then unsigned preset, then a local preview labeled “Demo preview — not uploaded to Cloudinary”.
+- Sends `shareplate` and `food-donation` tags plus context on unsigned upload.
+- Stores the Cloudinary `public_id` and delivery URL on successful upload. The UI displays response format and dimensions and measures transformed bytes where fetch succeeds.
 
 ### 1.3 Dynamic Transformation Helper (`apps/web/src/lib/cloudinary.ts`)
 ```typescript
@@ -35,7 +37,7 @@ export const getCloudinaryUrl = (publicIdOrUrl, options) => {
 
 ---
 
-## 2. Measurable Performance Benefits
-- **Format Compression:** WebP/AVIF delivered automatically reduces PNG/JPEG camera uploads from 3.8 MB to ~320 KB (an ~91% reduction).
-- **Responsive Cropping:** AI gravity cropping (`g_auto`) centers on the food containers, eliminating awkward letterboxing or squished mobile layouts.
-- **CDN Caching:** Global Edge CDN caching ensures sub-100ms image delivery across Indian networks.
+## 2. Delivery Behavior
+- Listing images that resolve to Cloudinary use `c_fill,g_auto,f_auto,q_auto` with responsive `srcset` widths of 400, 800, and 1200 pixels and lazy loading.
+- Byte savings are shown only from the selected file's `file.size` and a successful fetch of the transformed URL. No fixed compression savings are claimed.
+- If Cloudinary is not configured, the UI identifies the local preview or Unsplash fallback; neither is presented as an uploaded Cloudinary asset.

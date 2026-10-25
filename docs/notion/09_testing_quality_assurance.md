@@ -2,22 +2,16 @@
 
 ---
 
-## 1. Test Execution Summary
+## 1. Test Status
 
-| Test Domain | Target Codebase | Tool | Result |
-| :--- | :--- | :--- | :--- |
-| **Frontend Unit Tests** | `apps/web/src/App.test.tsx` | Vitest | 2 / 2 Passed (549ms) |
-| **Backend API Unit Tests** | `apps/api/tests/api.test.js` | Node.js Test Runner | 2 / 2 Passed (564ms) |
-| **Backend Compilation** | `apps/api/src/` | TypeScript Compiler (`tsc`) | Clean exit code 0 |
-| **Frontend Production Build** | `apps/web/src/` | Vite + Rollup | Clean build in 3.35s |
+Historical pass counts and durations were removed because they could not be verified for this revision. Run the root workspace commands `npm ci`, `npm test`, `npm run build:web`, and `npm run build:api`; record only observed output in the repository's `CHANGES.md`.
 
 ---
 
 ## 2. Core User Journey Validation Log
 
-1. **Donation Creation:** Verified that submitting the form persists the batch, validates future pickup deadline, and attaches Cloudinary image URL.
-2. **Atomic Reservation:** Verified that claiming 15 portions from a 45-portion batch decrements `quantity_available` to 30.
-3. **Double-Claim Protection:** Verified that submitting a claim for 40 portions when only 30 are available returns an immediate HTTP 400 error.
-4. **Cancellation Recovery:** Verified that cancelling a reservation restores the portions back to the available pool.
-5. **Collection & Delivery Progression:** Verified that transitioning through `Collected` to `Delivered` updates the claim timestamps and records the completed rescue in impact aggregates.
-6. **Privacy Enforcement:** Verified that non-claimant users browsing `/api/donations/:id` see masked pickup instructions and redacted donor phone numbers.
+1. **Impact math:** Unit test covers rescue rate (delivered portions ÷ listed portions) and ensures funnel percentages sum to 100.
+2. **Demo claim guards:** Unit test covers over-available and expired claims.
+3. **Upload fallback order:** `apps/web/src/tests/uploads.test.ts` covers mocked signed, unsigned, and local-preview paths. Execute it as part of `npm test` before reporting a pass.
+4. **Browser workflows:** Manually check real Cloudinary upload with the configured unsigned preset, and verify that no-config previews remain labeled and are not stored as uploaded assets.
+5. **Production-only paths:** API auth, Supabase RLS, signed uploads, and atomic SQL claims require separate deployment-backed checks; they are not validated by the static demo.

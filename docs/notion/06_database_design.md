@@ -1,5 +1,7 @@
 # 06. Database Design & Security Strategy
 
+**Deployment note:** This describes the repository's production PostgreSQL/Supabase design. The static Pages demo does not use this database or its RLS/atomic guarantees.
+
 ---
 
 ## 1. Schema Definition & Relational Tables

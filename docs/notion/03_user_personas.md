@@ -1,5 +1,7 @@
 # 03. Target User Personas
 
+These are fictional sample personas aligned with seeded browser demo profiles. Their biographical details are not field research and should not be represented as real users or interview findings.
+
 ---
 
 ## Persona 1: Priya Sharma — Campus Canteen Supervisor

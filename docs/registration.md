@@ -13,7 +13,7 @@ SharePlate provides a multi-role onboarding experience at `/register`. Users sel
 
 Public registration is strictly permitted for:
 1. **Food Donor (`donor`):** Restaurants, college canteens, corporate caterers, bakeries with surplus edible food.
-2. **Recipient Organization (`recipient`):** Verified NGOs, community kitchens, homeless shelters, food banks, care homes.
+2. **Recipient Organization (`recipient`):** NGOs, community kitchens, homeless shelters, food banks, and care homes. The demo does not verify organization status.
 3. **Volunteer Logistics Courier (`volunteer`):** Individuals assisting in rapid meal transport between donor kitchens and distribution centers.
 
 > [!CAUTION]

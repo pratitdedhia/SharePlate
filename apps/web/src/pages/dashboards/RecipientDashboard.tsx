@@ -7,6 +7,7 @@ import { claimsService } from '../../services/claims';
 import { Donation, Claim } from '../../types';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { DemoAccountBanner } from '../../components/common/DemoAccountBanner';
+import { DEFAULT_FALLBACK_IMAGE, getCloudinarySrcSet, getCloudinaryUrl, isCloudinaryAsset } from '../../lib/cloudinary';
 import {
   UtensilsCrossed,
   PackageCheck,
@@ -172,12 +173,24 @@ export const RecipientDashboard: React.FC = () => {
                 myClaims.map((claim) => (
                   <div key={claim.id} className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-warm-50/50 transition">
                     <div className="flex items-start gap-3.5">
-                      {claim.donation?.image_url ? (
+                      {claim.donation?.cloudinary_public_id || claim.donation?.image_url ? (
+                        <div className="relative shrink-0">
                         <img
-                          src={claim.donation.image_url}
+                          src={getCloudinaryUrl(claim.donation.cloudinary_public_id || claim.donation.image_url, { width: 800, height: 600, crop: 'fill', gravity: 'auto' })}
+                          srcSet={getCloudinarySrcSet(claim.donation.cloudinary_public_id || claim.donation.image_url, { height: 600, crop: 'fill', gravity: 'auto' })}
+                          sizes="56px"
+                          loading="lazy"
                           alt={claim.donation.title}
                           className="w-14 h-14 rounded-2xl object-cover shrink-0 border border-warm-200"
+                          onError={(event) => {
+                            event.currentTarget.onerror = null;
+                            event.currentTarget.src = DEFAULT_FALLBACK_IMAGE;
+                            event.currentTarget.srcset = '';
+                            event.currentTarget.parentElement?.querySelector('[data-fallback-label]')?.classList.remove('hidden');
+                          }}
                         />
+                        <span data-fallback-label className={`absolute -bottom-1 left-0 bg-stone-950/75 text-white text-[8px] px-1 rounded ${isCloudinaryAsset(getCloudinaryUrl(claim.donation.cloudinary_public_id || claim.donation.image_url)) ? 'hidden' : ''}`}>Unsplash fallback</span>
+                        </div>
                       ) : (
                         <div className="w-14 h-14 rounded-2xl bg-warm-100 flex items-center justify-center shrink-0 text-stone-400">
                           <UtensilsCrossed className="w-6 h-6" />

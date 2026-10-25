@@ -1,6 +1,6 @@
 # SharePlate — Database Design & Schema Documentation
 
-**Database Engine:** PostgreSQL 15+ (Hosted on Supabase)  
+**Database Engine:** PostgreSQL via Supabase (repository schema; not deployed with the Pages demo)
 **Security Model:** Row Level Security (RLS) + SECURITY DEFINER RPCs  
 **Concurrency Strategy:** `SELECT ... FOR UPDATE` row locking for race condition prevention  
 

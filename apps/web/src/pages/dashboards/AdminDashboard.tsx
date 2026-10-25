@@ -337,7 +337,7 @@ export const AdminDashboard: React.FC = () => {
           <div className="bg-white rounded-3xl border border-warm-200 shadow-xs overflow-hidden">
             <div className="p-6 border-b border-warm-100">
               <h2 className="text-lg font-black text-stone-900">Food Listings Catalog</h2>
-              <p className="text-xs text-stone-500">Live platform inventory and compliance overview</p>
+              <p className="text-xs text-stone-500">Demo inventory and compliance overview</p>
             </div>
 
             <div className="divide-y divide-warm-100">

@@ -6,7 +6,7 @@ import { Donation } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { StatusBadge } from '../components/common/StatusBadge';
-import { getCloudinaryUrl } from '../lib/cloudinary';
+import { DEFAULT_FALLBACK_IMAGE, getCloudinarySrcSet, getCloudinaryUrl, isCloudinaryAsset } from '../lib/cloudinary';
 import { formatDate, formatTimeRemaining, getCategoryLabel } from '../lib/utils';
 import {
   Clock,
@@ -33,6 +33,7 @@ export const DonationDetailPage: React.FC = () => {
   const { success, error } = useToast();
 
   const [donation, setDonation] = useState<Donation | null>(null);
+  const [imageFailed, setImageFailed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [claimQuantity, setClaimQuantity] = useState<number>(1);
   const [claimNotes, setClaimNotes] = useState<string>('');
@@ -112,13 +113,16 @@ export const DonationDetailPage: React.FC = () => {
   }
 
   const timeInfo = formatTimeRemaining(donation.pickup_deadline);
-  const imageUrl = getCloudinaryUrl(donation.cloudinary_public_id || donation.image_url, {
-    width: 1000,
+  const imageSource = donation.cloudinary_public_id || donation.image_url;
+  const imageUrl = getCloudinaryUrl(imageSource, {
+    width: 1200,
     height: 600,
     crop: 'fill',
+    gravity: 'auto',
     quality: 'auto',
     format: 'auto',
   });
+  const imageSrcSet = getCloudinarySrcSet(imageSource, { height: 600, crop: 'fill', gravity: 'auto', quality: 'auto', format: 'auto' });
 
   const isOwnDonation = user?.id === donation.donor_id;
   const canClaim = (isRecipient || isVolunteer || isAdmin) && !isOwnDonation && donation.status === 'available' && donation.quantity_available > 0;
@@ -138,25 +142,29 @@ export const DonationDetailPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left Column: Image & Details */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Cloudinary Optimized Banner */}
           <div className="relative rounded-3xl overflow-hidden h-72 sm:h-80 w-full bg-warm-200 border border-warm-200 shadow-xs">
             <img
               src={imageUrl}
+              srcSet={imageSrcSet}
+              sizes="(max-width: 768px) 100vw, 66vw"
               alt={donation.title}
               className="w-full h-full object-cover"
-              onError={(e) => {
-                e.currentTarget.onerror = null;
-                e.currentTarget.src = 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80';
+              loading="lazy"
+              onError={(event) => {
+                event.currentTarget.onerror = null;
+                event.currentTarget.srcset = '';
+                event.currentTarget.src = DEFAULT_FALLBACK_IMAGE;
+                setImageFailed(true);
               }}
             />
             <div className="absolute top-4 left-4 flex gap-2">
               <StatusBadge status={donation.status} />
-              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-white/95 text-stone-900 backdrop-blur-xs border border-warm-200">
-                {getCategoryLabel(donation.category)}
-              </span>
-            </div>
-            <div className="absolute bottom-4 left-4 bg-forest-950/80 text-white backdrop-blur-xs px-3 py-1.5 rounded-xl text-xs font-bold">
-              ⚡ Cloudinary Hosted Asset
+              <>
+                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-white/95 text-stone-900 backdrop-blur-xs border border-warm-200">
+                  {getCategoryLabel(donation.category)}
+                </span>
+                {(!isCloudinaryAsset(imageUrl) || imageFailed) && <span className="px-3 py-1 rounded-full text-xs font-semibold bg-stone-950/75 text-white">Unsplash fallback</span>}
+              </>
             </div>
           </div>
 

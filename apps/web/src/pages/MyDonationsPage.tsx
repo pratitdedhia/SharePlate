@@ -8,7 +8,7 @@ import { StatusBadge } from '../components/common/StatusBadge';
 import { EmptyState } from '../components/common/EmptyState';
 import { LoadingSkeleton } from '../components/common/LoadingSkeleton';
 import { PlusCircle, Clock, MapPin, Eye, XCircle } from 'lucide-react';
-import { getCloudinaryUrl } from '../lib/cloudinary';
+import { getCloudinarySrcSet, getCloudinaryUrl, isCloudinaryAsset } from '../lib/cloudinary';
 import { formatDate } from '../lib/utils';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
 
@@ -78,16 +78,24 @@ export const MyDonationsPage: React.FC = () => {
       ) : (
         <div className="bg-white rounded-3xl border border-warm-200 overflow-hidden shadow-xs divide-y divide-warm-100">
           {donations.map((d) => {
-            const imageUrl = getCloudinaryUrl(d.cloudinary_public_id || d.image_url, {
-              width: 160,
+            const imageSource = d.cloudinary_public_id || d.image_url;
+            const imageUrl = getCloudinaryUrl(imageSource, {
+              width: 800,
               height: 120,
               crop: 'fill',
+              gravity: 'auto',
+              quality: 'auto',
+              format: 'auto',
             });
+            const imageSrcSet = getCloudinarySrcSet(imageSource, { height: 120, crop: 'fill', gravity: 'auto', quality: 'auto', format: 'auto' });
 
             return (
               <div key={d.id} className="p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
-                  <img src={imageUrl} alt={d.title} className="w-16 h-16 rounded-2xl object-cover shrink-0" />
+                  <div className="relative shrink-0">
+                    <img src={imageUrl} srcSet={imageSrcSet} sizes="64px" loading="lazy" alt={d.title} className="w-16 h-16 rounded-2xl object-cover" />
+                    {!isCloudinaryAsset(imageUrl) && <span className="absolute -bottom-1 left-0 bg-stone-950/75 text-white text-[8px] px-1 rounded">Fallback</span>}
+                  </div>
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <h3 className="text-sm font-bold text-stone-900 line-clamp-1">{d.title}</h3>
