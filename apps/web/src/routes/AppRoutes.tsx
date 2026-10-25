@@ -7,10 +7,16 @@ import { CreateDonationPage } from '../pages/CreateDonationPage';
 import { MyDonationsPage } from '../pages/MyDonationsPage';
 import { MyClaimsPage } from '../pages/MyClaimsPage';
 import { DashboardPage } from '../pages/DashboardPage';
+import { DonorDashboard } from '../pages/dashboards/DonorDashboard';
+import { RecipientDashboard } from '../pages/dashboards/RecipientDashboard';
+import { VolunteerDashboard } from '../pages/dashboards/VolunteerDashboard';
+import { AdminDashboard } from '../pages/dashboards/AdminDashboard';
 import { ImpactPage } from '../pages/ImpactPage';
 import { AboutPage } from '../pages/AboutPage';
 import { LoginPage } from '../pages/LoginPage';
 import { RegisterPage } from '../pages/RegisterPage';
+import { ForgotPasswordPage } from '../pages/ForgotPasswordPage';
+import { ResetPasswordPage } from '../pages/ResetPasswordPage';
 import { ProfilePage } from '../pages/ProfilePage';
 import { AdminPage } from '../pages/AdminPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
@@ -28,8 +34,10 @@ export const AppRoutes: React.FC = () => {
       <Route path="/about" element={<AboutPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
 
-      {/* Authenticated Pages */}
+      {/* Dynamic Main Dashboard */}
       <Route
         path="/dashboard"
         element={
@@ -38,6 +46,62 @@ export const AppRoutes: React.FC = () => {
           </ProtectedRoute>
         }
       />
+
+      {/* Role-Specific Protected Dashboards */}
+      <Route
+        path="/dashboard/donor"
+        element={
+          <ProtectedRoute>
+            <RoleGuard allowedRoles={['donor']}>
+              <DonorDashboard />
+            </RoleGuard>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/recipient"
+        element={
+          <ProtectedRoute>
+            <RoleGuard allowedRoles={['recipient']}>
+              <RecipientDashboard />
+            </RoleGuard>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/volunteer"
+        element={
+          <ProtectedRoute>
+            <RoleGuard allowedRoles={['volunteer']}>
+              <VolunteerDashboard />
+            </RoleGuard>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/admin"
+        element={
+          <ProtectedRoute>
+            <RoleGuard allowedRoles={['admin']}>
+              <AdminDashboard />
+            </RoleGuard>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Legacy /admin route support */}
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute>
+            <RoleGuard allowedRoles={['admin']}>
+              <AdminDashboard />
+            </RoleGuard>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Authenticated Feature Pages */}
       <Route
         path="/donations/new"
         element={
@@ -73,16 +137,6 @@ export const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <ProfilePage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin"
-        element={
-          <ProtectedRoute>
-            <RoleGuard allowedRoles={['admin']}>
-              <AdminPage />
-            </RoleGuard>
           </ProtectedRoute>
         }
       />

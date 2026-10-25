@@ -13,30 +13,32 @@ DELETE FROM public.activity_logs WHERE actor_id IN (
 );
 
 -- 2. INSERT PROFILES
-INSERT INTO public.profiles (id, full_name, role, organization_name, phone, city, service_area, avatar_url)
+INSERT INTO public.profiles (id, full_name, email, role, organization_name, phone, city, service_area, avatar_url, is_active)
 VALUES
     -- Donors
-    ('a0000000-0000-0000-0000-000000000001', 'Priya Sharma', 'donor', 'DTU Campus Central Canteen', '+91 98110 12345', 'Delhi NCR', 'Rohini & Pitampura', 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=256&q=80'),
-    ('a0000000-0000-0000-0000-000000000002', 'Chef Vikram Malhotra', 'donor', 'Annapurna Grand Caterers', '+91 98200 67890', 'Mumbai', 'Andheri & BKC', 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=256&q=80'),
-    ('a0000000-0000-0000-0000-000000000003', 'Amit Deshmukh', 'donor', 'Green Leaf Bistro & Bakery', '+91 98900 23456', 'Pune', 'Kothrud & Deccan', 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=256&q=80'),
-    ('a0000000-0000-0000-0000-000000000004', 'Neha Gupta', 'donor', 'Sector 62 Corporate Cafeteria', '+91 99100 45678', 'Noida', 'Sector 62 & Indirapuram', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80'),
+    ('a0000000-0000-0000-0000-000000000001', 'Priya Sharma', 'donor@shareplate.demo', 'donor', 'DTU Campus Central Canteen', '+91 98110 12345', 'Delhi NCR', 'Rohini & Pitampura', 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=256&q=80', true),
+    ('a0000000-0000-0000-0000-000000000002', 'Chef Vikram Malhotra', 'vikram@annapurnacaterers.com', 'donor', 'Annapurna Grand Caterers', '+91 98200 67890', 'Mumbai', 'Andheri & BKC', 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=256&q=80', true),
+    ('a0000000-0000-0000-0000-000000000003', 'Amit Deshmukh', 'amit@greenleafbistro.in', 'donor', 'Green Leaf Bistro & Bakery', '+91 98900 23456', 'Pune', 'Kothrud & Deccan', 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=256&q=80', true),
+    ('a0000000-0000-0000-0000-000000000004', 'Neha Gupta', 'neha@sec62cafeteria.org', 'donor', 'Sector 62 Corporate Cafeteria', '+91 99100 45678', 'Noida', 'Sector 62 & Indirapuram', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80', true),
     
     -- Recipients (NGOs / Community Kitchens)
-    ('b0000000-0000-0000-0000-000000000001', 'Rajesh Kumar', 'recipient', 'Robin Hood Army - Delhi Chapter', '+91 98711 22334', 'Delhi NCR', 'North & West Delhi', 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=256&q=80'),
-    ('b0000000-0000-0000-0000-000000000002', 'Sneha Patil', 'recipient', 'Feeding India - Mumbai Hub', '+91 98201 55667', 'Mumbai', 'Western Suburbs', 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=256&q=80'),
-    ('b0000000-0000-0000-0000-000000000003', 'Manoj Joshi', 'recipient', 'Pune Roti Bank Foundation', '+91 98500 88990', 'Pune', 'Pune Central & Hadapsar', 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=256&q=80'),
+    ('b0000000-0000-0000-0000-000000000001', 'Rajesh Kumar', 'recipient@shareplate.demo', 'recipient', 'Robin Hood Army - Delhi Chapter', '+91 98711 22334', 'Delhi NCR', 'North & West Delhi', 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=256&q=80', true),
+    ('b0000000-0000-0000-0000-000000000002', 'Sneha Patil', 'sneha@feedingindia.org', 'recipient', 'Feeding India - Mumbai Hub', '+91 98201 55667', 'Mumbai', 'Western Suburbs', 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=256&q=80', true),
+    ('b0000000-0000-0000-0000-000000000003', 'Manoj Joshi', 'manoj@punerotibank.org', 'recipient', 'Pune Roti Bank Foundation', '+91 98500 88990', 'Pune', 'Pune Central & Hadapsar', 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=256&q=80', true),
 
     -- Volunteers
-    ('c0000000-0000-0000-0000-000000000001', 'Ananya Sen', 'volunteer', 'Youth For Food Relief', '+91 98118 77665', 'Delhi NCR', 'South Delhi', 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=256&q=80'),
-    ('c0000000-0000-0000-0000-000000000002', 'Rohan Mehta', 'volunteer', 'Food Runners Mumbai', '+91 98330 44332', 'Mumbai', 'Bandra to Andheri', 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&w=256&q=80'),
+    ('c0000000-0000-0000-0000-000000000001', 'Ananya Sen', 'volunteer@shareplate.demo', 'volunteer', 'Youth For Food Relief', '+91 98118 77665', 'Delhi NCR', 'South Delhi', 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=256&q=80', true),
+    ('c0000000-0000-0000-0000-000000000002', 'Rohan Mehta', 'rohan@foodrunnersmumbai.org', 'volunteer', 'Food Runners Mumbai', '+91 98330 44332', 'Mumbai', 'Bandra to Andheri', 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&w=256&q=80', true),
 
     -- Admin
-    ('e0000000-0000-0000-0000-000000000001', 'SharePlate Ops Admin', 'admin', 'SharePlate Foundation', '+91 11 2345 6789', 'Delhi NCR', 'Pan-India', 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=256&q=80')
+    ('e0000000-0000-0000-0000-000000000001', 'SharePlate Ops Admin', 'admin@shareplate.org', 'admin', 'SharePlate Foundation', '+91 11 2345 6789', 'Delhi NCR', 'Pan-India', 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=256&q=80', true)
 ON CONFLICT (id) DO UPDATE SET
     full_name = EXCLUDED.full_name,
+    email = EXCLUDED.email,
     organization_name = EXCLUDED.organization_name,
     city = EXCLUDED.city,
-    service_area = EXCLUDED.service_area;
+    service_area = EXCLUDED.service_area,
+    is_active = EXCLUDED.is_active;
 
 -- 3. INSERT REALISTIC DONATIONS
 INSERT INTO public.donations (

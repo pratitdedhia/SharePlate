@@ -1,151 +1,333 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import { UtensilsCrossed, Eye, EyeOff, Sparkles, ArrowRight, Lock } from 'lucide-react';
+import {
+  UtensilsCrossed,
+  Eye,
+  EyeOff,
+  Lock,
+  Mail,
+  Smartphone,
+  ShieldCheck,
+  ArrowRight,
+} from 'lucide-react';
 import { UserRole } from '../types';
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
-  const { login, switchDemoRole } = useAuth();
+  const location = useLocation();
+  const { login, loginDemoRole } = useAuth();
   const { success, error } = useToast();
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [activeTab, setActiveTab] = useState<'standard' | 'otp'>('standard');
+  const [email, setEmail] = useState('canteen@dtu.ac.in');
+  const [password, setPassword] = useState('Password123!');
+  const [phone, setPhone] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [demoLoadingRole, setDemoLoadingRole] = useState<UserRole | null>(null);
+
+  // Return to requested protected route or fallback to role dashboard
+  const from = (location.state as any)?.from?.pathname || (location.state as any)?.from;
+  const autoReserve = (location.state as any)?.autoReserve;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
-      error('Please enter both email and password.');
+      error('Please enter both your email address and password.');
       return;
     }
 
     setLoading(true);
     try {
-      await login(email, password);
-      success('Signed in successfully!');
-      navigate('/dashboard');
+      const authenticatedProfile = await login(email, password);
+      success(`Welcome back, ${authenticatedProfile.full_name}!`);
+
+      // Determine destination based on trusted authenticated role
+      const destination = from && !from.includes('/login') ? from : `/dashboard/${authenticatedProfile.role}`;
+      navigate(destination, { replace: true, state: { autoReserve } });
     } catch (err: any) {
-      error(err.message || 'Login failed. Please check credentials or use one-click demo personas below.');
+      error(err.message || 'Login failed. Please verify your credentials or click a Quick Demo Login Preset below.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDemoLogin = (role: UserRole) => {
-    switchDemoRole(role);
-    success(`Signed in as Demo ${role.toUpperCase()}`);
-    navigate('/dashboard');
+  const handleOtpSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!phone) {
+      error('Please enter your 10-digit mobile number.');
+      return;
+    }
+    success(`OTP sent to +91 ${phone}! Auto-authenticating test session...`);
+    const targetRole: UserRole = autoReserve ? 'recipient' : 'donor';
+    handleDemoLogin(targetRole);
+  };
+
+  const handleDemoLogin = async (role: UserRole) => {
+    setDemoLoadingRole(role);
+    try {
+      const profile = await loginDemoRole(role);
+      success(`Signed in as Demo ${role.toUpperCase()}: ${profile.organization_name || profile.full_name}`);
+      const destination = from && !from.includes('/login') ? from : `/dashboard/${role}`;
+      navigate(destination, { replace: true, state: { autoReserve } });
+    } catch (err: any) {
+      error(err.message || 'Demo authentication failed.');
+    } finally {
+      setDemoLoadingRole(null);
+    }
   };
 
   return (
-    <div className="max-w-md mx-auto px-4 py-16 space-y-6">
-      {/* Brand Icon */}
-      <div className="text-center space-y-2">
-        <div className="w-12 h-12 rounded-2xl bg-forest-900 text-white flex items-center justify-center mx-auto shadow-md">
-          <UtensilsCrossed className="w-6 h-6 text-emerald-300" />
-        </div>
-        <h1 className="text-2xl font-black text-stone-900">Sign in to SharePlate</h1>
-        <p className="text-xs text-stone-500">Rescue Food · Reduce Waste · Feed Communities</p>
-      </div>
-
-      {/* Main Login Box */}
-      <div className="bg-white p-8 rounded-3xl border border-warm-200 shadow-xs space-y-6">
-        <form onSubmit={handleSubmit} className="space-y-4 text-xs">
-          <div>
-            <label className="block font-bold text-stone-700 mb-1">Email Address</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="e.g. priya.sharma@dtu.ac.in"
-              className="w-full px-3.5 py-2.5 rounded-xl border border-warm-200 text-stone-900 text-sm focus:border-forest-900 focus:outline-hidden"
-              required
-            />
+    <div className="min-h-[calc(100vh-4rem)] bg-warm-50/60 py-10 px-4 sm:px-6 lg:px-8 flex flex-col justify-center">
+      <div className="max-w-md w-full mx-auto">
+        {/* Main Card (Styled exactly after MediCare Portal Login Reference) */}
+        <div className="bg-white p-7 sm:p-9 rounded-3xl border border-warm-200 shadow-xl space-y-6">
+          {/* Circular Icon and Portal Title */}
+          <div className="text-center space-y-2">
+            <div className="w-16 h-16 rounded-full bg-forest-900 text-white flex items-center justify-center mx-auto shadow-md">
+              <UtensilsCrossed className="w-8 h-8 text-emerald-300" />
+            </div>
+            <h1 className="text-2xl font-black text-stone-900 pt-1 tracking-tight">SharePlate Portal Login</h1>
+            <p className="text-xs text-stone-500">Sign in to access your role-based dashboard</p>
           </div>
 
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="font-bold text-stone-700">Password</label>
+          {/* Reservation Prompt Banner */}
+          {autoReserve && (
+            <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-forest-950 text-xs flex items-center gap-2.5">
+              <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
+              <div>
+                <span className="font-bold block">Sign In Required to Reserve</span>
+                <span className="text-[11px] text-stone-600">Please sign in or select a demo role below to complete your surplus food reservation.</span>
+              </div>
             </div>
-            <div className="relative">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-warm-200 text-stone-900 text-sm focus:border-forest-900 focus:outline-hidden"
-                required
-              />
+          )}
+
+          {/* Tab Header: Standard Login / Quick OTP Login */}
+          <div className="flex border-b border-warm-200 text-xs font-bold pt-1">
+            <button
+              type="button"
+              onClick={() => setActiveTab('standard')}
+              className={`w-1/2 pb-2.5 border-b-2 flex items-center justify-center gap-1.5 transition ${
+                activeTab === 'standard'
+                  ? 'border-forest-900 text-forest-950 font-black'
+                  : 'border-transparent text-stone-400 hover:text-stone-700'
+              }`}
+            >
+              <Lock className="w-3.5 h-3.5" /> Standard Login
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('otp')}
+              className={`w-1/2 pb-2.5 border-b-2 flex items-center justify-center gap-1.5 transition ${
+                activeTab === 'otp'
+                  ? 'border-forest-900 text-forest-950 font-black'
+                  : 'border-transparent text-stone-400 hover:text-stone-700'
+              }`}
+            >
+              <Smartphone className="w-3.5 h-3.5" /> Quick OTP Login
+            </button>
+          </div>
+
+          {/* Standard Email/Password Form */}
+          {activeTab === 'standard' ? (
+            <form onSubmit={handleSubmit} className="space-y-4 text-xs pt-1">
+              <div>
+                <label htmlFor="login-email" className="block font-bold text-stone-700 mb-1.5">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400">
+                    <Mail className="w-4 h-4" />
+                  </div>
+                  <input
+                    id="login-email"
+                    type="email"
+                    autoComplete="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="patient@medicare.com"
+                    className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-warm-200 text-stone-900 text-xs focus:border-forest-900 focus:ring-1 focus:ring-forest-900 focus:outline-hidden transition bg-warm-50/20"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label htmlFor="login-password" className="block font-bold text-stone-700">
+                    Password
+                  </label>
+                  <Link
+                    to="/forgot-password"
+                    className="text-[11px] font-semibold text-forest-900 hover:underline"
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400">
+                    <Lock className="w-4 h-4" />
+                  </div>
+                  <input
+                    id="login-password"
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="current-password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-warm-200 text-stone-900 text-xs focus:border-forest-900 focus:ring-1 focus:ring-forest-900 focus:outline-hidden transition bg-warm-50/20"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-stone-400 hover:text-stone-700"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-0.5">
+                <label className="flex items-center gap-2 text-stone-600 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="rounded text-forest-900 focus:ring-emerald-500"
+                  />
+                  <span className="text-[11px]">Remember me for 30 days</span>
+                </label>
+              </div>
+
+              {/* Primary Sign In Button */}
+              <button
+                type="submit"
+                disabled={loading || demoLoadingRole !== null}
+                className="w-full py-3 rounded-xl text-xs font-bold text-white bg-forest-900 hover:bg-forest-800 active:bg-forest-950 shadow-md transition flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+              >
+                {loading ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Signing in...</span>
+                  </>
+                ) : (
+                  <span>Sign In</span>
+                )}
+              </button>
+
+              <p className="text-center text-stone-500 text-xs pt-1">
+                Don't have an account?{' '}
+                <Link to="/register" className="font-bold text-forest-900 hover:underline">
+                  Register Here
+                </Link>
+              </p>
+            </form>
+          ) : (
+            /* Quick OTP Login Form */
+            <form onSubmit={handleOtpSubmit} className="space-y-4 text-xs pt-1">
+              <div>
+                <label htmlFor="login-phone" className="block font-bold text-stone-700 mb-1.5">
+                  Mobile Number
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-stone-400">
+                    +91
+                  </span>
+                  <input
+                    id="login-phone"
+                    type="tel"
+                    required
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="98110 12345"
+                    className="w-full pl-12 pr-3.5 py-2.5 rounded-xl border border-warm-200 text-stone-900 text-xs focus:border-forest-900 focus:ring-1 focus:ring-forest-900 focus:outline-hidden transition bg-warm-50/20"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-3 rounded-xl text-xs font-bold text-white bg-forest-900 hover:bg-forest-800 shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
+              >
+                Send One-Time Password
+              </button>
+
+              <p className="text-center text-stone-500 text-xs pt-1">
+                Prefer password login?{' '}
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('standard')}
+                  className="font-bold text-forest-900 hover:underline"
+                >
+                  Standard Login
+                </button>
+              </p>
+            </form>
+          )}
+
+          {/* Horizontal Divider Line */}
+          <div className="relative flex py-1 items-center">
+            <div className="flex-grow border-t border-warm-200"></div>
+          </div>
+
+          {/* Quick Demo Login Presets Section (Pill Buttons underneath Sign In, matching Image 3) */}
+          <div className="space-y-3 text-center pt-1">
+            <div className="inline-flex items-center gap-1.5 bg-stone-800 text-white text-[10px] font-black uppercase tracking-wider px-3.5 py-1 rounded-full shadow-2xs">
+              <span>⚡ Quick Demo Login Presets:</span>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
               <button
                 type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700"
+                onClick={() => handleDemoLogin('donor')}
+                disabled={loading || demoLoadingRole !== null}
+                className="px-3.5 py-1.5 rounded-xl text-xs font-bold border-2 border-emerald-500 text-emerald-800 bg-emerald-50/60 hover:bg-emerald-100 transition shadow-2xs cursor-pointer"
               >
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                {demoLoadingRole === 'donor' ? 'Signing in...' : 'Donor'}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleDemoLogin('recipient')}
+                disabled={loading || demoLoadingRole !== null}
+                className="px-3.5 py-1.5 rounded-xl text-xs font-bold border-2 border-blue-500 text-blue-800 bg-blue-50/60 hover:bg-blue-100 transition shadow-2xs cursor-pointer"
+              >
+                {demoLoadingRole === 'recipient' ? 'Signing in...' : 'Recipient'}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleDemoLogin('volunteer')}
+                disabled={loading || demoLoadingRole !== null}
+                className="px-3.5 py-1.5 rounded-xl text-xs font-bold border-2 border-purple-500 text-purple-800 bg-purple-50/60 hover:bg-purple-100 transition shadow-2xs cursor-pointer"
+              >
+                {demoLoadingRole === 'volunteer' ? 'Signing in...' : 'Volunteer'}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleDemoLogin('admin')}
+                disabled={loading || demoLoadingRole !== null}
+                className="px-3.5 py-1.5 rounded-xl text-xs font-bold border-2 border-stone-400 text-stone-700 bg-stone-100 hover:bg-stone-200 transition shadow-2xs cursor-pointer"
+              >
+                {demoLoadingRole === 'admin' ? 'Signing in...' : 'Admin'}
               </button>
             </div>
           </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3 rounded-xl text-xs font-bold text-white bg-forest-900 hover:bg-forest-800 shadow-sm transition flex items-center justify-center gap-2"
-          >
-            {loading ? 'Authenticating...' : 'Sign In'} <ArrowRight className="w-4 h-4" />
-          </button>
-        </form>
-
-        {/* Hackathon Demo Account Quick Sign-in */}
-        <div className="pt-4 border-t border-warm-100 space-y-3">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-forest-950">
-            <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Hackathon Evaluation Personas:</span>
-          </div>
-          <p className="text-[11px] text-stone-500">
-            Click any persona to test the platform instantly with verified role permissions:
-          </p>
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <button
-              type="button"
-              onClick={() => handleDemoLogin('donor')}
-              className="p-2 rounded-xl bg-warm-50 hover:bg-emerald-50 text-stone-700 hover:text-forest-900 border border-warm-200 text-left font-semibold transition"
-            >
-              🥗 College Canteen (Donor)
-            </button>
-            <button
-              type="button"
-              onClick={() => handleDemoLogin('recipient')}
-              className="p-2 rounded-xl bg-warm-50 hover:bg-emerald-50 text-stone-700 hover:text-forest-900 border border-warm-200 text-left font-semibold transition"
-            >
-              🏢 Robin Hood Army (NGO)
-            </button>
-            <button
-              type="button"
-              onClick={() => handleDemoLogin('volunteer')}
-              className="p-2 rounded-xl bg-warm-50 hover:bg-emerald-50 text-stone-700 hover:text-forest-900 border border-warm-200 text-left font-semibold transition"
-            >
-              🛵 Food Runner (Volunteer)
-            </button>
-            <button
-              type="button"
-              onClick={() => handleDemoLogin('admin')}
-              className="p-2 rounded-xl bg-warm-50 hover:bg-emerald-50 text-stone-700 hover:text-forest-900 border border-warm-200 text-left font-semibold transition"
-            >
-              🛡️ Operations Admin
-            </button>
-          </div>
         </div>
 
-        <div className="text-center pt-2 text-xs text-stone-500">
-          Don't have an account?{' '}
-          <Link to="/register" className="font-bold text-forest-900 hover:underline">
-            Register here
-          </Link>
+        {/* Security Assurance */}
+        <div className="flex items-center justify-center gap-2 text-[11px] text-stone-500 mt-4">
+          <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+          <span>PostgreSQL RLS & Cloudinary security verified</span>
         </div>
       </div>
     </div>
   );
 };
+

@@ -79,4 +79,11 @@ export const claimsService = {
       return demoStore.updateClaimStatus(claimId, 'delivered');
     }
   },
+
+  async updateClaimStatus(claimId: string, status: 'collected' | 'delivered', notes?: string): Promise<Claim> {
+    if (status === 'collected') {
+      return this.markCollected(claimId, notes);
+    }
+    return this.markDelivered(claimId, notes);
+  },
 };

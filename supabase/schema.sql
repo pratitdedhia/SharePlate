@@ -16,12 +16,19 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE TABLE IF NOT EXISTS public.profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     full_name TEXT NOT NULL,
+    email TEXT,
     role TEXT NOT NULL DEFAULT 'donor' CHECK (role IN ('donor', 'recipient', 'volunteer', 'admin')),
     organization_name TEXT,
     phone TEXT,
-    city TEXT,
+    city TEXT DEFAULT 'Delhi NCR',
     service_area TEXT,
     avatar_url TEXT,
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    donor_type TEXT,
+    recipient_type TEXT,
+    contact_person TEXT,
+    availability TEXT,
+    bio TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -140,8 +147,17 @@ DECLARE
     v_role TEXT;
     v_full_name TEXT;
     v_org_name TEXT;
+    v_phone TEXT;
     v_city TEXT;
+    v_service_area TEXT;
+    v_donor_type TEXT;
+    v_recipient_type TEXT;
+    v_contact_person TEXT;
+    v_availability TEXT;
+    v_bio TEXT;
+    v_avatar_url TEXT;
 BEGIN
+    -- Security Barrier: Disallow administrative privilege escalation via raw_user_meta_data
     v_role := COALESCE(NEW.raw_user_meta_data->>'role', 'donor');
     IF v_role NOT IN ('donor', 'recipient', 'volunteer') THEN
         v_role := 'donor';
@@ -149,13 +165,34 @@ BEGIN
 
     v_full_name := COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(NEW.email, '@', 1));
     v_org_name := NEW.raw_user_meta_data->>'organization_name';
+    v_phone := NEW.raw_user_meta_data->>'phone';
     v_city := COALESCE(NEW.raw_user_meta_data->>'city', 'Delhi NCR');
+    v_service_area := NEW.raw_user_meta_data->>'service_area';
+    v_donor_type := NEW.raw_user_meta_data->>'donor_type';
+    v_recipient_type := NEW.raw_user_meta_data->>'recipient_type';
+    v_contact_person := NEW.raw_user_meta_data->>'contact_person';
+    v_availability := NEW.raw_user_meta_data->>'availability';
+    v_bio := NEW.raw_user_meta_data->>'bio';
+    v_avatar_url := NEW.raw_user_meta_data->>'avatar_url';
 
-    INSERT INTO public.profiles (id, full_name, role, organization_name, city)
-    VALUES (NEW.id, v_full_name, v_role, v_org_name, v_city)
+    INSERT INTO public.profiles (
+        id, full_name, email, role, organization_name, phone, city,
+        service_area, is_active, donor_type, recipient_type, contact_person,
+        availability, bio, avatar_url
+    )
+    VALUES (
+        NEW.id, v_full_name, NEW.email, v_role, v_org_name, v_phone, v_city,
+        v_service_area, true, v_donor_type, v_recipient_type, v_contact_person,
+        v_availability, v_bio, v_avatar_url
+    )
     ON CONFLICT (id) DO UPDATE SET
         full_name = EXCLUDED.full_name,
-        organization_name = COALESCE(EXCLUDED.organization_name, public.profiles.organization_name);
+        email = COALESCE(EXCLUDED.email, public.profiles.email),
+        phone = COALESCE(EXCLUDED.phone, public.profiles.phone),
+        organization_name = COALESCE(EXCLUDED.organization_name, public.profiles.organization_name),
+        city = COALESCE(EXCLUDED.city, public.profiles.city),
+        service_area = COALESCE(EXCLUDED.service_area, public.profiles.service_area),
+        updated_at = NOW();
 
     RETURN NEW;
 END;

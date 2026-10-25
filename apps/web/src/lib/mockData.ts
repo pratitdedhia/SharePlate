@@ -4,42 +4,56 @@ export const DEMO_PROFILES: Record<string, UserProfile> = {
   donor: {
     id: 'a0000000-0000-0000-0000-000000000001',
     full_name: 'Priya Sharma',
+    email: 'donor@shareplate.demo',
     role: 'donor',
     organization_name: 'DTU Campus Central Canteen',
     phone: '+91 98110 12345',
     city: 'Delhi NCR',
     service_area: 'Rohini & Pitampura',
+    donor_type: 'canteen',
+    contact_person: 'Priya Sharma (Canteen Operations Lead)',
     avatar_url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=256&q=80',
+    is_active: true,
   },
   recipient: {
     id: 'b0000000-0000-0000-0000-000000000001',
     full_name: 'Rajesh Kumar',
+    email: 'recipient@shareplate.demo',
     role: 'recipient',
     organization_name: 'Robin Hood Army - Delhi Chapter',
     phone: '+91 98711 22334',
     city: 'Delhi NCR',
     service_area: 'North & West Delhi',
+    recipient_type: 'ngo',
+    contact_person: 'Rajesh Kumar (Distribution Coordinator)',
     avatar_url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=256&q=80',
+    is_active: true,
   },
   volunteer: {
     id: 'c0000000-0000-0000-0000-000000000001',
     full_name: 'Ananya Sen',
+    email: 'volunteer@shareplate.demo',
     role: 'volunteer',
     organization_name: 'Youth For Food Relief',
     phone: '+91 98118 77665',
     city: 'Delhi NCR',
     service_area: 'South Delhi & Noida',
+    availability: 'evenings',
+    bio: 'Dedicated food rescue cyclist and delivery coordinator with 2+ years field experience.',
     avatar_url: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=256&q=80',
+    is_active: true,
   },
   admin: {
     id: 'e0000000-0000-0000-0000-000000000001',
     full_name: 'SharePlate Platform Admin',
+    email: 'admin@shareplate.org',
     role: 'admin',
     organization_name: 'SharePlate Foundation',
     phone: '+91 11 2345 6789',
     city: 'Delhi NCR',
     service_area: 'Pan-India',
     avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=256&q=80',
+    is_active: true,
   },
 };
 
@@ -382,6 +396,101 @@ class DemoStore {
       estimatedCo2eSavedKg,
       methodologyNote: 'Estimates based on FAO average meal portion (400g) and UNEP food waste emission factor (2.5 kg CO2e/kg food). Only delivered portions are counted.',
     };
+  }
+
+  // Users & Admin Moderation
+  private users: UserProfile[] = Object.values(DEMO_PROFILES);
+  private reports: any[] = [
+    {
+      id: 'rep-001',
+      reporter_id: 'b0000000-0000-0000-0000-000000000001',
+      donation_id: 'd0000000-0000-0000-0000-000000000001',
+      reason: 'Incorrect allergen label',
+      description: 'Listed as dairy only, but contains mustard seeds in seasoning.',
+      status: 'open',
+      created_at: new Date(Date.now() - 4 * 3600000).toISOString(),
+    },
+    {
+      id: 'rep-002',
+      reporter_id: 'c0000000-0000-0000-0000-000000000001',
+      donation_id: 'd0000000-0000-0000-0000-000000000002',
+      reason: 'Gate security delay during pickup',
+      description: 'Security guard was uninformed about SharePlate pickup schedule.',
+      status: 'investigating',
+      created_at: new Date(Date.now() - 12 * 3600000).toISOString(),
+    },
+  ];
+
+  private activityLogs: any[] = [
+    {
+      id: 'act-1',
+      action: 'donation_listed',
+      details: { title: 'Fresh Vegetable Biryani & Raita (Hot)', donor: 'DTU Central Canteen', portions: 45 },
+      created_at: new Date(Date.now() - 25 * 60000).toISOString(),
+    },
+    {
+      id: 'act-2',
+      action: 'claim_reserved',
+      details: { claim_id: 'claim-01', recipient: 'Robin Hood Army Delhi', portions: 25 },
+      created_at: new Date(Date.now() - 65 * 60000).toISOString(),
+    },
+    {
+      id: 'act-3',
+      action: 'volunteer_dispatched',
+      details: { volunteer: 'Ananya Sen', route: 'DTU Rohini -> Shalimar Bagh Community Shelter' },
+      created_at: new Date(Date.now() - 120 * 60000).toISOString(),
+    },
+    {
+      id: 'act-4',
+      action: 'rescue_completed',
+      details: { portions: 50, co2eSavedKg: 50, location: 'Rohini Shelter' },
+      created_at: new Date(Date.now() - 360 * 60000).toISOString(),
+    },
+  ];
+
+  getUsers(): UserProfile[] {
+    return [...this.users];
+  }
+
+  addUser(user: UserProfile) {
+    this.users.unshift(user);
+  }
+
+  toggleUserStatus(userId: string): boolean {
+    const u = this.users.find((user) => user.id === userId);
+    if (u) {
+      u.is_active = !u.is_active;
+      return u.is_active;
+    }
+    return false;
+  }
+
+  getReports(): any[] {
+    return [...this.reports];
+  }
+
+  resolveReport(reportId: string, status: 'resolved' | 'dismissed') {
+    const rep = this.reports.find((r) => r.id === reportId);
+    if (rep) rep.status = status;
+  }
+
+  getActivityLogs(): any[] {
+    return [...this.activityLogs];
+  }
+
+  addActivityLog(action: string, details: Record<string, any>) {
+    this.activityLogs.unshift({
+      id: `act-${Date.now()}`,
+      action,
+      details,
+      created_at: new Date().toISOString(),
+    });
+  }
+
+  reset() {
+    this.donations = [...INITIAL_DEMO_DONATIONS];
+    this.claims = [...INITIAL_DEMO_CLAIMS];
+    this.users = Object.values(DEMO_PROFILES);
   }
 }
 

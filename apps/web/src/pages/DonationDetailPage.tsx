@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { donationsService } from '../services/donations';
 import { claimsService } from '../services/claims';
 import { Donation } from '../types';
@@ -22,11 +22,13 @@ import {
   Layers,
   Utensils,
   Lock,
+  LogIn,
 } from 'lucide-react';
 
 export const DonationDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, isDonor, isRecipient, isVolunteer, isAdmin } = useAuth();
   const { success, error } = useToast();
 
@@ -56,6 +58,12 @@ export const DonationDetailPage: React.FC = () => {
   useEffect(() => {
     fetchDonation();
   }, [id]);
+
+  useEffect(() => {
+    if (user && canClaim && (location.state as any)?.autoReserve) {
+      setShowClaimModal(true);
+    }
+  }, [user, donation, location.state]);
 
   const handleClaim = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -131,8 +139,16 @@ export const DonationDetailPage: React.FC = () => {
         {/* Left Column: Image & Details */}
         <div className="lg:col-span-2 space-y-6">
           {/* Cloudinary Optimized Banner */}
-          <div className="relative rounded-3xl overflow-hidden aspect-16/10 bg-warm-200 border border-warm-200 shadow-xs">
-            <img src={imageUrl} alt={donation.title} className="w-full h-full object-cover" />
+          <div className="relative rounded-3xl overflow-hidden h-72 sm:h-80 w-full bg-warm-200 border border-warm-200 shadow-xs">
+            <img
+              src={imageUrl}
+              alt={donation.title}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80';
+              }}
+            />
             <div className="absolute top-4 left-4 flex gap-2">
               <StatusBadge status={donation.status} />
               <span className="px-3 py-1 rounded-full text-xs font-semibold bg-white/95 text-stone-900 backdrop-blur-xs border border-warm-200">
@@ -220,7 +236,7 @@ export const DonationDetailPage: React.FC = () => {
             {canClaim ? (
               <button
                 onClick={() => setShowClaimModal(true)}
-                className="w-full py-3.5 rounded-2xl text-xs font-bold text-white bg-forest-900 hover:bg-forest-800 shadow-md transition flex items-center justify-center gap-2"
+                className="w-full py-3.5 rounded-2xl text-xs font-bold text-white bg-forest-900 hover:bg-forest-800 shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Utensils className="w-4 h-4 text-emerald-300" />
                 Reserve Food Portions
@@ -233,6 +249,15 @@ export const DonationDetailPage: React.FC = () => {
               <div className="text-center p-3 rounded-2xl bg-amber-50 text-amber-800 text-xs font-bold border border-amber-200">
                 All portions have been reserved.
               </div>
+            ) : !user ? (
+              <button
+                type="button"
+                onClick={() => navigate('/login', { state: { from: `/donations/${donation.id}`, autoReserve: true } })}
+                className="w-full py-3.5 rounded-2xl text-xs font-bold text-white bg-forest-900 hover:bg-forest-800 shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <LogIn className="w-4 h-4 text-emerald-300" />
+                Sign In to Reserve Portions
+              </button>
             ) : (
               <div className="text-center p-3 rounded-2xl bg-stone-100 text-stone-600 text-xs font-medium">
                 Sign in as an authorized NGO or community kitchen to reserve food.

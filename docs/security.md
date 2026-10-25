@@ -19,11 +19,12 @@
   - `claim_donation_atomic()` stored procedure uses `SELECT ... FOR UPDATE` row locking. The second transaction must wait until the first commits or rolls back, preventing overselling.
 
 ### 1.3 Privilege Escalation & Admin Bypass
-- **Threat:** An untrusted user modifies their role to `admin` during registration.
+- **Threat:** An untrusted user modifies their role to `admin` during registration or updates their profile to claim administrative rights.
 - **Mitigation:**
   - The `on_auth_user_created` trigger strictly sanitizes `raw_user_meta_data->>'role'`, defaulting any invalid or elevated attempt (`admin`) to `donor`.
-  - The `profiles` RLS policy prevents updating the `role` column via client requests.
-  - The Express RBAC middleware rejects non-admin users attempting to access `/api/reports` or admin actions.
+  - The `profiles` RLS policy prevents updating the `role` column via client requests (`WITH CHECK (auth.uid() = id AND role = (SELECT role FROM public.profiles WHERE id = auth.uid()))`).
+  - Frontend `RoleGuard` and Backend Express RBAC middleware reject non-admin users attempting to access `/api/reports`, `/admin`, or `/dashboard/admin`.
+  - Account status is checked (`is_active === true`); deactivated accounts are denied session establishment both on frontend and server APIs.
 
 ### 1.4 Address & Contact Privacy Leakage
 - **Threat:** Publishing exact residential addresses or personal phone numbers publicly leads to harassment or uncoordinated drop-ins.

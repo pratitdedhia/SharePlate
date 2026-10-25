@@ -1,17 +1,33 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { Clock, MapPin, Building, AlertCircle } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Clock, MapPin, Building, AlertCircle, ArrowRight } from 'lucide-react';
 import { Donation } from '../../types';
 import { StatusBadge } from '../common/StatusBadge';
 import { getCloudinaryUrl } from '../../lib/cloudinary';
 import { formatTimeRemaining, getCategoryLabel } from '../../lib/utils';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface DonationCardProps {
   donation: Donation;
 }
 
 export const DonationCard: React.FC<DonationCardProps> = ({ donation }) => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const timeInfo = formatTimeRemaining(donation.pickup_deadline);
+
+  const handleCardReserve = () => {
+    if (!user) {
+      navigate('/login', {
+        state: {
+          from: `/donations/${donation.id}`,
+          autoReserve: true,
+        },
+      });
+      return;
+    }
+    navigate(`/donations/${donation.id}`);
+  };
 
   // Cloudinary transformed delivery URL: 600x400 auto crop, auto quality, auto format
   const imageUrl = getCloudinaryUrl(donation.cloudinary_public_id || donation.image_url, {
@@ -25,12 +41,16 @@ export const DonationCard: React.FC<DonationCardProps> = ({ donation }) => {
   return (
     <div className="bg-white rounded-2xl border border-warm-200 overflow-hidden shadow-xs hover:shadow-md transition group flex flex-col h-full">
       {/* Food Image with Cloudinary Optimization */}
-      <div className="relative aspect-16/10 bg-warm-200 overflow-hidden">
+      <div className="relative h-48 w-full bg-warm-200 overflow-hidden">
         <img
           src={imageUrl}
           alt={donation.title}
           className="w-full h-full object-cover group-hover:scale-102 transition duration-300"
           loading="lazy"
+          onError={(e) => {
+            e.currentTarget.onerror = null;
+            e.currentTarget.src = 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80';
+          }}
         />
         <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
           <StatusBadge status={donation.status} size="sm" />
@@ -88,16 +108,14 @@ export const DonationCard: React.FC<DonationCardProps> = ({ donation }) => {
         </div>
 
         {/* Action Button */}
-        <div className="pt-3 border-t border-warm-100 flex items-center justify-between">
-          <div className="text-[11px] text-stone-400">
-            Total batch: {donation.quantity_total} {donation.quantity_unit}
-          </div>
-          <Link
-            to={`/donations/${donation.id}`}
-            className="inline-flex items-center gap-1 text-xs font-bold text-forest-900 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-xl border border-emerald-200 transition"
+        <div className="pt-2">
+          <button
+            type="button"
+            onClick={handleCardReserve}
+            className="w-full py-2.5 rounded-xl text-xs font-bold text-forest-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
           >
-            Details & Claim →
-          </Link>
+            View Details & Reserve <ArrowRight className="w-3.5 h-3.5" />
+          </button>
         </div>
       </div>
     </div>

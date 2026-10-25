@@ -14,13 +14,15 @@ SharePlate bridges the critical communication gap between high-volume commercial
 
 ## 📸 Overview & Key Features
 
+- **🔐 Hospital-Grade Food Rescue Authentication:** Professional email/password authentication with password visibility toggles, session persistence, inline error handling, and PKCE password recovery (`/forgot-password`, `/reset-password`).
+- **⚡ 1-Click Quick Demo Access:** Instant evaluation buttons for Judges on `/login` to continue immediately as Donor, Recipient, Volunteer, or Admin with seeded personas and guaranteed role-based redirects.
+- **🛡️ Strict Role-Based Dashboards & RBAC:** Dedicated, purpose-built dashboards for all 4 roles (`/dashboard/donor`, `/dashboard/recipient`, `/dashboard/volunteer`, `/dashboard/admin`), protected against unauthorized cross-role URL tampering via `RoleGuard` and Express RBAC.
+- **📋 Dynamic Role Onboarding:** Multi-role registration (`/register`) with interactive cards and conditional fields for canteens, NGOs, and couriers without state loss. Self-registration as Administrator is strictly barred.
 - **🚀 60-Second Surplus Food Posting:** Canteens specify portion counts, food category, preparation timestamp, allergen tags, and future pickup deadlines.
 - **📸 Mandatory Cloudinary Pipeline:** Cryptographically signed browser uploads (`/api/uploads/signature`) with live upload progress, client-side preview, automatic responsive cropping (`c_fill, w_800`), and modern format delivery (`f_auto, q_auto`).
 - **🔒 ACID Atomic Reservations:** Concurrency-safe PostgreSQL stored procedures (`claim_donation_atomic`) prevent double-reserving or overselling batches under concurrent demand.
 - **🛡️ Privacy-Preserving Logistics:** Sensitive loading-dock access instructions and personal donor phone numbers are masked in public queries and revealed strictly to confirmed claimants.
 - **📊 Defensible Live Impact Metrics:** Dynamically aggregates meals listed, reserved, and actually delivered. Computes CO₂e emissions avoided based on UNEP and FAO food waste benchmarks without fabricating statistics.
-- **👥 Role-Aware Dashboards:** Dedicated operational views tailored to Donors, NGOs, Volunteers, and Platform Administrators.
-- **⚡ Instant Hackathon Demo Mode:** One-click persona switcher allows judges to evaluate all role perspectives without manual database seeding or authentication friction.
 
 ---
 
@@ -195,6 +197,10 @@ shareplate/
 │   ├── seed.sql                # Realistic Indian demo dataset (Mumbai, Delhi, Pune, Noida)
 │   └── migrations/             # Timestamped migration mirror
 ├── docs/
+│   ├── authentication.md       # Comprehensive login, session, and recovery guide
+│   ├── registration.md         # Multi-role registration & conditional field specs
+│   ├── role-based-access.md    # RBAC matrix, route guards, and RLS policies
+│   ├── demo-accounts.md        # 1-click judge evaluation personas and reset steps
 │   ├── architecture.md         # System architecture & Mermaid flowcharts
 │   ├── database.md             # ER diagrams, table schemas, and concurrency locks
 │   ├── api.md                  # REST API contract and endpoint documentation
@@ -205,11 +211,30 @@ shareplate/
 │   ├── team-contributions.md   # 4-member task allocation & contribution breakdown
 │   ├── notion-documentation-outline.md
 │   └── notion/                 # 12 complete Notion-ready documentation subpages
+├── scripts/
+│   └── reset-demo-data.js      # Idempotent demo data restorer
 ├── .env.example
 ├── .gitignore
 ├── LICENSE
 └── package.json
 ```
+
+---
+
+## 📑 Notion-Ready Architecture & Implementation Summary
+
+> **Copy-paste ready for Notion Portfolio / Hackathon Submission Page**
+
+### Authentication & Authorization System Design
+- **Architecture Philosophy:** Adopts the design rigor, input validation, and access isolation of enterprise hospital and care-management portals, mapped directly onto food rescue operations.
+- **Authoritative Identity:** Client state never unilaterally dictates authorized user privileges. Upon login via Supabase Auth or seeded development preview, the authenticated role is verified against `public.profiles` in PostgreSQL and guarded via frontend `RoleGuard` and backend Express middleware `requireRoles`.
+- **4 Dedicated Operational Portals:**
+  - **Donor (`/dashboard/donor`):** Kitchen surplus management, batch publishing, active claims monitoring, and collection confirmation.
+  - **Recipient (`/dashboard/recipient`):** Real-time city-wide food discovery, atomic portion reservation, pickup deadline timers, and distribution logging.
+  - **Volunteer (`/dashboard/volunteer`):** Live dispatch board, delivery corridor route claiming, donor pickup instructions access, and drop-off completion.
+  - **Administrator (`/dashboard/admin`):** Platform-wide metrics, safety & allergen moderation queue, user privilege controls (activation/deactivation), and immutable audit streams.
+- **Judges Quick Demo Authentication:** Four 1-click access buttons on `/login` authenticate instantly as fictional seeded personas (Priya Sharma - DTU Canteen, Rajesh Kumar - Robin Hood Army, Ananya Sen - Youth For Food Relief, Ops Admin - SharePlate Foundation) and route to the corresponding dashboard.
+- **Evaluation Reset Command:** `npm run db:reset-demo` restores all demo data to pristine condition in under 2 seconds.
 
 ---
 
@@ -233,3 +258,5 @@ SharePlate is a community coordination platform designed to eliminate food waste
 ## 📄 License
 
 This project is licensed under the [MIT License](LICENSE) for Hacktober HackDays 2026.
+#   S h a r e P l a t e  
+ 

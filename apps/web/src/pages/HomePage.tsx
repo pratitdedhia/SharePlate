@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   UtensilsCrossed,
   ArrowRight,
@@ -11,14 +11,22 @@ import {
   ChevronRight,
   Leaf,
   Clock,
+  LogIn,
+  UserPlus,
+  Truck,
+  Building,
+  Utensils,
 } from 'lucide-react';
 import { donationsService } from '../services/donations';
 import { impactService } from '../services/impact';
-import { Donation, ImpactMetrics } from '../types';
+import { Donation, ImpactMetrics, UserRole } from '../types';
 import { DonationGrid } from '../components/donations/DonationGrid';
 import { LoadingSkeleton } from '../components/common/LoadingSkeleton';
+import { useAuth } from '../contexts/AuthContext';
 
 export const HomePage: React.FC = () => {
+  const { user, loginDemoRole } = useAuth();
+  const navigate = useNavigate();
   const [featuredDonations, setFeaturedDonations] = useState<Donation[]>([]);
   const [impactMetrics, setImpactMetrics] = useState<ImpactMetrics | null>(null);
   const [loading, setLoading] = useState(true);
@@ -41,6 +49,11 @@ export const HomePage: React.FC = () => {
 
     loadHomeData();
   }, []);
+
+  const handleQuickDemo = async (role: UserRole) => {
+    await loginDemoRole(role);
+    navigate(`/dashboard/${role}`);
+  };
 
   return (
     <div className="space-y-20 pb-16">
@@ -67,26 +80,63 @@ export const HomePage: React.FC = () => {
             kitchens to redirect wholesome surplus meals within hours—not landfills.
           </p>
 
-          {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
-            <Link
-              to="/donations"
-              className="w-full sm:w-auto px-6 py-3.5 rounded-2xl text-sm font-bold bg-forest-900 text-white hover:bg-forest-800 shadow-md transition flex items-center justify-center gap-2"
-            >
-              Browse Available Food <ArrowRight className="w-4 h-4 text-emerald-400" />
-            </Link>
-            <Link
-              to="/donations/new"
-              className="w-full sm:w-auto px-6 py-3.5 rounded-2xl text-sm font-bold bg-white text-forest-900 hover:bg-emerald-50 border border-warm-300 shadow-xs transition flex items-center justify-center gap-2"
-            >
-              <UtensilsCrossed className="w-4 h-4 text-emerald-700" />
-              Donate Surplus Food
-            </Link>
+          {/* Primary Landing Page Funnel: Sign In or Register */}
+          <div className="space-y-4 pt-2">
+            {user ? (
+              <div className="p-4 rounded-2xl bg-white border border-warm-200 shadow-xs max-w-md mx-auto space-y-3">
+                <div className="text-xs text-stone-600">
+                  Signed in as <strong className="text-stone-900">{user.full_name}</strong> (
+                  <span className="text-emerald-700 font-bold uppercase">{user.role}</span>)
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                  <Link
+                    to={`/dashboard/${user.role}`}
+                    className="px-5 py-2.5 rounded-xl text-xs font-bold bg-forest-900 text-white hover:bg-forest-800 transition flex items-center justify-center gap-1.5 shadow-sm"
+                  >
+                    Go to Dashboard <ArrowRight className="w-3.5 h-3.5 text-emerald-400" />
+                  </Link>
+                  <Link
+                    to="/donations"
+                    className="px-5 py-2.5 rounded-xl text-xs font-bold bg-warm-100 text-stone-800 hover:bg-warm-200 transition"
+                  >
+                    Browse Food
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                  <Link
+                    to="/register"
+                    className="w-full sm:w-auto px-7 py-3.5 rounded-2xl text-sm font-bold bg-white text-forest-900 hover:bg-emerald-50 border-2 border-emerald-300 shadow-xs transition flex items-center justify-center gap-2"
+                  >
+                    <UserPlus className="w-4 h-4 text-emerald-700" />
+                    Register Free
+                  </Link>
+                  <Link
+                    to="/login"
+                    className="w-full sm:w-auto px-7 py-3.5 rounded-2xl text-sm font-bold bg-forest-900 text-white hover:bg-forest-800 shadow-md transition flex items-center justify-center gap-2 group"
+                  >
+                    <LogIn className="w-4 h-4 text-emerald-400 group-hover:translate-x-0.5 transition" />
+                    Portal Login
+                  </Link>
+                </div>
+                <div className="flex items-center justify-center gap-4 text-xs font-semibold text-stone-500 pt-1">
+                  <Link to="/donations" className="hover:text-stone-900 transition flex items-center gap-1">
+                    Browse live batches as guest <ArrowRight className="w-3 h-3 text-emerald-600" />
+                  </Link>
+                  <span>·</span>
+                  <Link to="/impact" className="hover:text-stone-900 transition">
+                    Public impact data
+                  </Link>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Live Trust Metrics Strip */}
           {impactMetrics && (
-            <div className="pt-8 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl mx-auto">
+            <div className="pt-4 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl mx-auto">
               <div className="bg-white/90 backdrop-blur-xs p-4 rounded-2xl border border-warm-200 shadow-xs text-center">
                 <div className="text-2xl font-black text-stone-900">{impactMetrics.portionsDelivered}</div>
                 <div className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider">Portions Delivered</div>
@@ -105,6 +155,124 @@ export const HomePage: React.FC = () => {
               </div>
             </div>
           )}
+        </div>
+      </section>
+
+      {/* Live Food Inventory Section (Prominently listed on landing page) */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
+          <div>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-forest-900 mb-1 border border-emerald-300">
+              <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
+              Live Rescue Inventory
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-stone-900 mt-1">Available Food Batches</h2>
+            <p className="text-xs text-stone-500 mt-0.5">Fresh surplus meals ready for immediate, verified NGO pickup.</p>
+          </div>
+          <Link
+            to="/donations"
+            className="text-xs font-bold text-forest-900 hover:text-emerald-700 flex items-center gap-1.5 bg-white px-4 py-2 rounded-xl border border-warm-200 shadow-2xs hover:shadow-xs transition"
+          >
+            Explore all listings <ChevronRight className="w-4 h-4" />
+          </Link>
+        </div>
+
+        {loading ? (
+          <LoadingSkeleton count={3} />
+        ) : (
+          <DonationGrid donations={featuredDonations} emptyMessage="No active listings currently available." />
+        )}
+      </section>
+
+      {/* Role Portal Entry Cards (Login or Register by Role) */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+        <div className="text-center max-w-xl mx-auto">
+          <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Dedicated Portals</span>
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-stone-900 mt-1">Join the Food Rescue Mission</h2>
+          <p className="text-xs text-stone-600 mt-1">Select your role to access your dedicated portal or register your organization.</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Donor Card */}
+          <div className="bg-white p-6 sm:p-7 rounded-3xl border border-warm-200 shadow-xs space-y-4 flex flex-col justify-between">
+            <div className="space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-forest-900 flex items-center justify-center font-bold">
+                <Utensils className="w-6 h-6" />
+              </div>
+              <h3 className="text-lg font-bold text-stone-900">Canteens & Donors</h3>
+              <p className="text-xs text-stone-600 leading-relaxed">
+                Publish daily surplus meal batches in 60 seconds with food photos and coordinate atomic, double-claim-proof shelter collections.
+              </p>
+            </div>
+            <div className="pt-2 space-y-2">
+              <Link
+                to="/login"
+                className="w-full py-2.5 rounded-xl text-xs font-bold bg-forest-900 text-white hover:bg-forest-800 transition flex items-center justify-center gap-1.5"
+              >
+                Sign In as Donor <ArrowRight className="w-3.5 h-3.5 text-emerald-300" />
+              </Link>
+              <Link
+                to="/register"
+                className="w-full py-2.5 rounded-xl text-xs font-bold bg-emerald-50 text-forest-900 hover:bg-emerald-100 border border-emerald-200 transition text-center block"
+              >
+                Register New Canteen
+              </Link>
+            </div>
+          </div>
+
+          {/* Recipient Card */}
+          <div className="bg-white p-6 sm:p-7 rounded-3xl border border-warm-200 shadow-xs space-y-4 flex flex-col justify-between">
+            <div className="space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-blue-100 text-blue-900 flex items-center justify-center font-bold">
+                <Building className="w-6 h-6" />
+              </div>
+              <h3 className="text-lg font-bold text-stone-900">Shelters & NGOs</h3>
+              <p className="text-xs text-stone-600 leading-relaxed">
+                Inspect food ingredients and packaging photos, claim exact needed portions, and unlock protected gate pickup instructions.
+              </p>
+            </div>
+            <div className="pt-2 space-y-2">
+              <Link
+                to="/login"
+                className="w-full py-2.5 rounded-xl text-xs font-bold bg-blue-900 text-white hover:bg-blue-800 transition flex items-center justify-center gap-1.5"
+              >
+                Sign In as Recipient <ArrowRight className="w-3.5 h-3.5 text-blue-300" />
+              </Link>
+              <Link
+                to="/register"
+                className="w-full py-2.5 rounded-xl text-xs font-bold bg-blue-50 text-blue-900 hover:bg-blue-100 border border-blue-200 transition text-center block"
+              >
+                Register Verified NGO
+              </Link>
+            </div>
+          </div>
+
+          {/* Volunteer Card */}
+          <div className="bg-white p-6 sm:p-7 rounded-3xl border border-warm-200 shadow-xs space-y-4 flex flex-col justify-between">
+            <div className="space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-purple-100 text-purple-900 flex items-center justify-center font-bold">
+                <Truck className="w-6 h-6" />
+              </div>
+              <h3 className="text-lg font-bold text-stone-900">Volunteer Logistics</h3>
+              <p className="text-xs text-stone-600 leading-relaxed">
+                Receive active dispatch routes, verify thermal packaging at canteen ramps, and confirm meal delivery to local community kitchens.
+              </p>
+            </div>
+            <div className="pt-2 space-y-2">
+              <Link
+                to="/login"
+                className="w-full py-2.5 rounded-xl text-xs font-bold bg-purple-900 text-white hover:bg-purple-800 transition flex items-center justify-center gap-1.5"
+              >
+                Sign In as Volunteer <ArrowRight className="w-3.5 h-3.5 text-purple-300" />
+              </Link>
+              <Link
+                to="/register"
+                className="w-full py-2.5 rounded-xl text-xs font-bold bg-purple-50 text-purple-900 hover:bg-purple-100 border border-purple-200 transition text-center block"
+              >
+                Join Volunteer Fleet
+              </Link>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -161,28 +329,6 @@ export const HomePage: React.FC = () => {
             </p>
           </div>
         </div>
-      </section>
-
-      {/* Featured Live Food Section */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
-          <div>
-            <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Live Listings</span>
-            <h2 className="text-2xl font-extrabold text-stone-900 mt-1">Available Food in Your Area</h2>
-          </div>
-          <Link
-            to="/donations"
-            className="text-xs font-bold text-forest-900 hover:text-emerald-700 flex items-center gap-1 transition"
-          >
-            View all available donations <ChevronRight className="w-4 h-4" />
-          </Link>
-        </div>
-
-        {loading ? (
-          <LoadingSkeleton count={3} />
-        ) : (
-          <DonationGrid donations={featuredDonations} emptyMessage="No active listings currently available." />
-        )}
       </section>
 
       {/* Food Safety & Responsibility Principles Banner */}

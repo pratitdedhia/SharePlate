@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "SharePlate - Community-Driven Food Rescue Platform for Hacktober HackDays 2026",
   "private": true,
+  "type": "module",
   "workspaces": [
     "apps/*"
   ],
@@ -15,7 +16,8 @@
     "build:web": "npm run build --workspace=@shareplate/web",
     "build:api": "npm run build --workspace=@shareplate/api",
     "test": "npm run test --workspaces --if-present",
-    "lint": "npm run lint --workspaces --if-present"
+    "lint": "npm run lint --workspaces --if-present",
+    "db:reset-demo": "node scripts/reset-demo-data.js"
   },
   "keywords": [
     "food-rescue",
