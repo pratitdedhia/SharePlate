@@ -29,7 +29,12 @@ To provide instant, zero-friction evaluation for hackathon judges without requir
 
 - **🔐 Role-Based Food Rescue Access:** Professional authentication flows with session persistence, inline error handling, and role-based redirects.
 - **⚡ 1-Click Quick Demo Access:** Instant evaluation buttons for Judges on `/login` to continue immediately as Donor, Recipient, Volunteer, or Admin with seeded personas.
-- **🛡️ Strict Role-Based Dashboards & RBAC:** Dedicated, purpose-built dashboards for all 4 roles (`/dashboard/donor`, `/dashboard/recipient`, `/dashboard/volunteer`, `/dashboard/admin`), protected against unauthorized cross-role navigation via `RoleGuard`.
+- **🛡️ Strict Role-Based Dashboards & Dynamic RBAC Navigation:** Purpose-built workflows with tailored navigation for all personas:
+  - **Donor:** Dashboard & My Listings (`/my-donations`); Browse Food, Impact, and About links are strictly hidden.
+  - **Recipient:** Dashboard, Browse Food (`/donations`), and My Claims (`/my-claims`); Impact and About links are hidden.
+  - **Volunteer:** Dedicated *Last-Mile Food Rescue Runner* dispatch board with active route commitments, dock packaging checks, and delivery confirmations.
+  - **Admin:** Comprehensive 5-tab Command Center: real-time analytics graphs, user account CRUD & activation controls, "Who Donated" surplus ledger with detail inspection, "Who Received" distribution ledger with status filters, and safety/allergen moderation queue.
+- **🔍 Interactive Click-to-Inspect Food Cards:** Seamless navigation to listing details from card images, titles, and action buttons, presenting Cloudinary meal banners, ingredient disclosures, allergen tags, and real-time pickup countdown timers.
 - **📋 Food Safety & Expiration Controls:** Prepared-at timestamps, consume-within hours, storage instructions, and veg/non-veg tags. Donations past pickup deadlines are automatically greyed out and protected against claims.
 - **📸 Real Cloudinary Pipeline:**
   - Direct unsigned upload to Cloudinary via configured upload preset with client validation (JPEG/PNG/WebP, max 5 MB).
@@ -51,7 +56,7 @@ To provide instant, zero-friction evaluation for hackathon judges without requir
 | **Media Cloud** | Cloudinary | Direct client upload preset, server signatures, auto-format (`f_auto`), smart crop (`g_auto`) |
 | **Production Backend** | Node.js 24 LTS, Express, TypeScript | REST API, Zod schema validation, Helmet security headers, CORS |
 | **Production Database** | PostgreSQL 15+ (Supabase) | Multi-tenant Row Level Security (RLS), atomic stored procedures (`claim_donation_atomic`) |
-| **Testing** | Vitest, Node.js Test Runner | 36 frontend tests (impact math, claim flows, upload fallback), 2 backend tests |
+| **Testing** | Vitest, Node.js Test Runner | 53 frontend tests (impact math, claim flows, upload fallback, features suite, render verification), 2 backend tests (55 total) |
 | **Documentation** | Notion (Mandatory Hackathon Platform) | 12 structured markdown guides under `docs/notion/` |
 
 ---
@@ -151,7 +156,7 @@ Open **`http://localhost:5173`** in your browser.
 
 ## 🧪 Automated Testing & Verification
 
-All automated tests execute with 100% passing results across 38 tests:
+All automated tests execute with 100% passing results across 55 tests:
 
 ### Run Backend API Tests:
 ```bash
@@ -162,19 +167,19 @@ npm test --workspace=@shareplate/api
 ### Run Frontend Unit & Integration Tests:
 ```bash
 npm test --workspace=@shareplate/web
-# Result: 36 passed, 0 failed (App, Impact Math, Claim Flow, Upload Fallback)
+# Result: 53 passed, 0 failed (App, Impact Math, Claim Flow, Auth, Upload Fallback, Features Suite, Render Safety)
 ```
 
 ### Run All Workspace Tests:
 ```bash
 npm test
-# Total: 38 passed, 0 failed
+# Total: 55 passed, 0 failed
 ```
 
 ### Verify Production Compilation:
 ```bash
-npm run build
-# Compiles apps/api (tsc) and bundles apps/web (vite build) with exit code 0
+npm run build:web
+# Compiles apps/web (tsc && vite build) and mirrors self-contained root index.html with exit code 0
 ```
 
 ---
@@ -206,7 +211,7 @@ SharePlate/
 │   │   │   ├── pages/          # 13 complete pages (Home, Browse, Detail, Create, Claims, Impact, etc.)
 │   │   │   ├── routes/         # ProtectedRoute, RoleGuard, AppRoutes
 │   │   │   ├── services/       # donations, claims, impact, uploads API services
-│   │   │   └── tests/          # Vitest test suites (claimFlow, impactMath, uploadsFallback)
+│   │   │   └── tests/          # Vitest test suites (claimFlow, impactMath, uploadsFallback, features, renderPage)
 │   │   ├── .env.example
 │   │   └── package.json
 │   └── api/                    # Node.js, Express, TypeScript, Zod REST API
