@@ -6,7 +6,7 @@ import { Donation } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { StatusBadge } from '../components/common/StatusBadge';
-import { getCloudinaryUrl } from '../lib/cloudinary';
+import { CloudinaryImage } from '../components/common/CloudinaryImage';
 import { formatDate, formatTimeRemaining, getCategoryLabel } from '../lib/utils';
 import {
   Clock,
@@ -16,6 +16,7 @@ import {
   CheckCircle2,
   Phone,
   ShieldCheck,
+  ShieldAlert,
   ArrowLeft,
   Share2,
   Calendar,
@@ -23,6 +24,7 @@ import {
   Utensils,
   Lock,
   LogIn,
+  Sparkles,
 } from 'lucide-react';
 
 export const DonationDetailPage: React.FC = () => {
@@ -112,16 +114,14 @@ export const DonationDetailPage: React.FC = () => {
   }
 
   const timeInfo = formatTimeRemaining(donation.pickup_deadline);
-  const imageUrl = getCloudinaryUrl(donation.cloudinary_public_id || donation.image_url, {
-    width: 1000,
-    height: 600,
-    crop: 'fill',
-    quality: 'auto',
-    format: 'auto',
-  });
-
+  const isExpired = donation.status === 'expired' || timeInfo.isExpired;
   const isOwnDonation = user?.id === donation.donor_id;
-  const canClaim = (isRecipient || isVolunteer || isAdmin) && !isOwnDonation && donation.status === 'available' && donation.quantity_available > 0;
+  const canClaim =
+    (isRecipient || isAdmin) &&
+    !isOwnDonation &&
+    !isExpired &&
+    donation.status === 'available' &&
+    donation.quantity_available > 0;
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -138,25 +138,35 @@ export const DonationDetailPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left Column: Image & Details */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Cloudinary Optimized Banner */}
+          {/* Cloudinary Optimized Banner with Verified Badges */}
           <div className="relative rounded-3xl overflow-hidden h-72 sm:h-80 w-full bg-warm-200 border border-warm-200 shadow-xs">
-            <img
-              src={imageUrl}
+            <CloudinaryImage
+              publicId={donation.cloudinary_public_id}
+              src={donation.image_url || undefined}
+              fallbackSrc={donation.fallback_unsplash_url || undefined}
               alt={donation.title}
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                e.currentTarget.onerror = null;
-                e.currentTarget.src = 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80';
+              transformOptions={{
+                width: 1000,
+                height: 600,
+                crop: 'fill',
+                gravity: 'auto',
+                quality: 'auto',
+                format: 'auto',
               }}
+              showBadge={true}
+              className={`w-full h-full object-cover ${isExpired ? 'grayscale-40' : ''}`}
+              containerClassName="relative w-full h-full"
             />
-            <div className="absolute top-4 left-4 flex gap-2">
-              <StatusBadge status={donation.status} />
+            <div className="absolute top-4 left-4 flex flex-wrap gap-2 pointer-events-none">
+              <StatusBadge status={isExpired ? 'expired' : donation.status} />
               <span className="px-3 py-1 rounded-full text-xs font-semibold bg-white/95 text-stone-900 backdrop-blur-xs border border-warm-200">
                 {getCategoryLabel(donation.category)}
               </span>
-            </div>
-            <div className="absolute bottom-4 left-4 bg-forest-950/80 text-white backdrop-blur-xs px-3 py-1.5 rounded-xl text-xs font-bold">
-              ⚡ Cloudinary Hosted Asset
+              {donation.dietary_type && (
+                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-forest-900 backdrop-blur-xs border border-emerald-300">
+                  {donation.dietary_type === 'veg' ? '🌱 Veg' : '🍗 Non-Veg'}
+                </span>
+              )}
             </div>
           </div>
 
@@ -167,8 +177,49 @@ export const DonationDetailPage: React.FC = () => {
               {donation.description}
             </p>
 
+            {/* Food Safety & Handling Details Grid */}
+            <div className="pt-4 border-t border-warm-100 grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="p-3.5 rounded-2xl bg-warm-50 border border-warm-200 space-y-1">
+                <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block">
+                  Prepared At
+                </span>
+                <p className="text-xs text-stone-800 font-semibold">
+                  {formatDate(donation.prepared_at || donation.preparation_time || donation.created_at)}
+                </p>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-warm-50 border border-warm-200 space-y-1">
+                <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block">
+                  Consume Within
+                </span>
+                <p className="text-xs text-emerald-900 font-semibold">
+                  {donation.consume_within_hours ? `${donation.consume_within_hours} hours from prep` : '4–6 hours'}
+                </p>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-warm-50 border border-warm-200 space-y-1">
+                <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block">
+                  Dietary Classification
+                </span>
+                <p className="text-xs text-stone-800 font-semibold">
+                  {donation.dietary_type === 'veg' ? 'Vegetarian' : donation.dietary_type === 'non-veg' ? 'Non-Vegetarian' : 'Standard'}
+                </p>
+              </div>
+            </div>
+
+            {/* Storage Note */}
+            {donation.storage_note && (
+              <div className="p-3.5 rounded-2xl bg-emerald-50/60 border border-emerald-200 flex items-start gap-2.5 text-xs text-forest-950">
+                <ShieldAlert className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
+                <div>
+                  <strong className="block text-[11px] uppercase tracking-wider text-emerald-800">Storage & Transport Requirement</strong>
+                  <span>{donation.storage_note}</span>
+                </div>
+              </div>
+            )}
+
             {/* Ingredients & Allergens Box */}
-            <div className="pt-4 border-t border-warm-100 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="p-4 rounded-2xl bg-warm-50 border border-warm-200 space-y-1">
                 <span className="text-[11px] font-bold text-stone-500 uppercase tracking-wider block">
                   Ingredients
@@ -194,8 +245,8 @@ export const DonationDetailPage: React.FC = () => {
             <div className="p-3.5 rounded-2xl bg-stone-50 border border-stone-200 flex items-start gap-3 text-xs text-stone-600">
               <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
               <p className="text-[11px] leading-relaxed">
-                <strong>Safety Guidance:</strong> SharePlate does not certify food safety. The donor is responsible
-                for truthful information. Recipients must inspect food freshness upon collection.
+                <strong>Safety Guidance:</strong> SharePlate donor organizations confirm compliance with basic hygiene standards.
+                Recipient organizations inspect food freshness and temperatures upon collection.
               </p>
             </div>
           </div>
@@ -220,14 +271,16 @@ export const DonationDetailPage: React.FC = () => {
             {/* Countdown Urgency Indicator */}
             <div
               className={`p-3 rounded-2xl border flex items-center gap-2.5 text-xs ${
-                timeInfo.isUrgent
+                isExpired
+                  ? 'bg-rose-50 border-rose-200 text-rose-900'
+                  : timeInfo.isUrgent
                   ? 'bg-amber-50 border-amber-300 text-amber-900'
                   : 'bg-emerald-50 border-emerald-200 text-forest-900'
               }`}
             >
               <Clock className="w-4 h-4 shrink-0 text-emerald-700" />
               <div>
-                <span className="font-bold block">Pickup Deadline:</span>
+                <span className="font-bold block">{isExpired ? 'Listing Status:' : 'Pickup Deadline:'}</span>
                 <span>{timeInfo.text} ({formatDate(donation.pickup_deadline)})</span>
               </div>
             </div>
@@ -241,6 +294,10 @@ export const DonationDetailPage: React.FC = () => {
                 <Utensils className="w-4 h-4 text-emerald-300" />
                 Reserve Food Portions
               </button>
+            ) : isExpired ? (
+              <div className="text-center p-3 rounded-2xl bg-stone-100 text-stone-600 text-xs font-bold border border-stone-300">
+                ⚠️ Pickup Deadline Expired. This listing is closed.
+              </div>
             ) : isOwnDonation ? (
               <div className="text-center p-3 rounded-2xl bg-warm-100 text-stone-700 text-xs font-medium border border-warm-200">
                 You created this donation listing.
@@ -258,6 +315,14 @@ export const DonationDetailPage: React.FC = () => {
                 <LogIn className="w-4 h-4 text-emerald-300" />
                 Sign In to Reserve Portions
               </button>
+            ) : isDonor ? (
+              <div className="text-center p-3 rounded-2xl bg-emerald-50 text-forest-950 text-xs font-medium border border-emerald-200">
+                Donor Account: Only verified Recipient NGOs can reserve surplus food portions.
+              </div>
+            ) : isVolunteer ? (
+              <div className="text-center p-3 rounded-2xl bg-purple-50 text-purple-900 text-xs font-medium border border-purple-200">
+                Volunteer Mode: Couriers coordinate food transport under Active Routes.
+              </div>
             ) : (
               <div className="text-center p-3 rounded-2xl bg-stone-100 text-stone-600 text-xs font-medium">
                 Sign in as an authorized NGO or community kitchen to reserve food.
@@ -312,10 +377,18 @@ export const DonationDetailPage: React.FC = () => {
 
       {/* Claim Reservation Modal */}
       {showClaimModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="claim-modal-title"
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') setShowClaimModal(false);
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in"
+        >
           <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-warm-200 space-y-5 animate-in zoom-in-95">
             <div>
-              <h3 className="text-base font-bold text-stone-900">
+              <h3 id="claim-modal-title" className="text-base font-bold text-stone-900">
                 Reserve Portions: {donation.title}
               </h3>
               <p className="text-xs text-stone-500 mt-0.5">

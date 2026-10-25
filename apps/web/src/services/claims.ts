@@ -86,4 +86,17 @@ export const claimsService = {
     }
     return this.markDelivered(claimId, notes);
   },
+
+  async getAllClaims(): Promise<Claim[]> {
+    if (isDemoMode()) {
+      return demoStore.getAllClaims();
+    }
+
+    try {
+      const res = await apiRequest('/claims');
+      return res.data || [];
+    } catch {
+      return demoStore.getAllClaims();
+    }
+  },
 };

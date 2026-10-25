@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { Claim } from '../../types';
 import { StatusBadge } from '../common/StatusBadge';
 import { ClaimTimeline } from './ClaimTimeline';
-import { getCloudinaryUrl } from '../../lib/cloudinary';
+import { CloudinaryImage } from '../common/CloudinaryImage';
 import { formatDate } from '../../lib/utils';
 import { MapPin, Phone, CheckCircle, Truck, XCircle, AlertCircle } from 'lucide-react';
 import { ConfirmDialog } from '../common/ConfirmDialog';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface ClaimCardProps {
   claim: Claim;
@@ -20,15 +21,11 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
   onCollect,
   onDeliver,
 }) => {
+  const { user, isDonor, isRecipient, isVolunteer, isAdmin } = useAuth();
   const [confirmCancelOpen, setConfirmCancelOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const donation = claim.donation;
-  const imageUrl = getCloudinaryUrl(donation?.cloudinary_public_id || donation?.image_url, {
-    width: 300,
-    height: 200,
-    crop: 'fill',
-  });
 
   const handleAction = async (actionFn: () => Promise<void>) => {
     setLoading(true);
@@ -44,7 +41,15 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
       {/* Header with Title & Status */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-warm-100">
         <div className="flex items-center gap-3">
-          <img src={imageUrl} alt={donation?.title || 'Food'} className="w-14 h-14 rounded-xl object-cover shrink-0" />
+          <CloudinaryImage
+            publicId={donation?.cloudinary_public_id}
+            src={donation?.image_url || undefined}
+            fallbackSrc={donation?.fallback_unsplash_url || undefined}
+            alt={donation?.title || 'Food'}
+            transformOptions={{ width: 160, height: 160, crop: 'fill', gravity: 'auto' }}
+            className="w-14 h-14 rounded-xl object-cover shrink-0"
+            containerClassName="w-14 h-14 rounded-xl overflow-hidden shrink-0"
+          />
           <div>
             <h4 className="text-sm font-bold text-stone-900 line-clamp-1">{donation?.title || 'Food Donation'}</h4>
             <p className="text-xs text-stone-500">
@@ -90,7 +95,7 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
       {/* Action Buttons */}
       <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
         <div>
-          {claim.status === 'claimed' && (
+          {claim.status === 'claimed' && (isAdmin || (isRecipient && claim.recipient_id === user?.id)) && (
             <button
               onClick={() => setConfirmCancelOpen(true)}
               disabled={loading}
@@ -102,23 +107,25 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
-          {claim.status === 'claimed' && (
+          {claim.status === 'claimed' && (isVolunteer || isDonor || isAdmin) && (
             <button
               onClick={() => handleAction(() => onCollect(claim.id))}
               disabled={loading}
               className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-purple-700 hover:bg-purple-800 transition flex items-center gap-1.5 shadow-xs"
             >
-              <Truck className="w-3.5 h-3.5" /> Mark Picked Up
+              <Truck className="w-3.5 h-3.5" />
+              {isDonor ? 'Confirm Handover' : 'Mark Picked Up'}
             </button>
           )}
 
-          {claim.status === 'collected' && (
+          {claim.status === 'collected' && (isRecipient || isVolunteer || isAdmin) && (
             <button
               onClick={() => handleAction(() => onDeliver(claim.id))}
               disabled={loading}
               className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 transition flex items-center gap-1.5 shadow-xs"
             >
-              <CheckCircle className="w-3.5 h-3.5" /> Confirm Delivery
+              <CheckCircle className="w-3.5 h-3.5" />
+              {isRecipient ? 'Confirm Received' : 'Confirm Delivery'}
             </button>
           )}
 

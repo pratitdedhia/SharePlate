@@ -4,37 +4,39 @@
 **Theme:** Tech for Social Good  
 **Team Size:** 4 Members  
 
+> **Note for Submission:** Please replace all `<<FILL: ...>>` placeholders with the real names of your 4 team members before final submission.
+
 ---
 
-## 1. Member Roles & Deliverables
+## 1. Member Roles & Verifiable Deliverables
 
-### Member 1: Frontend Engineering & UI/UX Design
-- **Key Responsibilities:**
-  - Modern, social-good visual design system using Tailwind CSS and warm neutral aesthetics.
-  - Public landing page (`HomePage.tsx`), browsing interface (`DonationsPage.tsx`), and donation details (`DonationDetailPage.tsx`).
-  - Reusable component system (`Navbar`, `Footer`, `StatusBadge`, `DonationCard`, `LoadingSkeleton`, `EmptyState`).
-  - Mobile-first responsiveness, drawer navigation, and accessible keyboard focus states.
+### Member 1: <<FILL: Member 1 Full Name>> — Frontend Engineering & UI/UX Design
+- **Verified Code Contributions in Repository:**
+  - Modern, social-good visual design system using Tailwind CSS and warm neutral aesthetics (`apps/web/src/index.css`, `tailwind.config.js`).
+  - Core interfaces: Landing page (`HomePage.tsx`), inventory feed (`DonationsPage.tsx`), details view (`DonationDetailPage.tsx`), and donation form (`CreateDonationPage.tsx`).
+  - Reusable component system (`Navbar`, `Footer`, `StatusBadge`, `DonationCard`, `CloudinaryImage`, `LoadingSkeleton`, `EmptyState`, `ConfirmDialog`).
+  - Mobile responsiveness (verified down to 360px), accessible form labels, and keyboard-friendly modal interactions.
 
-### Member 2: Backend Architecture & Business Logic
-- **Key Responsibilities:**
-  - Express API structure, TypeScript setup, and routing architecture.
-  - Zod validation middleware for all mutation requests.
-  - Role-based authorization middleware (RBAC) and Supabase JWT verification.
+### Member 2: <<FILL: Member 2 Full Name>> — Backend Architecture & Business Logic
+- **Verified Code Contributions in Repository:**
+  - Express API structure, TypeScript setup, and routing architecture (`apps/api/src/server.ts`, `apps/api/src/routes/`).
+  - Zod validation middleware for all mutation requests (`apps/api/src/middleware/validation.ts`).
+  - Role-based authorization middleware (RBAC) and Supabase JWT token verification (`apps/api/src/middleware/auth.ts`).
   - Concurrency-safe claim workflows and status lifecycle controller implementation (`/claims/:id/collect`, `/claims/:id/deliver`).
-  - Centralized error handling preventing stack trace leakage.
+  - API health test suite (`apps/api/tests/health.test.js`).
 
-### Member 3: Database Architecture & Cloudinary Media Pipeline
-- **Key Responsibilities:**
+### Member 3: <<FILL: Member 3 Full Name>> — Database Architecture & Cloudinary Media Pipeline
+- **Verified Code Contributions in Repository:**
   - Supabase PostgreSQL schema, relational tables, check constraints, and triggers (`supabase/schema.sql`).
-  - Row Level Security (RLS) policies for multi-tenant data isolation.
-  - Atomic stored procedures: `claim_donation_atomic()` and `cancel_claim_atomic()` with `SELECT ... FOR UPDATE` row locks.
-  - Cloudinary server-side cryptographic signature generator (`/api/uploads/signature`) and dynamic URL transformation helper (`c_fill, f_auto, q_auto`).
-  - Indian realistic demo dataset (`supabase/seed.sql`).
+  - Multi-tenant Row Level Security (RLS) policies isolating donor, recipient, and volunteer records.
+  - Concurrency-safe atomic RPC functions: `claim_donation_atomic()` with `SELECT ... FOR UPDATE` row locks.
+  - Cloudinary pipeline: Direct unsigned upload preset integration for static deployment (`apps/web/src/lib/cloudinary.ts`), server-side cryptographic signature endpoint (`apps/api/src/routes/uploads.ts`), dynamic responsive transforms (`f_auto, q_auto, c_fill, g_auto`), and real delivered bytes measurement (`measureTransformedDelivery`).
+  - Realistic seed dataset (`supabase/seed.sql` and `apps/web/src/lib/mockData.ts`).
 
-### Member 4: Quality Assurance, Integration, Notion & Submission
-- **Key Responsibilities:**
-  - Automated test suites (Vitest for frontend, Node test runner for backend API).
-  - Cross-device responsiveness and manual user-journey validation.
-  - Impact calculation methodology alignment (FAO/UNEP meal portion and CO2 emission models).
-  - Complete 12-page Notion-ready documentation structure (`docs/notion/`).
-  - Hackathon submission materials, GitHub repository polish, and demo presentation script.
+### Member 4: <<FILL: Member 4 Full Name>> — Quality Assurance, Notion & Submission
+- **Verified Code Contributions in Repository:**
+  - Automated test suites: Vitest for web (`App.test.tsx`, `impactMath.test.ts`, `claimFlow.test.ts`, `uploadsFallback.test.ts`, `auth.test.ts`) and Node test runner for API.
+  - Defensible impact methodology: single source of truth (`calculateImpactMetrics` in `impactMath.ts`) using FAO 400g meal averages and UNEP 2.5 kg CO₂e/kg emission factors.
+  - GitHub Pages CI/CD workflow (`.github/workflows/deploy-pages.yml`) deploying `apps/web` with repository variables.
+  - Complete structured Notion documentation workspace (`docs/notion/*.md`).
+  - 3-Minute Demo walkthrough script (`docs/DEMO_SCRIPT.md`) and judge Q&A preparation.

@@ -111,12 +111,43 @@ export const VolunteerDashboard: React.FC = () => {
         </div>
 
         <Link
-          to="/donations"
+          to="/my-claims"
           className="inline-flex items-center gap-2 px-5 py-3 rounded-xl text-xs sm:text-sm font-bold bg-forest-900 text-white hover:bg-forest-800 shadow-sm transition"
         >
           <Navigation className="w-4 h-4 text-emerald-300" />
-          <span>View Transport Map</span>
+          <span>My Active Deliveries</span>
         </Link>
+      </div>
+
+      {/* Role Mission Definition Banner */}
+      <div className="bg-gradient-to-r from-purple-950 via-forest-950 to-stone-900 text-white rounded-3xl p-6 sm:p-7 shadow-lg border border-purple-800/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+        <div className="space-y-2 max-w-2xl">
+          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-bold bg-purple-500/20 text-purple-300 border border-purple-400/30">
+            <Bike className="w-3.5 h-3.5" />
+            <span>Role Definition: Last-Mile Food Rescue Runner</span>
+          </div>
+          <h2 className="text-xl sm:text-2xl font-black">
+            What is the Volunteer's Mission in SharePlate?
+          </h2>
+          <p className="text-xs sm:text-sm text-stone-300 leading-relaxed">
+            Commercial kitchens (canteens, bakeries, caterers) have surplus food but <strong>no delivery fleet</strong>. Grassroots community kitchens and shelters need food but <strong>lack dedicated drivers</strong>. As a SharePlate Volunteer, you provide the critical link: you receive dispatch alerts, pick up packaged food from donor loading docks, verify thermal packaging, and deliver meals directly to verified shelter coordinators before food spoils.
+          </p>
+        </div>
+        <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/15 text-xs space-y-2 shrink-0 w-full md:w-auto">
+          <div className="font-bold text-emerald-300 uppercase tracking-wider text-[10px]">Volunteer 3-Step Flow:</div>
+          <div className="flex items-center gap-2 text-stone-200">
+            <span className="w-5 h-5 rounded-full bg-emerald-500/30 text-emerald-300 flex items-center justify-center font-bold text-[10px]">1</span>
+            <span>Accept route from active dispatch board</span>
+          </div>
+          <div className="flex items-center gap-2 text-stone-200">
+            <span className="w-5 h-5 rounded-full bg-amber-500/30 text-amber-300 flex items-center justify-center font-bold text-[10px]">2</span>
+            <span>Pickup at kitchen dock & verify packaging</span>
+          </div>
+          <div className="flex items-center gap-2 text-stone-200">
+            <span className="w-5 h-5 rounded-full bg-purple-500/30 text-purple-300 flex items-center justify-center font-bold text-[10px]">3</span>
+            <span>Deliver to shelter & confirm completion</span>
+          </div>
+        </div>
       </div>
 
       {/* Metrics Row */}

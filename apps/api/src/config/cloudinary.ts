@@ -24,10 +24,15 @@ export const generateUploadSignature = (userId: string) => {
   const timestamp = Math.round(new Date().getTime() / 1000);
   // Restrict to folder and optionally scope by user
   const folder = `${config.cloudinary.folder}/${userId}`;
+  // Advanced transformations signed server-side: responsive derivative and auto-crop
+  const eager = 'c_fill,w_800,h_600,g_auto,f_auto,q_auto|c_fill,w_400,h_400,g_auto,f_auto,q_auto';
+  const tags = 'shareplate,food-donation,social-good';
 
   // Parameters to sign (alphabetical order required by Cloudinary hashing)
   const paramsToSign: Record<string, any> = {
+    eager,
     folder,
+    tags,
     timestamp,
   };
 
@@ -40,6 +45,8 @@ export const generateUploadSignature = (userId: string) => {
     signature,
     timestamp,
     folder,
+    eager,
+    tags,
     apiKey: config.cloudinary.apiKey,
     cloudName: config.cloudinary.cloudName,
     maxFileSize: config.cloudinary.maxFileSizeMb * 1024 * 1024,

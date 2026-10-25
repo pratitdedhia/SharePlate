@@ -8,7 +8,7 @@ import { StatusBadge } from '../components/common/StatusBadge';
 import { EmptyState } from '../components/common/EmptyState';
 import { LoadingSkeleton } from '../components/common/LoadingSkeleton';
 import { PlusCircle, Clock, MapPin, Eye, XCircle } from 'lucide-react';
-import { getCloudinaryUrl } from '../lib/cloudinary';
+import { CloudinaryImage } from '../components/common/CloudinaryImage';
 import { formatDate } from '../lib/utils';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
 
@@ -78,16 +78,18 @@ export const MyDonationsPage: React.FC = () => {
       ) : (
         <div className="bg-white rounded-3xl border border-warm-200 overflow-hidden shadow-xs divide-y divide-warm-100">
           {donations.map((d) => {
-            const imageUrl = getCloudinaryUrl(d.cloudinary_public_id || d.image_url, {
-              width: 160,
-              height: 120,
-              crop: 'fill',
-            });
-
             return (
               <div key={d.id} className="p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
-                  <img src={imageUrl} alt={d.title} className="w-16 h-16 rounded-2xl object-cover shrink-0" />
+                  <CloudinaryImage
+                    publicId={d.cloudinary_public_id}
+                    src={d.image_url || undefined}
+                    fallbackSrc={d.fallback_unsplash_url || undefined}
+                    alt={d.title}
+                    transformOptions={{ width: 160, height: 160, crop: 'fill', gravity: 'auto' }}
+                    className="w-16 h-16 rounded-2xl object-cover shrink-0"
+                    containerClassName="w-16 h-16 rounded-2xl overflow-hidden shrink-0"
+                  />
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <h3 className="text-sm font-bold text-stone-900 line-clamp-1">{d.title}</h3>

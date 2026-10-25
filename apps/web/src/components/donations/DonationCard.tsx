@@ -1,9 +1,9 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Clock, MapPin, Building, AlertCircle, ArrowRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Clock, MapPin, Building, AlertCircle, ArrowRight, ShieldAlert } from 'lucide-react';
 import { Donation } from '../../types';
 import { StatusBadge } from '../common/StatusBadge';
-import { getCloudinaryUrl } from '../../lib/cloudinary';
+import { CloudinaryImage } from '../common/CloudinaryImage';
 import { formatTimeRemaining, getCategoryLabel } from '../../lib/utils';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -13,10 +13,12 @@ interface DonationCardProps {
 
 export const DonationCard: React.FC<DonationCardProps> = ({ donation }) => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isDonor, isVolunteer } = useAuth();
   const timeInfo = formatTimeRemaining(donation.pickup_deadline);
+  const isExpired = donation.status === 'expired' || timeInfo.isExpired;
 
   const handleCardReserve = () => {
+    if (isExpired) return;
     if (!user) {
       navigate('/login', {
         state: {
@@ -29,37 +31,54 @@ export const DonationCard: React.FC<DonationCardProps> = ({ donation }) => {
     navigate(`/donations/${donation.id}`);
   };
 
-  // Cloudinary transformed delivery URL: 600x400 auto crop, auto quality, auto format
-  const imageUrl = getCloudinaryUrl(donation.cloudinary_public_id || donation.image_url, {
-    width: 600,
-    height: 400,
-    crop: 'fill',
-    quality: 'auto',
-    format: 'auto',
-  });
+  const getCardCtaLabel = () => {
+    if (isExpired) return 'Listing Expired (Past Deadline)';
+    if (!user) return 'View Details & Reserve';
+    if (isDonor) return 'View Batch Details';
+    if (isVolunteer) return 'View Delivery Details';
+    return 'View Details & Reserve';
+  };
 
   return (
-    <div className="bg-white rounded-2xl border border-warm-200 overflow-hidden shadow-xs hover:shadow-md transition group flex flex-col h-full">
+    <div
+      className={`bg-white rounded-2xl border border-warm-200 overflow-hidden shadow-xs hover:shadow-md transition group flex flex-col h-full ${
+        isExpired ? 'opacity-70 bg-stone-50/80' : ''
+      }`}
+    >
       {/* Food Image with Cloudinary Optimization */}
       <div className="relative h-48 w-full bg-warm-200 overflow-hidden">
-        <img
-          src={imageUrl}
+        <CloudinaryImage
+          publicId={donation.cloudinary_public_id}
+          src={donation.image_url || undefined}
+          fallbackSrc={donation.fallback_unsplash_url || undefined}
           alt={donation.title}
-          className="w-full h-full object-cover group-hover:scale-102 transition duration-300"
-          loading="lazy"
-          onError={(e) => {
-            e.currentTarget.onerror = null;
-            e.currentTarget.src = 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80';
+          transformOptions={{
+            width: 600,
+            height: 400,
+            crop: 'fill',
+            gravity: 'auto',
+            quality: 'auto',
+            format: 'auto',
           }}
+          showBadge={true}
+          className={`w-full h-full object-cover group-hover:scale-102 transition duration-300 ${
+            isExpired ? 'grayscale-40' : ''
+          }`}
         />
-        <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
-          <StatusBadge status={donation.status} size="sm" />
+
+        <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 pointer-events-none">
+          <StatusBadge status={isExpired ? 'expired' : donation.status} size="sm" />
           <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-white/95 text-stone-800 backdrop-blur-xs border border-warm-200">
             {getCategoryLabel(donation.category)}
           </span>
+          {donation.dietary_type && (
+            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-forest-900 border border-emerald-200">
+              {donation.dietary_type === 'veg' ? '🌱 Veg' : '🍗 Non-Veg'}
+            </span>
+          )}
         </div>
 
-        {donation.quantity_available > 0 && (
+        {donation.quantity_available > 0 && !isExpired && (
           <div className="absolute bottom-3 right-3 bg-forest-950/80 text-white backdrop-blur-xs px-2.5 py-1 rounded-xl text-xs font-bold shadow-sm">
             {donation.quantity_available} {donation.quantity_unit} left
           </div>
@@ -78,9 +97,17 @@ export const DonationCard: React.FC<DonationCardProps> = ({ donation }) => {
 
           {/* Allergen Tag */}
           {donation.allergens && donation.allergens.toLowerCase() !== 'none' && (
-            <div className="mb-3 flex items-center gap-1 text-[11px] text-amber-800 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200">
+            <div className="mb-2.5 flex items-center gap-1 text-[11px] text-amber-800 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200">
               <AlertCircle className="w-3.5 h-3.5 shrink-0 text-amber-600" />
               <span className="truncate">Allergens: {donation.allergens}</span>
+            </div>
+          )}
+
+          {/* Food Safety & Storage note */}
+          {donation.storage_note && (
+            <div className="mb-3 text-[11px] text-stone-600 bg-warm-50 px-2 py-1 rounded-lg border border-warm-200 flex items-center gap-1.5">
+              <ShieldAlert className="w-3 h-3 text-emerald-700 shrink-0" />
+              <span className="truncate font-medium">{donation.storage_note}</span>
             </div>
           )}
 
@@ -112,9 +139,14 @@ export const DonationCard: React.FC<DonationCardProps> = ({ donation }) => {
           <button
             type="button"
             onClick={handleCardReserve}
-            className="w-full py-2.5 rounded-xl text-xs font-bold text-forest-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+            disabled={isExpired}
+            className={`w-full py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-2xs ${
+              isExpired
+                ? 'bg-stone-200 text-stone-500 cursor-not-allowed border border-stone-300'
+                : 'text-forest-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 cursor-pointer'
+            }`}
           >
-            View Details & Reserve <ArrowRight className="w-3.5 h-3.5" />
+            {getCardCtaLabel()} {!isExpired && <ArrowRight className="w-3.5 h-3.5" />}
           </button>
         </div>
       </div>

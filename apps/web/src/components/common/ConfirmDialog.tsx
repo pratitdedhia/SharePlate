@@ -25,7 +25,15 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-200">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="confirm-dialog-title"
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') onCancel();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-200"
+    >
       <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-warm-200 animate-in zoom-in-95 duration-150">
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
@@ -36,7 +44,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
             >
               <AlertTriangle className="w-5 h-5" />
             </div>
-            <h3 className="text-base font-bold text-stone-900">{title}</h3>
+            <h3 id="confirm-dialog-title" className="text-base font-bold text-stone-900">{title}</h3>
           </div>
           <button onClick={onCancel} className="text-stone-400 hover:text-stone-700">
             <X className="w-5 h-5" />

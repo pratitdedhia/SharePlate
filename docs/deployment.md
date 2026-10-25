@@ -1,99 +1,108 @@
 # SharePlate — Deployment & Setup Guide
 
 **Hacktober HackDays 2026 | SheBuilds Delhi Chapter**  
+**Official Repository:** `https://github.com/pratitdedhia/SharePlate`  
+**Live Deployed URL:** `https://pratitdedhia.github.io/SharePlate/`  
 
 ---
 
-## 1. Local Development Quickstart
+## 1. Live Deployment Target: GitHub Pages (Current Deployed Demo)
+
+The official Hacktober HackDays 2026 deployed demo is hosted on **GitHub Pages** via an automated GitHub Actions CI/CD workflow.
+
+### 1.1 Automated CI/CD Workflow (`.github/workflows/deploy-pages.yml`)
+- Triggered automatically on every push to `main` and via manual `workflow_dispatch`.
+- Steps:
+  1. Checks out repository and configures Node.js 20 with npm caching.
+  2. Runs `npm ci` for deterministic dependency installation.
+  3. Builds `apps/web` with production environment variables read from **GitHub Repository Variables** (`vars.*`):
+     - `VITE_DEMO_MODE=true`
+     - `VITE_CLOUDINARY_CLOUD_NAME=${{ vars.VITE_CLOUDINARY_CLOUD_NAME }}`
+     - `VITE_CLOUDINARY_UPLOAD_PRESET=${{ vars.VITE_CLOUDINARY_UPLOAD_PRESET }}`
+     - `VITE_NOTION_URL=${{ vars.VITE_NOTION_URL }}`
+  4. Uploads `apps/web/dist` via `actions/upload-pages-artifact@v3`.
+  5. Deploys to GitHub Pages via `actions/deploy-pages@v4`.
+
+### 1.2 GitHub Repository Variables Setup
+To enable direct Cloudinary uploads and Notion linking on your GitHub Pages deployment:
+1. Navigate to your GitHub repository: **Settings > Secrets and variables > Actions > Variables tab**.
+2. Click **New repository variable** and define:
+   - `VITE_CLOUDINARY_CLOUD_NAME`: Your Cloudinary cloud name (e.g. `dxy...`)
+   - `VITE_CLOUDINARY_UPLOAD_PRESET`: Name of your unsigned upload preset (e.g. `shareplate_preset`)
+   - `VITE_NOTION_URL`: Your public Notion page URL (e.g. `https://your-page.notion.site/...`)
+
+---
+
+## 2. Cloudinary Unsigned Upload Preset Setup
+
+For static hosts (GitHub Pages) where no Express server is running to sign requests, Cloudinary provides **Unsigned Upload Presets** to allow direct browser uploads safely without exposing API secrets:
+
+1. Log into your account at [cloudinary.com](https://cloudinary.com).
+2. Go to **Settings (gear icon) > Upload > Upload presets**.
+3. Click **Add upload preset**.
+4. Set **Signing Mode** to **Unsigned**.
+5. Set **Folder** to `shareplate/donations`.
+6. (Optional) Set **Allowed formats** to `jpg, png, webp` and max file size to `5 MB`.
+7. Click **Save** and copy the preset name into `VITE_CLOUDINARY_UPLOAD_PRESET`.
+
+---
+
+## 3. Local Development Quickstart
 
 ### Prerequisites
-- Node.js (v20+ LTS recommended, v24 verified)
+- Node.js (v20+ LTS recommended)
 - Git
 
-### 1.1 Clone & Install
+### 3.1 Clone & Install
 ```bash
 # Clone the repository
-git clone https://github.com/your-team/shareplate.git
-cd shareplate
+git clone https://github.com/pratitdedhia/SharePlate.git
+cd SharePlate
 
-# Install dependencies in both workspaces
-npm install --workspace=@shareplate/api
-npm install --workspace=@shareplate/web
+# Install all workspace dependencies
+npm install
 ```
 
-### 1.2 Environment Setup
+### 3.2 Environment Setup
 Copy the example environment files:
 ```bash
 cp apps/api/.env.example apps/api/.env
 cp apps/web/.env.example apps/web/.env
 ```
 
-### 1.3 Running Locally
-Open two terminal windows:
-
-**Terminal 1 (Backend API):**
+### 3.3 Running Locally
 ```bash
-cd apps/api
-npm run dev
-# Server starts at http://localhost:5000
-```
+# Run both backend API (:5000) and web frontend (:5173) concurrently:
+npm run dev:all
 
-**Terminal 2 (Frontend Web):**
-```bash
-cd apps/web
+# Or run frontend only (interactive demo mode):
 npm run dev
-# Vite server starts at http://localhost:5173
 ```
 
 ---
 
-## 2. Supabase Cloud Configuration
+## 4. Production Cloud Deployment (Optional Full-Stack Stack)
 
-1. Create a free project at [supabase.com](https://supabase.com).
-2. Open the **SQL Editor** tab in your Supabase dashboard.
-3. Paste and run `supabase/schema.sql`.
-4. (Optional) Run `supabase/seed.sql` to populate sample Indian canteens, NGOs, and food records.
-5. In **Project Settings > API**, retrieve your `Project URL` and `anon public key`.
-6. Add them to `apps/web/.env` and `apps/api/.env`.
-
----
-
-## 3. Cloudinary Setup
-
-1. Create a free account at [cloudinary.com](https://cloudinary.com).
-2. From the Cloudinary Dashboard, copy:
-   - **Cloud Name**
-   - **API Key**
-   - **API Secret**
-3. Configure `apps/api/.env`:
-   ```bash
-   CLOUDINARY_CLOUD_NAME=your_cloud_name
-   CLOUDINARY_API_KEY=your_api_key
-   CLOUDINARY_API_SECRET=your_api_secret
-   ```
-4. Configure `apps/web/.env`:
-   ```bash
-   VITE_CLOUDINARY_CLOUD_NAME=your_cloud_name
-   ```
-
----
-
-## 4. Production Deployment
+To deploy the full-stack architecture with the Express backend and Supabase PostgreSQL:
 
 ### Frontend (Vercel)
-- Connect your GitHub repository to Vercel.
 - Set **Root Directory** to `apps/web`.
 - Configure Environment Variables:
   - `VITE_SUPABASE_URL`
   - `VITE_SUPABASE_ANON_KEY`
-  - `VITE_API_BASE_URL` (your deployed backend URL)
+  - `VITE_API_BASE_URL` (deployed Express URL)
   - `VITE_CLOUDINARY_CLOUD_NAME`
+  - `VITE_CLOUDINARY_UPLOAD_PRESET`
   - `VITE_DEMO_MODE=false`
 - Build Command: `npm run build`
 - Output Directory: `dist`
 
 ### Backend (Render / Railway / Fly.io)
-- Connect repository and select `apps/api`.
+- Select `apps/api`.
 - Build Command: `npm run build`
 - Start Command: `npm start`
-- Add all required environment variables (`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `CLOUDINARY_*`, `FRONTEND_ORIGIN`).
+- Environment Variables:
+  - `PORT=5000`
+  - `SUPABASE_URL`, `SUPABASE_ANON_KEY`
+  - `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
+  - `FRONTEND_ORIGIN` (your frontend domain)

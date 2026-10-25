@@ -52,6 +52,11 @@ export interface Donation {
   ingredients?: string | null;
   allergens?: string | null;
   preparation_time?: string | null;
+  prepared_at?: string | null;
+  consume_within_hours?: number | null;
+  storage_note?: string | null;
+  dietary_type?: 'veg' | 'non-veg' | string | null;
+  fallback_unsplash_url?: string | null;
   pickup_deadline: string;
   pickup_instructions?: string | null;
   city: string;
@@ -93,10 +98,12 @@ export interface ImpactMetrics {
   portionsListed: number;
   portionsReserved: number;
   portionsDelivered: number;
+  portionsAvailable: number;
   completedRescues: number;
   activeDonors: number;
   participatingRecipients: number;
   activeClaims: number;
+  rescueRatePercent: number;
   completionRatePercent: number;
   estimatedFoodRescuedKg: number;
   estimatedCo2eSavedKg: number;

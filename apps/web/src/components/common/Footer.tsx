@@ -1,8 +1,11 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { UtensilsCrossed, ShieldAlert, Heart, ExternalLink } from 'lucide-react';
+import { UtensilsCrossed, ShieldAlert, Heart, ExternalLink, Database, BookOpen } from 'lucide-react';
 
 export const Footer: React.FC = () => {
+  const notionUrl = (import.meta.env.VITE_NOTION_URL || '').trim();
+  const hasNotionUrl = Boolean(notionUrl && !notionUrl.includes('<<FILL'));
+
   return (
     <footer className="bg-warm-100 border-t border-warm-200 mt-20 pt-16 pb-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -19,7 +22,7 @@ export const Footer: React.FC = () => {
               A community food rescue platform connecting college canteens, restaurants, and caterers with nearby NGOs
               to redirect surplus food before it goes to waste.
             </p>
-            <div className="pt-2">
+            <div className="pt-1">
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-emerald-100/80 text-forest-900 border border-emerald-200">
                 ⚡ Powered by Cloudinary
               </span>
@@ -46,8 +49,8 @@ export const Footer: React.FC = () => {
                 </Link>
               </li>
               <li>
-                <Link to="/dashboard" className="hover:text-forest-900 transition">
-                  Role Dashboard
+                <Link to="/about" className="hover:text-forest-900 transition">
+                  About SharePlate
                 </Link>
               </li>
             </ul>
@@ -55,17 +58,23 @@ export const Footer: React.FC = () => {
 
           {/* Hackathon Context */}
           <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-forest-950 mb-3">Hackathon Context</h4>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-forest-950 mb-3">Submission Context</h4>
             <ul className="space-y-2 text-xs text-stone-600">
               <li className="font-medium text-forest-900">Hacktober HackDays 2026</li>
               <li>SheBuilds Delhi Chapter · Powered by MLH</li>
               <li>Theme: Tech for Social Good</li>
-              <li>Team Size: 4 Student Engineers</li>
-              <li>
-                <Link to="/about" className="hover:text-forest-900 transition inline-flex items-center gap-1">
-                  Read Development Journey <ExternalLink className="w-3 h-3" />
-                </Link>
-              </li>
+              {hasNotionUrl && (
+                <li>
+                  <a
+                    href={notionUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-emerald-800 font-semibold hover:text-emerald-950 transition inline-flex items-center gap-1"
+                  >
+                    <BookOpen className="w-3 h-3 text-emerald-600" /> Project Journey (Notion)
+                  </a>
+                </li>
+              )}
             </ul>
           </div>
 
@@ -76,17 +85,29 @@ export const Footer: React.FC = () => {
               <span>Food Safety Responsibility</span>
             </div>
             <p className="text-[11px] text-amber-900/80 leading-relaxed">
-              SharePlate is a communication platform facilitating food rescue. SharePlate does not certify or inspect
-              food safety. Donors are solely responsible for providing accurate ingredient, allergen, and freshness
-              information. Recipients must ensure temperature-safe collection and adherence to local hygiene
-              guidelines.
+              SharePlate is a communication platform facilitating food rescue. Donors confirm basic hygiene standards;
+              recipients verify freshness, temperature, and packaging upon pickup before community distribution.
             </p>
           </div>
         </div>
 
+        {/* Persistent Transparent Demo Notice */}
+        <div className="mt-8 p-3 rounded-2xl bg-white border border-warm-200 text-xs text-stone-600 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Database className="w-4 h-4 text-emerald-700 shrink-0" />
+            <span>
+              <strong>Demo mode:</strong> State and listings are stored in your browser memory for immediate interaction.
+              The repository includes the production Express backend and Supabase PostgreSQL schema with atomic reservation locks.
+            </span>
+          </div>
+          <Link to="/about" className="text-emerald-700 hover:text-emerald-900 font-semibold shrink-0">
+            Read Architecture →
+          </Link>
+        </div>
+
         {/* Bottom Bar */}
-        <div className="mt-12 pt-6 border-t border-warm-200/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-stone-500">
-          <p>© 2026 SharePlate. Built with care for Hacktober HackDays 2026.</p>
+        <div className="mt-8 pt-6 border-t border-warm-200/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-stone-500">
+          <p>© 2026 SharePlate. Built for Hacktober HackDays 2026.</p>
           <div className="flex items-center gap-4 text-xs">
             <Link to="/about" className="hover:text-stone-800 transition">
               About & Team

@@ -15,6 +15,7 @@ import {
   LogIn,
   UserPlus,
   Compass,
+  BookOpen,
 } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
@@ -22,6 +23,9 @@ export const Navbar: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const notionUrl = (import.meta.env.VITE_NOTION_URL || '').trim();
+  const hasNotionUrl = Boolean(notionUrl && !notionUrl.includes('<<FILL'));
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -96,100 +100,123 @@ export const Navbar: React.FC = () => {
             </Link>
           </div>
 
-          {/* Navigation Links - Common for Guests, Role-adapted for Users */}
+          {/* Navigation Links - Strict Role-Based Visibility */}
           <nav className="hidden md:flex items-center gap-1 lg:gap-2">
-            <Link
-              to="/donations"
-              className={`px-3 py-2 rounded-xl text-sm font-semibold transition ${
-                isActive('/donations')
-                  ? 'bg-forest-900 text-white'
-                  : 'text-stone-700 hover:text-stone-900 hover:bg-warm-200'
-              }`}
-            >
-              Browse Food
-            </Link>
-
-            <Link
-              to="/impact"
-              className={`px-3 py-2 rounded-xl text-sm font-semibold transition ${
-                isActive('/impact')
-                  ? 'bg-forest-900 text-white'
-                  : 'text-stone-700 hover:text-stone-900 hover:bg-warm-200'
-              }`}
-            >
-              <span className="flex items-center gap-1.5">
-                <BarChart3 className="w-4 h-4 text-emerald-600" />
-                Impact
-              </span>
-            </Link>
-
-            <Link
-              to="/about"
-              className={`px-3 py-2 rounded-xl text-sm font-semibold transition ${
-                isActive('/about')
-                  ? 'bg-forest-900 text-white'
-                  : 'text-stone-700 hover:text-stone-900 hover:bg-warm-200'
-              }`}
-            >
-              About
-            </Link>
-
-            {/* Authenticated Links Dynamically Adapting to Role */}
+            {/* Authenticated Dashboard Link */}
             {user && (
-              <>
-                <Link
-                  to={`/dashboard/${user.role}`}
-                  className={`px-3 py-2 rounded-xl text-sm font-semibold transition ${
-                    isActive('/dashboard') || isActive(`/dashboard/${user.role}`)
-                      ? 'bg-forest-900 text-white'
-                      : 'text-stone-700 hover:text-stone-900 hover:bg-warm-200'
-                  }`}
-                >
-                  Dashboard
-                </Link>
+              <Link
+                to={`/dashboard/${user.role}`}
+                className={`px-3 py-2 rounded-xl text-sm font-semibold transition ${
+                  isActive('/dashboard') || isActive(`/dashboard/${user.role}`)
+                    ? 'bg-forest-900 text-white'
+                    : 'text-stone-700 hover:text-stone-900 hover:bg-warm-200'
+                }`}
+              >
+                Dashboard
+              </Link>
+            )}
 
-                {(isDonor || isAdmin) && (
-                  <Link
-                    to="/my-donations"
-                    className={`px-3 py-2 rounded-xl text-sm font-semibold transition ${
-                      isActive('/my-donations')
-                        ? 'bg-forest-900 text-white'
-                        : 'text-stone-700 hover:text-stone-900 hover:bg-warm-200'
-                    }`}
-                  >
-                    My Listings
-                  </Link>
-                )}
+            {/* Browse Food: Hidden for Donor and Volunteer, visible for Guests, Recipients, Admin */}
+            {(!user || isRecipient || isAdmin) && (
+              <Link
+                to="/donations"
+                className={`px-3 py-2 rounded-xl text-sm font-semibold transition ${
+                  isActive('/donations')
+                    ? 'bg-forest-900 text-white'
+                    : 'text-stone-700 hover:text-stone-900 hover:bg-warm-200'
+                }`}
+              >
+                Browse Food
+              </Link>
+            )}
 
-                {(isRecipient || isVolunteer || isAdmin) && (
-                  <Link
-                    to="/my-claims"
-                    className={`px-3 py-2 rounded-xl text-sm font-semibold transition ${
-                      isActive('/my-claims')
-                        ? 'bg-forest-900 text-white'
-                        : 'text-stone-700 hover:text-stone-900 hover:bg-warm-200'
-                    }`}
-                  >
-                    {isVolunteer ? 'Deliveries' : 'My Claims'}
-                  </Link>
-                )}
+            {/* Donor specific listings */}
+            {user && (isDonor || isAdmin) && (
+              <Link
+                to="/my-donations"
+                className={`px-3 py-2 rounded-xl text-sm font-semibold transition ${
+                  isActive('/my-donations')
+                    ? 'bg-forest-900 text-white'
+                    : 'text-stone-700 hover:text-stone-900 hover:bg-warm-200'
+                }`}
+              >
+                My Listings
+              </Link>
+            )}
 
-                {isAdmin && (
-                  <Link
-                    to="/admin"
-                    className={`px-3 py-2 rounded-xl text-sm font-semibold transition ${
-                      isActive('/admin')
-                        ? 'bg-forest-900 text-white'
-                        : 'text-stone-700 hover:text-stone-900 hover:bg-warm-200'
-                    }`}
-                  >
-                    <span className="flex items-center gap-1 text-amber-700">
-                      <ShieldAlert className="w-4 h-4" />
-                      Moderation
-                    </span>
-                  </Link>
-                )}
-              </>
+            {/* Recipient & Volunteer specific claims/deliveries */}
+            {user && (isRecipient || isVolunteer || isAdmin) && (
+              <Link
+                to="/my-claims"
+                className={`px-3 py-2 rounded-xl text-sm font-semibold transition ${
+                  isActive('/my-claims')
+                    ? 'bg-forest-900 text-white'
+                    : 'text-stone-700 hover:text-stone-900 hover:bg-warm-200'
+                }`}
+              >
+                {isVolunteer ? 'Active Deliveries' : 'My Claims'}
+              </Link>
+            )}
+
+            {/* Admin Command Center */}
+            {user && isAdmin && (
+              <Link
+                to="/admin"
+                className={`px-3 py-2 rounded-xl text-sm font-semibold transition ${
+                  isActive('/admin')
+                    ? 'bg-forest-900 text-white'
+                    : 'text-stone-700 hover:text-stone-900 hover:bg-warm-200'
+                }`}
+              >
+                <span className="flex items-center gap-1 text-purple-700">
+                  <ShieldCheck className="w-4 h-4" />
+                  Admin Ops & Users
+                </span>
+              </Link>
+            )}
+
+            {/* Impact / Insights: Hidden for Donor, Recipient, Volunteer; visible for Guests & Admin */}
+            {(!user || isAdmin) && (
+              <Link
+                to="/impact"
+                className={`px-3 py-2 rounded-xl text-sm font-semibold transition ${
+                  isActive('/impact')
+                    ? 'bg-forest-900 text-white'
+                    : 'text-stone-700 hover:text-stone-900 hover:bg-warm-200'
+                }`}
+              >
+                <span className="flex items-center gap-1.5">
+                  <BarChart3 className="w-4 h-4 text-emerald-600" />
+                  Impact
+                </span>
+              </Link>
+            )}
+
+            {/* About: Hidden for Donor, Recipient, Volunteer; visible for Guests & Admin */}
+            {(!user || isAdmin) && (
+              <Link
+                to="/about"
+                className={`px-3 py-2 rounded-xl text-sm font-semibold transition ${
+                  isActive('/about')
+                    ? 'bg-forest-900 text-white'
+                    : 'text-stone-700 hover:text-stone-900 hover:bg-warm-200'
+                }`}
+              >
+                About
+              </Link>
+            )}
+
+            {/* Project Journey Notion: Hidden for Donor, Recipient, Volunteer */}
+            {(!user || isAdmin) && hasNotionUrl && (
+              <a
+                href={notionUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-2 rounded-xl text-sm font-semibold text-emerald-800 hover:text-forest-950 hover:bg-emerald-50 transition inline-flex items-center gap-1.5"
+              >
+                <BookOpen className="w-4 h-4 text-emerald-600" />
+                <span>Project Journey (Notion)</span>
+              </a>
             )}
           </nav>
 
@@ -413,33 +440,56 @@ export const Navbar: React.FC = () => {
             </Link>
           )}
 
-          {/* Mobile Links */}
+          {/* Mobile Links with Role Visibility */}
           <div className="flex flex-col space-y-1 text-sm font-medium">
-            <Link
-              to="/donations"
-              onClick={() => setMobileMenuOpen(false)}
-              className="px-3 py-2 rounded-xl text-stone-800 hover:bg-warm-100 flex items-center justify-between"
-            >
-              <span>Browse Food Batches</span>
-              <Compass className="w-4 h-4 text-stone-400" />
-            </Link>
+            {/* Browse Food: Hidden for Donor and Volunteer */}
+            {(!user || isRecipient || isAdmin) && (
+              <Link
+                to="/donations"
+                onClick={() => setMobileMenuOpen(false)}
+                className="px-3 py-2 rounded-xl text-stone-800 hover:bg-warm-100 flex items-center justify-between"
+              >
+                <span>Browse Food Batches</span>
+                <Compass className="w-4 h-4 text-stone-400" />
+              </Link>
+            )}
 
-            <Link
-              to="/impact"
-              onClick={() => setMobileMenuOpen(false)}
-              className="px-3 py-2 rounded-xl text-stone-800 hover:bg-warm-100 flex items-center justify-between"
-            >
-              <span>Impact Metrics</span>
-              <BarChart3 className="w-4 h-4 text-stone-400" />
-            </Link>
+            {/* Impact: Hidden for Donor, Recipient, Volunteer; visible for Guests & Admin */}
+            {(!user || isAdmin) && (
+              <Link
+                to="/impact"
+                onClick={() => setMobileMenuOpen(false)}
+                className="px-3 py-2 rounded-xl text-stone-800 hover:bg-warm-100 flex items-center justify-between"
+              >
+                <span>Impact Metrics</span>
+                <BarChart3 className="w-4 h-4 text-stone-400" />
+              </Link>
+            )}
 
-            <Link
-              to="/about"
-              onClick={() => setMobileMenuOpen(false)}
-              className="px-3 py-2 rounded-xl text-stone-800 hover:bg-warm-100"
-            >
-              About & Safety
-            </Link>
+            {/* About: Hidden for Donor, Recipient, Volunteer; visible for Guests & Admin */}
+            {(!user || isAdmin) && (
+              <Link
+                to="/about"
+                onClick={() => setMobileMenuOpen(false)}
+                className="px-3 py-2 rounded-xl text-stone-800 hover:bg-warm-100"
+              >
+                About & Safety
+              </Link>
+            )}
+
+            {/* Notion: Hidden for Donor, Recipient, Volunteer; visible for Guests & Admin */}
+            {(!user || isAdmin) && hasNotionUrl && (
+              <a
+                href={notionUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setMobileMenuOpen(false)}
+                className="px-3 py-2 rounded-xl text-emerald-800 hover:bg-emerald-50 font-semibold flex items-center justify-between"
+              >
+                <span>Project Journey (Notion)</span>
+                <BookOpen className="w-4 h-4 text-emerald-600" />
+              </a>
+            )}
 
             {user && (
               <>

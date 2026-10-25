@@ -1,44 +1,58 @@
-# 11. Deployment & Local Setup Guide
+# 11. Deployment & Setup Guide
+
+**Official Repository:** `https://github.com/pratitdedhia/SharePlate`  
+**Live Deployed URL (GitHub Pages):** `https://pratitdedhia.github.io/SharePlate/`  
 
 ---
 
-## 1. Quick Local Execution
+## 1. Live Deployment Target: GitHub Pages
 
-### Install Dependencies
-```bash
-# In workspace root
-npm install --workspace=@shareplate/api
-npm install --workspace=@shareplate/web
-```
+The deployed demo is hosted on **GitHub Pages** via an automated GitHub Actions CI/CD workflow (`.github/workflows/deploy-pages.yml`).
 
-### Run Locally
+### 1.1 Automated Workflow
+- On every push to `main`, the workflow:
+  1. Installs workspace dependencies with `npm ci`.
+  2. Builds `apps/web` injecting GitHub Repository Variables (`vars.*`):
+     - `VITE_DEMO_MODE=true`
+     - `VITE_CLOUDINARY_CLOUD_NAME`
+     - `VITE_CLOUDINARY_UPLOAD_PRESET`
+     - `VITE_NOTION_URL`
+  3. Uploads `apps/web/dist` and deploys to GitHub Pages with `actions/deploy-pages@v4`.
+- Client routing uses `HashRouter` ensuring URLs like `#/donations` or `#/impact` work seamlessly without requiring server-side fallback rules.
+
+### 1.2 GitHub Repository Variables Configuration
+1. Open **Settings > Secrets and variables > Actions > Variables tab** in your repository.
+2. Add:
+   - `VITE_CLOUDINARY_CLOUD_NAME`: Your Cloudinary cloud name
+   - `VITE_CLOUDINARY_UPLOAD_PRESET`: Name of your unsigned upload preset
+   - `VITE_NOTION_URL`: Your public Notion project journey page link
+
+---
+
+## 2. Cloudinary Unsigned Upload Preset Setup
+
+To enable direct client uploads on static hosts without an active backend:
+1. In the Cloudinary Dashboard, open **Settings > Upload > Upload presets**.
+2. Click **Add upload preset**.
+3. Select **Unsigned** as the signing mode.
+4. Set folder to `shareplate/donations` and save.
+5. Provide this preset name as `VITE_CLOUDINARY_UPLOAD_PRESET`.
+
+---
+
+## 3. Local Development Quickstart
+
 ```bash
-# Terminal 1: Backend Express API
-cd apps/api
+# Clone the repository
+git clone https://github.com/pratitdedhia/SharePlate.git
+cd SharePlate
+
+# Install all workspace dependencies
+npm install
+
+# Run frontend dev server
 npm run dev
 
-# Terminal 2: Frontend Web App
-cd apps/web
-npm run dev
+# Or run frontend and Express backend concurrently
+npm run dev:all
 ```
-Visit `http://localhost:5173` to explore SharePlate in your browser.
-
----
-
-## 2. Cloud Service Configuration
-
-### Supabase
-1. Run `supabase/schema.sql` in your Supabase SQL editor.
-2. (Optional) Run `supabase/seed.sql` to populate sample Indian canteens, NGOs, and food batches.
-3. Configure `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in `apps/web/.env`.
-
-### Cloudinary
-1. Create a free Cloudinary account.
-2. Set `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, and `CLOUDINARY_API_SECRET` in `apps/api/.env`.
-3. Set `VITE_CLOUDINARY_CLOUD_NAME` in `apps/web/.env`.
-
----
-
-## 3. Production Deployment Notes
-- **Frontend:** Deployable to Vercel with root directory set to `apps/web`.
-- **Backend:** Deployable to Render or Railway with root directory set to `apps/api`.

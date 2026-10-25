@@ -7,13 +7,9 @@ interface ImpactChartsProps {
 }
 
 export const ImpactCharts: React.FC<ImpactChartsProps> = ({ metrics }) => {
-  const portionsAvailable = Math.max(
-    0,
-    metrics.portionsListed - metrics.portionsDelivered - metrics.portionsReserved
-  );
-
+  const portionsAvailable = metrics.portionsAvailable;
   const totalPortions = Math.max(1, metrics.portionsListed);
-  const deliveredPct = Math.round((metrics.portionsDelivered / totalPortions) * 100);
+  const deliveredPct = metrics.rescueRatePercent;
   const reservedPct = Math.round((metrics.portionsReserved / totalPortions) * 100);
   const availablePct = Math.max(0, 100 - deliveredPct - reservedPct);
 

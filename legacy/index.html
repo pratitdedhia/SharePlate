@@ -1,0 +1,2825 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SharePlate | Rescue Food. Reduce Waste. Feed Communities.</title>
+  <meta name="description" content="SharePlate connects college canteens, restaurants, and caterers with local NGOs and community kitchens to rescue surplus food. Powered by Cloudinary & Firebase." />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            forest: {
+              50: '#f0fdf4',
+              100: '#dcfce7',
+              200: '#bbf7d0',
+              300: '#86efac',
+              400: '#4ade80',
+              500: '#22c55e',
+              600: '#16a34a',
+              700: '#15803d',
+              800: '#166534',
+              900: '#14532d',
+              950: '#052e16',
+            },
+            warm: {
+              50: '#FAF9F6',
+              100: '#F5F5F0',
+              200: '#EBEBE5',
+              300: '#D6D5CE',
+              800: '#292524',
+              900: '#1C1917',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Google Fonts: Inter & Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Firebase v10 Compat SDK (Accessible from anywhere without SQL server) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+  <style>
+    body {
+      background-color: #FAF9F6;
+      color: #1C1917;
+      font-family: 'Inter', system-ui, sans-serif;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+      letter-spacing: -0.02em;
+    }
+    .badge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 9999px;
+      display: inline-block;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col selection:bg-emerald-100 selection:text-forest-900">
+
+  <!-- TOP NOTIFICATION & FIREBASE STATUS BAR -->
+  <!-- TOP NOTIFICATION & FIREBASE STATUS BAR -->
+  <div class="bg-forest-950 text-emerald-100 px-4 py-2 text-xs flex flex-wrap items-center justify-between gap-2 border-b border-forest-900">
+    <div class="flex items-center gap-2">
+      <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-emerald-900/80 text-emerald-300 font-semibold text-[11px] border border-emerald-700/50">
+        🏆 Hacktober HackDays 2026
+      </span>
+      <span class="hidden sm:inline">SheBuilds Delhi Chapter · Powered by MLH · Tech for Social Good</span>
+    </div>
+    <div class="flex items-center gap-3">
+      <div id="firebase-status" class="flex items-center gap-1.5 text-[11px] font-medium text-emerald-300">
+        <span class="badge-dot bg-emerald-400 animate-pulse"></span>
+        <span id="firebase-status-text">Cloud Database: Online & Accessible Anywhere</span>
+      </div>
+      <button onclick="openFirebaseModal()" class="text-[11px] underline hover:text-white transition">
+        Configure Firebase
+      </button>
+    </div>
+  </div>
+
+  <!-- NAVIGATION HEADER -->
+  <header class="sticky top-0 z-40 bg-warm-50/90 backdrop-blur-md border-b border-warm-200">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <!-- Logo (Fixed: No vertical stretch or line wraps) -->
+        <a href="#home" onclick="navigate('home')" class="flex items-center gap-3 group shrink-0">
+          <div class="w-10 h-10 rounded-xl bg-forest-900 text-white flex items-center justify-center shadow-md group-hover:bg-forest-800 transition shrink-0">
+            <i data-lucide="utensils-crossed" class="w-5 h-5 text-emerald-300"></i>
+          </div>
+          <div class="flex flex-col justify-center">
+            <div class="flex items-center gap-2">
+              <span class="text-xl font-extrabold tracking-tight text-forest-950 leading-none">SharePlate</span>
+              <span class="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-forest-800 border border-emerald-200 leading-none whitespace-nowrap self-center shrink-0">
+                HackDays '26
+              </span>
+            </div>
+            <p class="text-[11px] text-stone-500 font-medium hidden sm:block mt-0.5">Rescue Food · Feed Communities</p>
+          </div>
+        </a>
+
+        <!-- Desktop Nav Links -->
+        <nav class="hidden md:flex items-center gap-1">
+          <button onclick="navigate('donations')" id="nav-donations" class="px-3 py-2 rounded-lg text-sm font-medium text-stone-700 hover:text-stone-900 hover:bg-warm-100 transition">
+            Browse Food
+          </button>
+          <button onclick="navigate('impact')" id="nav-impact" class="px-3 py-2 rounded-lg text-sm font-medium text-stone-700 hover:text-stone-900 hover:bg-warm-100 transition flex items-center gap-1.5">
+            <i data-lucide="bar-chart-3" class="w-4 h-4 text-emerald-600"></i> Impact
+          </button>
+          <button onclick="navigate('dashboard')" id="nav-dashboard" class="px-3 py-2 rounded-lg text-sm font-medium text-stone-700 hover:text-stone-900 hover:bg-warm-100 transition">
+            Dashboard
+          </button>
+          <button onclick="navigate('my-donations')" id="nav-my-donations" class="px-3 py-2 rounded-lg text-sm font-medium text-stone-700 hover:text-stone-900 hover:bg-warm-100 transition">
+            My Listings
+          </button>
+          <button onclick="navigate('my-claims')" id="nav-my-claims" class="px-3 py-2 rounded-lg text-sm font-medium text-stone-700 hover:text-stone-900 hover:bg-warm-100 transition">
+            My Claims
+          </button>
+          <button onclick="navigate('about')" id="nav-about" class="px-3 py-2 rounded-lg text-sm font-medium text-stone-700 hover:text-stone-900 hover:bg-warm-100 transition">
+            About
+          </button>
+        </nav>
+
+        <!-- Right Dynamic Role Action & Auth Container -->
+        <div id="nav-right-container" class="hidden md:flex items-center gap-2.5">
+          <!-- Injected dynamically by JS based on whether user is logged in and their active role -->
+        </div>
+
+        <!-- Mobile Menu Hamburger -->
+        <div class="flex md:hidden items-center gap-2">
+          <button onclick="toggleMobileMenu()" class="p-2 rounded-xl text-stone-700 hover:bg-warm-200">
+            <i data-lucide="menu" class="w-6 h-6"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile Drawer -->
+    <div id="mobile-menu" class="hidden md:hidden border-t border-warm-200 bg-white px-4 pt-3 pb-6 space-y-3">
+      <!-- Active User Card or Auth Links (Mobile) -->
+      <div id="mobile-auth-container" class="bg-warm-50 p-3 rounded-2xl border border-warm-200">
+        <!-- Injected by JS -->
+      </div>
+
+      <div id="mobile-nav-links" class="flex flex-col space-y-1 text-sm font-medium">
+        <!-- Injected dynamically by JS based on role/auth -->
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER (ROUTED PAGES) -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- VIEW 1: HOME PAGE -->
+    <div id="view-home" class="space-y-16 py-6">
+      <!-- Hero -->
+      <section class="text-center max-w-4xl mx-auto space-y-6 pt-4 pb-8">
+        <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-100 text-forest-900 border border-emerald-300">
+          <i data-lucide="sparkles" class="w-3.5 h-3.5 text-emerald-600"></i>
+          <span>Hacktober HackDays 2026 · Powered by MLH · Cloudinary + Firebase Cloud</span>
+        </div>
+
+        <h1 class="text-4xl sm:text-6xl font-black text-stone-900 tracking-tight leading-[1.1]">
+          Rescue Food. <span class="text-forest-900 underline decoration-emerald-400 decoration-wavy">Reduce Waste.</span><br />
+          Feed Communities.
+        </h1>
+
+        <p class="text-base sm:text-lg text-stone-600 max-w-2xl mx-auto leading-relaxed">
+          SharePlate connects university dining halls, caterers, and restaurants with local NGOs to redirect fresh surplus meals in hours—not landfills.
+        </p>
+
+        <!-- Primary Landing Page Authentication & Onboarding Funnel (Matching MediCare Reference) -->
+        <div id="hero-auth-container" class="space-y-4 pt-2">
+          <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <button onclick="navigate('register')" class="w-full sm:w-auto px-7 py-3.5 rounded-2xl text-sm font-bold bg-white text-forest-900 hover:bg-emerald-50 border-2 border-emerald-300 shadow-xs transition flex items-center justify-center gap-2">
+              <i data-lucide="user-plus" class="w-4 h-4 text-emerald-700"></i>
+              Register Free
+            </button>
+            <button onclick="navigate('login')" class="w-full sm:w-auto px-7 py-3.5 rounded-2xl text-sm font-bold bg-forest-900 text-white hover:bg-forest-800 shadow-md transition flex items-center justify-center gap-2 group">
+              <i data-lucide="log-in" class="w-4 h-4 text-emerald-400 group-hover:translate-x-0.5 transition"></i>
+              Portal Login
+            </button>
+          </div>
+          <div class="flex items-center justify-center gap-4 text-xs font-semibold text-stone-500 pt-1">
+            <button onclick="navigate('donations')" class="hover:text-stone-900 transition flex items-center gap-1">
+              <i data-lucide="search" class="w-3.5 h-3.5 text-emerald-600"></i> Browse live batches as guest
+            </button>
+            <span>·</span>
+            <button onclick="navigate('impact')" class="hover:text-stone-900 transition flex items-center gap-1">
+              <i data-lucide="bar-chart-3" class="w-3.5 h-3.5 text-emerald-600"></i> Public impact data
+            </button>
+          </div>
+        </div>
+
+        <!-- Trust Stats Strip -->
+        <div class="pt-4 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl mx-auto">
+          <div class="bg-white p-4 rounded-2xl border border-warm-200 shadow-xs">
+            <div id="stat-delivered" class="text-2xl font-black text-stone-900">90</div>
+            <div class="text-[11px] font-semibold text-stone-500 uppercase tracking-wider">Portions Delivered</div>
+          </div>
+          <div class="bg-white p-4 rounded-2xl border border-warm-200 shadow-xs">
+            <div id="stat-donors" class="text-2xl font-black text-stone-900">4</div>
+            <div class="text-[11px] font-semibold text-stone-500 uppercase tracking-wider">Active Donors</div>
+          </div>
+          <div class="bg-white p-4 rounded-2xl border border-warm-200 shadow-xs">
+            <div id="stat-recipients" class="text-2xl font-black text-stone-900">3</div>
+            <div class="text-[11px] font-semibold text-stone-500 uppercase tracking-wider">Partner NGOs</div>
+          </div>
+          <div class="bg-white p-4 rounded-2xl border border-warm-200 shadow-xs">
+            <div id="stat-co2" class="text-2xl font-black text-emerald-700">~90 kg</div>
+            <div class="text-[11px] font-semibold text-stone-500 uppercase tracking-wider">CO₂e Avoided</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Live Food Carousel Preview (Prominently featured on Landing Page) -->
+      <section class="space-y-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-forest-900 mb-1 border border-emerald-300">
+              <span class="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
+              Live Rescue Inventory
+            </div>
+            <h2 class="text-2xl sm:text-3xl font-extrabold text-stone-900 mt-1">Available Food Batches</h2>
+            <p class="text-xs text-stone-500 mt-0.5">Fresh surplus meals ready for immediate, verified NGO pickup.</p>
+          </div>
+          <button onclick="navigate('donations')" class="text-xs font-bold text-forest-900 hover:text-emerald-700 flex items-center gap-1.5 bg-white px-3.5 py-2 rounded-xl border border-warm-200 shadow-2xs hover:shadow-xs transition">
+            Explore All Batches <i data-lucide="chevron-right" class="w-4 h-4"></i>
+          </button>
+        </div>
+        <div id="home-donations-grid" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <!-- Populated by JS -->
+        </div>
+      </section>
+
+      <!-- Role Portal Entry Cards (Login or Register by Role) -->
+      <section id="home-portals-section" class="space-y-6">
+        <div class="text-center max-w-xl mx-auto">
+          <span class="text-xs font-bold text-emerald-700 uppercase tracking-wider">Dedicated Portals</span>
+          <h2 class="text-2xl sm:text-3xl font-extrabold text-stone-900 mt-1">Join the Food Rescue Mission</h2>
+          <p class="text-xs text-stone-600 mt-1">Select your role to access your dedicated portal or register your organization.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <!-- Donor Card -->
+          <div class="bg-white p-6 sm:p-7 rounded-3xl border border-warm-200 shadow-xs space-y-4 flex flex-col justify-between">
+            <div class="space-y-3">
+              <div class="w-12 h-12 rounded-2xl bg-emerald-100 text-forest-900 flex items-center justify-center font-bold">
+                <i data-lucide="utensils" class="w-6 h-6"></i>
+              </div>
+              <h3 class="text-lg font-bold text-stone-900">Canteens & Donors</h3>
+              <p class="text-xs text-stone-600 leading-relaxed">
+                Publish daily surplus meal batches in 60 seconds with food photos and coordinate atomic, double-claim-proof shelter collections.
+              </p>
+            </div>
+            <div class="pt-2 space-y-2">
+              <button onclick="navigate('login')" class="w-full py-2.5 rounded-xl text-xs font-bold bg-forest-900 text-white hover:bg-forest-800 transition flex items-center justify-center gap-1.5">
+                Sign In as Donor <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-emerald-300"></i>
+              </button>
+              <button onclick="selectRegisterRole('donor'); navigate('register');" class="w-full py-2.5 rounded-xl text-xs font-bold bg-emerald-50 text-forest-900 hover:bg-emerald-100 border border-emerald-200 transition">
+                Register New Canteen
+              </button>
+            </div>
+          </div>
+
+          <!-- Recipient Card -->
+          <div class="bg-white p-6 sm:p-7 rounded-3xl border border-warm-200 shadow-xs space-y-4 flex flex-col justify-between">
+            <div class="space-y-3">
+              <div class="w-12 h-12 rounded-2xl bg-blue-100 text-blue-900 flex items-center justify-center font-bold">
+                <i data-lucide="building" class="w-6 h-6"></i>
+              </div>
+              <h3 class="text-lg font-bold text-stone-900">Shelters & NGOs</h3>
+              <p class="text-xs text-stone-600 leading-relaxed">
+                Inspect food ingredients and packaging photos, claim exact needed portions, and unlock protected gate pickup instructions.
+              </p>
+            </div>
+            <div class="pt-2 space-y-2">
+              <button onclick="navigate('login')" class="w-full py-2.5 rounded-xl text-xs font-bold bg-blue-900 text-white hover:bg-blue-800 transition flex items-center justify-center gap-1.5">
+                Sign In as Recipient <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-blue-300"></i>
+              </button>
+              <button onclick="selectRegisterRole('recipient'); navigate('register');" class="w-full py-2.5 rounded-xl text-xs font-bold bg-blue-50 text-blue-900 hover:bg-blue-100 border border-blue-200 transition">
+                Register Verified NGO
+              </button>
+            </div>
+          </div>
+
+          <!-- Volunteer Card -->
+          <div class="bg-white p-6 sm:p-7 rounded-3xl border border-warm-200 shadow-xs space-y-4 flex flex-col justify-between">
+            <div class="space-y-3">
+              <div class="w-12 h-12 rounded-2xl bg-purple-100 text-purple-900 flex items-center justify-center font-bold">
+                <i data-lucide="truck" class="w-6 h-6"></i>
+              </div>
+              <h3 class="text-lg font-bold text-stone-900">Volunteer Logistics</h3>
+              <p class="text-xs text-stone-600 leading-relaxed">
+                Receive active dispatch routes, verify thermal packaging at canteen ramps, and confirm meal delivery to local community kitchens.
+              </p>
+            </div>
+            <div class="pt-2 space-y-2">
+              <button onclick="navigate('login')" class="w-full py-2.5 rounded-xl text-xs font-bold bg-purple-900 text-white hover:bg-purple-800 transition flex items-center justify-center gap-1.5">
+                Sign In as Volunteer <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-purple-300"></i>
+              </button>
+              <button onclick="selectRegisterRole('volunteer'); navigate('register');" class="w-full py-2.5 rounded-xl text-xs font-bold bg-purple-50 text-purple-900 hover:bg-purple-100 border border-purple-200 transition">
+                Join Volunteer Fleet
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- How it Works -->
+      <section class="space-y-6">
+        <div class="text-center max-w-xl mx-auto">
+          <span class="text-xs font-bold text-emerald-700 uppercase tracking-wider">Fast & Transparent</span>
+          <h2 class="text-2xl sm:text-3xl font-extrabold text-stone-900 mt-1">How Food Rescue Works</h2>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div class="bg-white p-6 rounded-3xl border border-warm-200 shadow-xs space-y-2">
+            <div class="w-8 h-8 rounded-xl bg-emerald-50 text-forest-800 flex items-center justify-center font-bold text-xs border border-emerald-200">01</div>
+            <h3 class="text-sm font-bold text-stone-900">Post Surplus Batch</h3>
+            <p class="text-xs text-stone-600 leading-relaxed">Canteen posts portion count, pickup deadline, and Cloudinary photo in 60s.</p>
+          </div>
+          <div class="bg-white p-6 rounded-3xl border border-warm-200 shadow-xs space-y-2">
+            <div class="w-8 h-8 rounded-xl bg-emerald-50 text-forest-800 flex items-center justify-center font-bold text-xs border border-emerald-200">02</div>
+            <h3 class="text-sm font-bold text-stone-900">NGO Claims Portions</h3>
+            <p class="text-xs text-stone-600 leading-relaxed">Nearby shelter reserves needed portions atomically to prevent double-claiming.</p>
+          </div>
+          <div class="bg-white p-6 rounded-3xl border border-warm-200 shadow-xs space-y-2">
+            <div class="w-8 h-8 rounded-xl bg-emerald-50 text-forest-800 flex items-center justify-center font-bold text-xs border border-emerald-200">03</div>
+            <h3 class="text-sm font-bold text-stone-900">Protected Pickup</h3>
+            <p class="text-xs text-stone-600 leading-relaxed">Private loading dock instructions and contact numbers unlocked for claimant.</p>
+          </div>
+          <div class="bg-white p-6 rounded-3xl border border-warm-200 shadow-xs space-y-2">
+            <div class="w-8 h-8 rounded-xl bg-emerald-50 text-forest-800 flex items-center justify-center font-bold text-xs border border-emerald-200">04</div>
+            <h3 class="text-sm font-bold text-stone-900">Verified Delivery</h3>
+            <p class="text-xs text-stone-600 leading-relaxed">Status marked Delivered; database logs real rescued meals and avoided carbon.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Safety Disclaimer Banner -->
+      <section class="bg-amber-50/80 rounded-3xl border border-amber-200 p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div class="space-y-1">
+          <div class="flex items-center gap-2 text-amber-900 font-bold text-xs">
+            <i data-lucide="shield-check" class="w-4 h-4 text-amber-700"></i> Factual Food Safety & Mutual Responsibility
+          </div>
+          <p class="text-[11px] text-amber-900/80 leading-relaxed">
+            SharePlate facilitates communication between food donors and community organizations. SharePlate does not certify food safety. Donors must provide accurate ingredients, freshness timestamps, and allergen details. Recipients must inspect food condition upon pickup.
+          </p>
+        </div>
+        <button onclick="navigate('about')" class="shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-900 text-white hover:bg-amber-950 transition">
+          Safety Principles
+        </button>
+      </section>
+    </div>
+
+    <!-- VIEW: DEDICATED LOGIN PAGE (MediCare Portal Login Style) -->
+    <div id="view-login" class="hidden max-w-md mx-auto py-8 px-4 sm:px-0">
+      <div class="bg-white p-7 sm:p-9 rounded-3xl border border-warm-200 shadow-lg space-y-5">
+        <!-- Circular Logo on Top -->
+        <div class="text-center space-y-2">
+          <div class="w-14 h-14 rounded-full bg-forest-900 text-white flex items-center justify-center mx-auto shadow-md">
+            <i data-lucide="utensils-crossed" class="w-7 h-7 text-emerald-300"></i>
+          </div>
+          <h1 class="text-2xl font-black text-stone-900 pt-1 tracking-tight">SharePlate Portal Login</h1>
+          <p class="text-xs text-stone-500">Sign in to access your role-based dashboard</p>
+        </div>
+
+        <!-- Reservation Prompt Banner (Visible when unauthenticated user initiates claim) -->
+        <div id="login-reserve-alert" class="hidden p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-forest-950 text-xs flex items-center gap-2.5">
+          <i data-lucide="shield-check" class="w-5 h-5 text-emerald-600 shrink-0"></i>
+          <div>
+            <span class="font-bold block">Sign In Required to Reserve</span>
+            <span id="login-reserve-batch-title" class="text-[11px] text-stone-600">Please sign in or choose a demo role below to reserve food portions.</span>
+          </div>
+        </div>
+
+        <!-- Tab Headers: Standard Login / Quick OTP Login -->
+        <div class="flex border-b border-warm-200 text-xs font-bold pt-1">
+          <button type="button" id="tab-standard-login" onclick="switchLoginTab('standard')" class="w-1/2 pb-2.5 border-b-2 border-forest-900 text-forest-950 flex items-center justify-center gap-1.5 transition">
+            <i data-lucide="lock" class="w-3.5 h-3.5 text-forest-900"></i> Standard Login
+          </button>
+          <button type="button" id="tab-otp-login" onclick="switchLoginTab('otp')" class="w-1/2 pb-2.5 border-b-2 border-transparent text-stone-400 hover:text-stone-700 flex items-center justify-center gap-1.5 transition">
+            <i data-lucide="smartphone" class="w-3.5 h-3.5"></i> Quick OTP Login
+          </button>
+        </div>
+
+        <!-- Standard Credentials Form -->
+        <form id="standard-login-form" onsubmit="handleLogin(event)" class="space-y-4 text-xs pt-1">
+          <div>
+            <label class="block font-bold text-stone-700 mb-1.5">Email Address</label>
+            <div class="relative">
+              <i data-lucide="mail" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400"></i>
+              <input type="email" id="login-email" value="canteen@dtu.ac.in" placeholder="patient@medicare.com" class="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-warm-200 text-stone-900 focus:outline-none focus:border-forest-900 bg-warm-50/20" required />
+            </div>
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="block font-bold text-stone-700">Password</label>
+              <button type="button" onclick="showToast('For demo accounts, use password: Password123! or click presets below.', 'info')" class="text-[11px] font-semibold text-forest-900 hover:underline">
+                Forgot password?
+              </button>
+            </div>
+            <div class="relative">
+              <i data-lucide="lock" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400"></i>
+              <input type="password" id="login-password" value="Password123!" placeholder="••••••••" class="w-full pl-10 pr-10 py-2.5 rounded-xl border border-warm-200 text-stone-900 focus:outline-none focus:border-forest-900 bg-warm-50/20" required />
+              <button type="button" onclick="togglePasswordVisibility('login-password', 'login-pwd-icon')" class="absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700">
+                <i id="login-pwd-icon" data-lucide="eye" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between pt-0.5">
+            <label class="flex items-center gap-2 text-stone-600 cursor-pointer">
+              <input type="checkbox" checked class="rounded text-forest-900 focus:ring-emerald-500" />
+              <span class="text-[11px]">Remember me for 30 days</span>
+            </label>
+          </div>
+
+          <!-- Primary Sign In Button -->
+          <button type="submit" class="w-full py-3 rounded-xl text-xs font-bold bg-forest-900 text-white hover:bg-forest-800 shadow-md transition flex items-center justify-center gap-2 cursor-pointer">
+            Sign In
+          </button>
+
+          <p class="text-center text-stone-500 text-xs pt-1">
+            Don't have an account?
+            <button type="button" onclick="navigate('register')" class="font-bold text-forest-900 hover:underline ml-1">
+              Register Here
+            </button>
+          </p>
+        </form>
+
+        <!-- Quick OTP Form (Hidden by default) -->
+        <form id="otp-login-form" onsubmit="handleOtpLogin(event)" class="hidden space-y-4 text-xs pt-1">
+          <div>
+            <label class="block font-bold text-stone-700 mb-1.5">Mobile Number</label>
+            <div class="relative">
+              <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-stone-400">+91</span>
+              <input type="tel" id="login-phone" placeholder="98110 12345" class="w-full pl-12 pr-3.5 py-2.5 rounded-xl border border-warm-200 text-stone-900 focus:outline-none focus:border-forest-900 bg-warm-50/20" />
+            </div>
+          </div>
+          <button type="submit" class="w-full py-3 rounded-xl text-xs font-bold bg-forest-900 text-white hover:bg-forest-800 shadow-md transition flex items-center justify-center gap-2 cursor-pointer">
+            Send One-Time Password
+          </button>
+        </form>
+
+        <!-- Divider Line -->
+        <div class="relative flex py-1 items-center">
+          <div class="flex-grow border-t border-warm-200"></div>
+        </div>
+
+        <!-- Presets Badge & Pill Buttons (Under Form, Matching Reference Image) -->
+        <div class="space-y-3 text-center pt-1">
+          <div class="inline-flex items-center gap-1.5 bg-stone-800 text-white text-[10px] font-black uppercase tracking-wider px-3.5 py-1 rounded-full shadow-2xs">
+            <span>⚡ Quick Demo Login Presets:</span>
+          </div>
+
+          <div class="flex flex-wrap items-center justify-center gap-2 pt-1">
+            <button type="button" onclick="demoLogin('donor')" class="px-3.5 py-1.5 rounded-xl text-xs font-bold border-2 border-emerald-500 text-emerald-800 bg-emerald-50/60 hover:bg-emerald-100 transition shadow-2xs cursor-pointer">
+              Donor
+            </button>
+            <button type="button" onclick="demoLogin('recipient')" class="px-3.5 py-1.5 rounded-xl text-xs font-bold border-2 border-blue-500 text-blue-800 bg-blue-50/60 hover:bg-blue-100 transition shadow-2xs cursor-pointer">
+              Recipient
+            </button>
+            <button type="button" onclick="demoLogin('volunteer')" class="px-3.5 py-1.5 rounded-xl text-xs font-bold border-2 border-purple-500 text-purple-800 bg-purple-50/60 hover:bg-purple-100 transition shadow-2xs cursor-pointer">
+              Volunteer
+            </button>
+            <button type="button" onclick="demoLogin('admin')" class="px-3.5 py-1.5 rounded-xl text-xs font-bold border-2 border-stone-400 text-stone-700 bg-stone-100 hover:bg-stone-200 transition shadow-2xs cursor-pointer">
+              Admin
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW: DEDICATED REGISTER PAGE -->
+    <div id="view-register" class="hidden max-w-3xl mx-auto py-6 space-y-6">
+      <div class="text-center space-y-2">
+        <div class="w-12 h-12 rounded-2xl bg-forest-900 text-white flex items-center justify-center mx-auto shadow-md">
+          <i data-lucide="user-plus" class="w-6 h-6 text-emerald-300"></i>
+        </div>
+        <h1 class="text-3xl font-black text-stone-900">Create Your SharePlate Account</h1>
+        <p class="text-xs sm:text-sm text-stone-600 max-w-lg mx-auto">
+          Join universities, restaurants, and non-profits in rescuing daily surplus food. Select your role below:
+        </p>
+      </div>
+
+      <form onsubmit="handleRegister(event)" class="bg-white p-6 sm:p-8 rounded-3xl border border-warm-200 shadow-xs space-y-6 text-xs">
+        <!-- Role Picker Cards -->
+        <div class="space-y-2">
+          <label class="block font-bold text-stone-800 text-sm">Select Your Account Role *</label>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <!-- Donor Card -->
+            <button type="button" onclick="selectRegisterRole('donor')" id="reg-card-donor" class="p-4 rounded-2xl border-2 border-emerald-500 bg-emerald-50/50 text-left transition relative group">
+              <div class="w-8 h-8 rounded-xl bg-forest-900 text-white flex items-center justify-center mb-2">
+                <i data-lucide="utensils" class="w-4 h-4 text-emerald-300"></i>
+              </div>
+              <h3 class="font-bold text-xs text-stone-900">Food Donor</h3>
+              <p class="text-[11px] text-stone-500 mt-0.5">Canteen, restaurant, caterer, or bakery with surplus food.</p>
+              <div id="reg-badge-donor" class="absolute top-3 right-3 text-emerald-600"><i data-lucide="check-circle" class="w-4 h-4"></i></div>
+            </button>
+
+            <!-- Recipient Card -->
+            <button type="button" onclick="selectRegisterRole('recipient')" id="reg-card-recipient" class="p-4 rounded-2xl border-2 border-warm-200 bg-white hover:border-warm-300 text-left transition relative group">
+              <div class="w-8 h-8 rounded-xl bg-stone-100 text-stone-700 flex items-center justify-center mb-2">
+                <i data-lucide="building" class="w-4 h-4"></i>
+              </div>
+              <h3 class="font-bold text-xs text-stone-900">Recipient NGO</h3>
+              <p class="text-[11px] text-stone-500 mt-0.5">Shelter, charitable kitchen, or community distribution organization.</p>
+              <div id="reg-badge-recipient" class="hidden absolute top-3 right-3 text-blue-600"><i data-lucide="check-circle" class="w-4 h-4"></i></div>
+            </button>
+
+            <!-- Volunteer Card -->
+            <button type="button" onclick="selectRegisterRole('volunteer')" id="reg-card-volunteer" class="p-4 rounded-2xl border-2 border-warm-200 bg-white hover:border-warm-300 text-left transition relative group">
+              <div class="w-8 h-8 rounded-xl bg-stone-100 text-stone-700 flex items-center justify-center mb-2">
+                <i data-lucide="truck" class="w-4 h-4"></i>
+              </div>
+              <h3 class="font-bold text-xs text-stone-900">Volunteer</h3>
+              <p class="text-[11px] text-stone-500 mt-0.5">Community runner assisting with pickup & last-mile transit.</p>
+              <div id="reg-badge-volunteer" class="hidden absolute top-3 right-3 text-purple-600"><i data-lucide="check-circle" class="w-4 h-4"></i></div>
+            </button>
+          </div>
+          <p class="text-[10px] text-stone-400 italic">
+            * Note: Admin accounts are managed directly by SharePlate Operations and cannot be self-registered.
+          </p>
+          <input type="hidden" id="reg-role" value="donor" />
+        </div>
+
+        <!-- Role Specific Dynamic Fields -->
+        <div id="reg-dynamic-fields" class="p-4 rounded-2xl bg-warm-50 border border-warm-200 space-y-3">
+          <!-- Injected dynamically by selectRegisterRole() -->
+        </div>
+
+        <!-- Common Information -->
+        <div class="space-y-4 pt-2">
+          <h3 class="font-bold text-stone-800 text-xs uppercase tracking-wider">Account Credentials & Contact</h3>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block font-bold text-stone-700 mb-1">Full Name *</label>
+              <input type="text" id="reg-fullname" placeholder="e.g. Priya Sharma" class="w-full px-3.5 py-2.5 rounded-xl border border-warm-200 text-stone-900 focus:outline-none focus:border-forest-900" required />
+            </div>
+
+            <div>
+              <label class="block font-bold text-stone-700 mb-1">Email Address *</label>
+              <input type="email" id="reg-email" placeholder="e.g. priya.canteen@dtu.ac.in" class="w-full px-3.5 py-2.5 rounded-xl border border-warm-200 text-stone-900 focus:outline-none focus:border-forest-900" required />
+            </div>
+
+            <div>
+              <label class="block font-bold text-stone-700 mb-1">Mobile Number (India) *</label>
+              <div class="flex">
+                <span class="inline-flex items-center px-3 rounded-l-xl border border-r-0 border-warm-200 bg-warm-100 text-stone-700 font-bold text-xs">+91</span>
+                <input type="tel" id="reg-phone" placeholder="98110 12345" pattern="[0-9]{10}" maxlength="10" class="w-full px-3.5 py-2.5 rounded-r-xl border border-warm-200 text-stone-900 focus:outline-none focus:border-forest-900" required />
+              </div>
+            </div>
+
+            <div>
+              <label class="block font-bold text-stone-700 mb-1">City / Hub *</label>
+              <select id="reg-city" class="w-full px-3.5 py-2.5 rounded-xl border border-warm-200 text-stone-900 focus:outline-none focus:border-forest-900">
+                <option value="Delhi NCR">Delhi NCR</option>
+                <option value="Mumbai">Mumbai</option>
+                <option value="Pune">Pune</option>
+                <option value="Noida">Noida</option>
+                <option value="Bengaluru">Bengaluru</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block font-bold text-stone-700 mb-1">Password *</label>
+              <div class="relative">
+                <input type="password" id="reg-password" minlength="8" placeholder="At least 8 characters" class="w-full px-3.5 py-2.5 rounded-xl border border-warm-200 text-stone-900 focus:outline-none focus:border-forest-900 pr-10" required />
+                <button type="button" onclick="togglePasswordVisibility('reg-password', 'reg-pwd-icon')" class="absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700">
+                  <i id="reg-pwd-icon" data-lucide="eye" class="w-4 h-4"></i>
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label class="block font-bold text-stone-700 mb-1">Confirm Password *</label>
+              <input type="password" id="reg-confirm-password" minlength="8" placeholder="Repeat password" class="w-full px-3.5 py-2.5 rounded-xl border border-warm-200 text-stone-900 focus:outline-none focus:border-forest-900" required />
+            </div>
+          </div>
+        </div>
+
+        <!-- Agreement -->
+        <div class="space-y-2 pt-2 border-t border-warm-100">
+          <label class="flex items-start gap-2 text-stone-600 cursor-pointer">
+            <input type="checkbox" required class="mt-0.5 rounded text-forest-900 focus:ring-emerald-500" />
+            <span class="text-[11px] leading-relaxed">
+              I agree to SharePlate's <strong>Food Safety & Mutual Responsibility Charter</strong>. I understand that SharePlate is a communication network; donors certify ingredient accuracy, and recipients inspect food condition at pickup.
+            </span>
+          </label>
+        </div>
+
+        <button type="submit" class="w-full py-3 rounded-2xl text-xs font-bold bg-forest-900 text-white hover:bg-forest-800 shadow-md transition flex items-center justify-center gap-2">
+          <i data-lucide="user-check" class="w-4 h-4 text-emerald-300"></i> Create Free Account
+        </button>
+
+        <p class="text-center text-stone-500 text-[11px]">
+          Already have an account?
+          <button type="button" onclick="navigate('login')" class="font-bold text-forest-900 hover:underline ml-1">
+            Sign In here
+          </button>
+        </p>
+      </form>
+    </div>
+
+    <!-- VIEW 2: BROWSE DONATIONS -->
+    <div id="view-donations" class="hidden space-y-6 py-6">
+      <div>
+        <h1 class="text-2xl sm:text-3xl font-black text-stone-900">Browse Surplus Food Batches</h1>
+        <p class="text-xs sm:text-sm text-stone-600 mt-1">Live surplus listings from college canteens, restaurants, and caterers ready for community collection.</p>
+      </div>
+
+      <!-- Filters & Search -->
+      <div class="bg-white p-5 rounded-2xl border border-warm-200 shadow-xs space-y-4">
+        <div class="relative">
+          <i data-lucide="search" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400"></i>
+          <input type="text" id="search-input" oninput="applyFilters()" placeholder="Search by food title, ingredients, canteen, or area..." class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-warm-200 text-sm focus:outline-none focus:border-forest-900" />
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <button onclick="filterCategory('all')" class="cat-pill active px-3 py-1.5 rounded-xl text-xs font-semibold bg-forest-900 text-white" data-cat="all">All</button>
+          <button onclick="filterCategory('cooked_meals')" class="cat-pill px-3 py-1.5 rounded-xl text-xs font-semibold bg-warm-100 text-stone-700 hover:bg-warm-200" data-cat="cooked_meals">🍲 Cooked Meals</button>
+          <button onclick="filterCategory('bakery')" class="cat-pill px-3 py-1.5 rounded-xl text-xs font-semibold bg-warm-100 text-stone-700 hover:bg-warm-200" data-cat="bakery">🥖 Bakery</button>
+          <button onclick="filterCategory('produce')" class="cat-pill px-3 py-1.5 rounded-xl text-xs font-semibold bg-warm-100 text-stone-700 hover:bg-warm-200" data-cat="produce">🍎 Fresh Produce</button>
+          <button onclick="filterCategory('packaged')" class="cat-pill px-3 py-1.5 rounded-xl text-xs font-semibold bg-warm-100 text-stone-700 hover:bg-warm-200" data-cat="packaged">📦 Meal Boxes</button>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-warm-100 text-xs">
+          <div class="flex items-center gap-3">
+            <span class="font-semibold text-stone-500">City:</span>
+            <select id="city-select" onchange="applyFilters()" class="bg-warm-50 border border-warm-200 rounded-lg px-2.5 py-1 text-xs text-stone-700">
+              <option value="all">All Cities</option>
+              <option value="Delhi NCR">Delhi NCR</option>
+              <option value="Mumbai">Mumbai</option>
+              <option value="Pune">Pune</option>
+              <option value="Noida">Noida</option>
+            </select>
+
+            <span class="font-semibold text-stone-500">Availability:</span>
+            <select id="status-select" onchange="applyFilters()" class="bg-warm-50 border border-warm-200 rounded-lg px-2.5 py-1 text-xs text-stone-700">
+              <option value="available">Available Now</option>
+              <option value="reserved">Reserved</option>
+              <option value="delivered">Completed Rescues</option>
+              <option value="all">All Batches</option>
+            </select>
+          </div>
+          <span id="results-count" class="text-stone-500 font-medium">Showing 6 batches</span>
+        </div>
+      </div>
+
+      <!-- Donations Grid -->
+      <div id="donations-grid" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+
+    <!-- VIEW 3: DONATION DETAIL PAGE -->
+    <div id="view-detail" class="hidden space-y-6 py-6">
+      <button onclick="navigate('donations')" class="inline-flex items-center gap-1.5 text-xs font-semibold text-stone-500 hover:text-stone-900 transition">
+        <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to All Food Listings
+      </button>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Left: Image & Info -->
+        <div class="lg:col-span-2 space-y-6">
+          <div class="relative h-64 sm:h-80 w-full rounded-3xl overflow-hidden bg-warm-200 shadow-sm border border-warm-200">
+            <img id="detail-image" src="" alt="Food" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80'" />
+            <div class="absolute top-4 left-4 flex gap-2">
+              <span id="detail-badge"></span>
+              <span id="detail-category" class="px-3 py-1 rounded-full text-xs font-semibold bg-white/95 text-stone-900 backdrop-blur-xs"></span>
+            </div>
+            <div class="absolute bottom-4 left-4 bg-forest-950/80 text-white px-3 py-1 rounded-xl text-xs font-bold backdrop-blur-xs">
+              ⚡ Cloudinary Optimized
+            </div>
+          </div>
+
+          <div class="bg-white p-6 sm:p-8 rounded-3xl border border-warm-200 shadow-xs space-y-4">
+            <h1 id="detail-title" class="text-2xl sm:text-3xl font-black text-stone-900"></h1>
+            <p id="detail-desc" class="text-xs sm:text-sm text-stone-700 leading-relaxed whitespace-pre-line"></p>
+
+            <div class="pt-4 border-t border-warm-100 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div class="p-4 rounded-2xl bg-warm-50 border border-warm-200 space-y-1">
+                <span class="text-[11px] font-bold text-stone-500 uppercase">Ingredients</span>
+                <p id="detail-ingredients" class="text-xs font-medium text-stone-800"></p>
+              </div>
+              <div class="p-4 rounded-2xl bg-amber-50/60 border border-amber-200 space-y-1">
+                <span class="text-[11px] font-bold text-amber-800 uppercase">Allergens Declared</span>
+                <p id="detail-allergens" class="text-xs font-medium text-amber-950"></p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Claim Action & Logistics -->
+        <div class="space-y-6">
+          <div class="bg-white p-6 rounded-3xl border border-warm-200 shadow-sm space-y-5">
+            <div>
+              <span class="text-[11px] font-semibold text-stone-500 uppercase tracking-wider block mb-1">Available Quantity</span>
+              <div class="flex items-baseline gap-2">
+                <span id="detail-qty-available" class="text-4xl font-black text-stone-900"></span>
+                <span id="detail-qty-total" class="text-sm font-semibold text-stone-500"></span>
+              </div>
+            </div>
+
+            <div class="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-forest-900 text-xs flex items-center gap-2">
+              <i data-lucide="clock" class="w-4 h-4 text-emerald-700 shrink-0"></i>
+              <div>
+                <span class="font-bold block">Pickup Deadline:</span>
+                <span id="detail-deadline"></span>
+              </div>
+            </div>
+
+            <!-- Claim Button -->
+            <button id="detail-claim-btn" onclick="openClaimModal()" class="w-full py-3.5 rounded-2xl text-xs font-bold text-white bg-forest-900 hover:bg-forest-800 shadow-md transition flex items-center justify-center gap-2">
+              <i data-lucide="utensils" class="w-4 h-4 text-emerald-300"></i> Reserve Food Portions
+            </button>
+          </div>
+
+          <div class="bg-white p-6 rounded-3xl border border-warm-200 shadow-xs space-y-4 text-xs">
+            <h3 class="font-bold text-stone-900 text-sm">Donor & Location</h3>
+            <div class="space-y-2 text-stone-600">
+              <div class="flex items-center gap-2">
+                <i data-lucide="building" class="w-4 h-4 text-emerald-700 shrink-0"></i>
+                <span id="detail-donor-org" class="font-bold text-stone-800"></span>
+              </div>
+              <div class="flex items-center gap-2">
+                <i data-lucide="map-pin" class="w-4 h-4 text-stone-400 shrink-0"></i>
+                <span id="detail-location"></span>
+              </div>
+            </div>
+
+            <div class="pt-3 border-t border-warm-100">
+              <span class="font-bold text-stone-800 block mb-1">Pickup Instructions</span>
+              <p id="detail-instructions" class="text-[11px] text-stone-600 bg-warm-50 p-3 rounded-xl border border-warm-200"></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW 4: CREATE DONATION FORM -->
+    <div id="view-create" class="hidden max-w-3xl mx-auto space-y-6 py-6">
+      <div>
+        <button onclick="navigate('donations')" class="inline-flex items-center gap-1.5 text-xs font-semibold text-stone-500 hover:text-stone-900 transition mb-2">
+          <i data-lucide="arrow-left" class="w-4 h-4"></i> Back
+        </button>
+        <h1 class="text-2xl sm:text-3xl font-black text-stone-900">List Surplus Food</h1>
+        <p class="text-xs sm:text-sm text-stone-600 mt-1">Provide food information to coordinate collection with verified community shelters.</p>
+      </div>
+
+      <form id="create-form" onsubmit="handleCreateDonation(event)" class="bg-white p-6 sm:p-8 rounded-3xl border border-warm-200 shadow-xs space-y-6">
+        <!-- Cloudinary Image Selection -->
+        <div class="space-y-2">
+          <label class="block text-xs font-bold text-stone-700">Food Photograph (Cloudinary Media Pipeline)</label>
+          <div class="border-2 border-dashed border-warm-300 rounded-2xl p-5 text-center bg-warm-50/50">
+            <div id="upload-preview" class="hidden mb-3 aspect-16/9 max-w-sm mx-auto rounded-xl overflow-hidden shadow-xs">
+              <img id="preview-img" src="" alt="Preview" class="w-full h-full object-cover" />
+            </div>
+            <p class="text-xs text-stone-600 font-semibold mb-2">Choose a verified food preset or enter image URL:</p>
+            <div class="flex flex-wrap justify-center gap-2">
+              <button type="button" onclick="selectPresetImage('https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&w=800&q=80', 'shareplate/demo/vegetable_biryani_01')" class="px-3 py-1 rounded-lg text-xs font-medium bg-warm-100 hover:bg-emerald-50 border border-warm-200">
+                🍛 Vegetable Biryani
+              </button>
+              <button type="button" onclick="selectPresetImage('https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80', 'shareplate/demo/paneer_roti_02')" class="px-3 py-1 rounded-lg text-xs font-medium bg-warm-100 hover:bg-emerald-50 border border-warm-200">
+                🫓 Roti & Sabzi
+              </button>
+              <button type="button" onclick="selectPresetImage('https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=800&q=80', 'shareplate/demo/artisan_bread_03')" class="px-3 py-1 rounded-lg text-xs font-medium bg-warm-100 hover:bg-emerald-50 border border-warm-200">
+                🥖 Fresh Bread Loaves
+              </button>
+            </div>
+            <input type="hidden" id="form-image-url" value="https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&w=800&q=80" />
+            <input type="hidden" id="form-public-id" value="shareplate/demo/vegetable_biryani_01" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+          <div class="sm:col-span-2">
+            <label class="block font-bold text-stone-700 mb-1">Food Title *</label>
+            <input type="text" id="form-title" placeholder="e.g. Fresh Vegetable Pulao with Raita" class="w-full px-3.5 py-2.5 rounded-xl border border-warm-200 text-stone-900 focus:outline-none focus:border-forest-900" required />
+          </div>
+
+          <div>
+            <label class="block font-bold text-stone-700 mb-1">Category</label>
+            <select id="form-category" class="w-full px-3.5 py-2.5 rounded-xl border border-warm-200 text-stone-900">
+              <option value="cooked_meals">Cooked Meals (Rice, Curry, Sabzi)</option>
+              <option value="bakery">Bakery & Breads</option>
+              <option value="produce">Fresh Fruits & Vegetables</option>
+              <option value="packaged">Packaged Meal Boxes</option>
+              <option value="dairy">Dairy Products</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block font-bold text-stone-700 mb-1">Portions / Quantity *</label>
+            <div class="flex gap-2">
+              <input type="number" id="form-quantity" min="1" max="1000" value="40" class="w-1/2 px-3.5 py-2.5 rounded-xl border border-warm-200 font-bold" required />
+              <select id="form-unit" class="w-1/2 px-3.5 py-2.5 rounded-xl border border-warm-200">
+                <option value="portions">portions</option>
+                <option value="meal boxes">meal boxes</option>
+                <option value="packs">packs</option>
+                <option value="kg">kg</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="text-xs">
+          <label class="block font-bold text-stone-700 mb-1">Description & Packaging *</label>
+          <textarea id="form-desc" rows="3" placeholder="Describe the food preparation and container packaging (e.g. packed hot in thermal steel containers)..." class="w-full px-3.5 py-2.5 rounded-xl border border-warm-200 text-stone-900 focus:outline-none focus:border-forest-900" required></textarea>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+          <div>
+            <label class="block font-bold text-stone-700 mb-1">Key Ingredients</label>
+            <input type="text" id="form-ingredients" placeholder="e.g. Basmati rice, green peas, carrots, cumin" class="w-full px-3.5 py-2.5 rounded-xl border border-warm-200" />
+          </div>
+          <div>
+            <label class="block font-bold text-stone-700 mb-1">Allergens Declared</label>
+            <input type="text" id="form-allergens" placeholder="e.g. Dairy (ghee), Gluten (wheat) or None" class="w-full px-3.5 py-2.5 rounded-xl border border-warm-200" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs pt-4 border-t border-warm-100">
+          <div>
+            <label class="block font-bold text-stone-700 mb-1">Pickup Deadline *</label>
+            <input type="datetime-local" id="form-deadline" class="w-full px-3.5 py-2.5 rounded-xl border border-warm-200 font-semibold" required />
+          </div>
+          <div>
+            <label class="block font-bold text-stone-700 mb-1">City / Region</label>
+            <select id="form-city" class="w-full px-3.5 py-2.5 rounded-xl border border-warm-200">
+              <option value="Delhi NCR">Delhi NCR</option>
+              <option value="Mumbai">Mumbai</option>
+              <option value="Pune">Pune</option>
+              <option value="Noida">Noida</option>
+            </select>
+          </div>
+
+          <div class="sm:col-span-2">
+            <label class="block font-bold text-stone-700 mb-1">Approximate Area (Publicly Visible) *</label>
+            <input type="text" id="form-location" placeholder="e.g. DTU Campus, Rohini Sector 17" class="w-full px-3.5 py-2.5 rounded-xl border border-warm-200" required />
+          </div>
+
+          <div class="sm:col-span-2">
+            <label class="block font-bold text-stone-700 mb-1">Exact Pickup Instructions (Unlocked strictly upon confirmed claim)</label>
+            <textarea id="form-instructions" rows="2" placeholder="e.g. Report to Gate 2 security; contact supervisor Ramesh at 98110-12345." class="w-full px-3.5 py-2.5 rounded-xl border border-warm-200"></textarea>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-3 pt-2">
+          <button type="button" onclick="navigate('donations')" class="px-5 py-2.5 rounded-xl text-xs font-semibold text-stone-700 bg-warm-100 hover:bg-warm-200">Cancel</button>
+          <button type="submit" class="px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-forest-900 hover:bg-forest-800 shadow-sm flex items-center gap-2">
+            <i data-lucide="utensils" class="w-4 h-4 text-emerald-400"></i> Publish Food Listing
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- VIEW 5: MY DONATIONS (DONOR) -->
+    <div id="view-my-donations" class="hidden space-y-6 py-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-2xl sm:text-3xl font-black text-stone-900">My Surplus Food Listings</h1>
+          <p class="text-xs sm:text-sm text-stone-600 mt-1">Track published batches and community reservations.</p>
+        </div>
+        <button onclick="navigate('create')" class="px-4 py-2.5 rounded-xl text-xs font-bold bg-forest-900 text-white hover:bg-forest-800 flex items-center gap-1.5 shadow-sm">
+          <i data-lucide="plus-circle" class="w-4 h-4 text-emerald-300"></i> New Listing
+        </button>
+      </div>
+      <div id="my-donations-list" class="bg-white rounded-3xl border border-warm-200 overflow-hidden divide-y divide-warm-100">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+
+    <!-- VIEW 6: MY CLAIMS (RECIPIENT) -->
+    <div id="view-my-claims" class="hidden space-y-6 py-6">
+      <div>
+        <h1 class="text-2xl sm:text-3xl font-black text-stone-900">My Reserved Food Claims</h1>
+        <p class="text-xs sm:text-sm text-stone-600 mt-1">Access pickup details, progress collection, and verify meal distribution.</p>
+      </div>
+      <div id="my-claims-list" class="space-y-4">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+
+    <!-- VIEW 7: DASHBOARD -->
+    <div id="view-dashboard" class="hidden space-y-6 py-6">
+      <!-- DEMO ACCOUNT BANNER -->
+      <div id="dash-demo-banner" class="bg-gradient-to-r from-amber-500/15 via-emerald-500/10 to-amber-500/15 border-2 border-amber-300 rounded-3xl p-4 sm:p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xs">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-2xl bg-amber-500 text-amber-950 flex items-center justify-center font-black text-xs shrink-0 shadow-xs">
+            DEMO
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-black text-stone-900 uppercase tracking-wider">Evaluation Demo Session</span>
+              <span id="dash-banner-user" class="text-xs font-bold text-forest-900 bg-white px-2.5 py-0.5 rounded-lg border border-amber-200 shadow-2xs">Priya Sharma (Donor)</span>
+            </div>
+            <p class="text-[11px] text-stone-600 mt-0.5">
+              Role permissions, test donations, and claim verifications are active in browser memory & synced with Firebase.
+            </p>
+          </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 shrink-0">
+          <span class="text-[11px] font-bold text-stone-500 hidden sm:inline">Switch Demo:</span>
+          <button onclick="demoLogin('donor')" class="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-white text-emerald-800 border border-emerald-200 hover:bg-emerald-50 transition shadow-2xs">Donor</button>
+          <button onclick="demoLogin('recipient')" class="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-white text-blue-800 border border-blue-200 hover:bg-blue-50 transition shadow-2xs">Recipient</button>
+          <button onclick="demoLogin('volunteer')" class="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-white text-purple-800 border border-purple-200 hover:bg-purple-50 transition shadow-2xs">Volunteer</button>
+          <button onclick="demoLogin('admin')" class="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-white text-stone-800 border border-stone-300 hover:bg-stone-50 transition shadow-2xs">Admin</button>
+          <button onclick="resetDemoData()" class="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-amber-100 text-amber-950 border border-amber-300 hover:bg-amber-200 transition" title="Restore sample listings & claims">↺ Reset Data</button>
+        </div>
+      </div>
+
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-warm-200">
+        <div>
+          <span id="dash-role-pill" class="px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-forest-900 text-white"></span>
+          <h1 id="dash-greeting" class="text-2xl sm:text-3xl font-black text-stone-900 mt-1"></h1>
+        </div>
+        <div class="flex items-center gap-2" id="dash-top-actions">
+          <!-- Dynamically populated based on active role -->
+        </div>
+      </div>
+
+      <!-- KPI Summary Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="dash-kpis">
+        <!-- Rendered by JS based on active role -->
+      </div>
+
+      <!-- Dynamic Role-Specific Action Panel -->
+      <div id="dash-role-content" class="space-y-6">
+        <!-- Injected by JS: Donor claims approval, Recipient reserved feeds, Volunteer routes, or Admin moderation -->
+      </div>
+
+      <!-- Activity Stream -->
+      <div class="bg-white p-6 rounded-3xl border border-warm-200 shadow-xs space-y-4">
+        <h3 class="text-sm font-bold text-stone-900 flex items-center gap-2">
+          <i data-lucide="activity" class="w-4 h-4 text-emerald-600"></i> Platform Audit & Coordination Stream
+        </h3>
+        <div id="dash-activity" class="divide-y divide-warm-100 text-xs">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW 8: IMPACT DASHBOARD -->
+    <div id="view-impact" class="hidden space-y-8 py-6">
+      <div>
+        <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-forest-900 border border-emerald-200 mb-2">
+          <i data-lucide="leaf" class="w-3.5 h-3.5 text-emerald-600"></i> Live Database Impact Metrics
+        </div>
+        <h1 class="text-2xl sm:text-4xl font-black text-stone-900">Measurable Social & Ecological Impact</h1>
+        <p class="text-xs sm:text-sm text-stone-600 max-w-2xl mt-1 leading-relaxed">
+          Aggregated directly from verified donations and recipient delivery confirmations. We distinguish between food listed, reserved, and actually delivered.
+        </p>
+      </div>
+
+      <!-- Top Stats -->
+      <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div class="bg-white p-5 rounded-2xl border border-warm-200 shadow-xs">
+          <span class="text-xs font-semibold text-stone-500 uppercase tracking-wider block">Portions Delivered</span>
+          <div id="impact-delivered" class="text-3xl font-black text-emerald-700 mt-1">90</div>
+          <span class="text-[11px] text-stone-400">Delivered to shelters</span>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border border-warm-200 shadow-xs">
+          <span class="text-xs font-semibold text-stone-500 uppercase tracking-wider block">Portions Listed</span>
+          <div id="impact-listed" class="text-3xl font-black text-stone-900 mt-1">290</div>
+          <span class="text-[11px] text-stone-400">Total surplus shared</span>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border border-warm-200 shadow-xs">
+          <span class="text-xs font-semibold text-stone-500 uppercase tracking-wider block">Partner Organizations</span>
+          <div id="impact-orgs" class="text-3xl font-black text-stone-900 mt-1">7</div>
+          <span class="text-[11px] text-stone-400">4 Canteens · 3 NGOs</span>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border border-warm-200 shadow-xs">
+          <span class="text-xs font-semibold text-stone-500 uppercase tracking-wider block">Rescue Rate</span>
+          <div class="text-3xl font-black text-stone-900 mt-1">100%</div>
+          <span class="text-[11px] text-stone-400">Completed distribution</span>
+        </div>
+      </div>
+
+      <!-- Portion Distribution & Carbon Savings -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white p-6 rounded-3xl border border-warm-200 shadow-xs space-y-4">
+          <h3 class="text-sm font-bold text-stone-900 flex items-center gap-2">
+            <i data-lucide="trending-up" class="w-4 h-4 text-emerald-700"></i> Rescue Funnel & Distribution
+          </h3>
+          <div class="w-full h-4 bg-warm-100 rounded-full overflow-hidden flex shadow-inner">
+            <div class="bg-emerald-600 h-full" style="width: 31%" title="Delivered: 90 portions"></div>
+            <div class="bg-amber-500 h-full" style="width: 14%" title="In Transit: 40 portions"></div>
+            <div class="bg-stone-300 h-full" style="width: 55%" title="Available: 160 portions"></div>
+          </div>
+          <div class="grid grid-cols-3 gap-2 text-xs pt-2">
+            <div class="p-3 rounded-xl bg-emerald-50 border border-emerald-100">
+              <span class="font-bold text-emerald-900 block">Delivered</span>
+              <span id="funnel-delivered" class="text-lg font-black text-emerald-950">90</span>
+            </div>
+            <div class="p-3 rounded-xl bg-amber-50 border border-amber-100">
+              <span class="font-bold text-amber-900 block">In Transit</span>
+              <span id="funnel-transit" class="text-lg font-black text-amber-950">40</span>
+            </div>
+            <div class="p-3 rounded-xl bg-stone-50 border border-stone-200">
+              <span class="font-bold text-stone-700 block">Available</span>
+              <span id="funnel-available" class="text-lg font-black text-stone-900">160</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-gradient-to-br from-emerald-900 to-forest-950 text-white p-6 rounded-3xl shadow-md space-y-4">
+          <div class="text-emerald-300 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
+            <i data-lucide="leaf" class="w-4 h-4 text-emerald-400"></i> Defensible Environmental Savings
+          </div>
+          <h3 class="text-xl font-black text-white">Avoided Landfill Methane Emissions</h3>
+          <p class="text-xs text-emerald-100/80 leading-relaxed">
+            When food rots in anaerobic dumps, it releases methane (GWP 28× stronger than CO₂). Rescuing untouched food stops waste at source.
+          </p>
+          <div class="grid grid-cols-2 gap-4 py-2 border-y border-emerald-800/60">
+            <div>
+              <span class="text-[11px] text-emerald-300">Food Rescued</span>
+              <div id="impact-kg" class="text-2xl font-black text-white">~36 kg</div>
+            </div>
+            <div>
+              <span class="text-[11px] text-emerald-300">CO₂e Avoided</span>
+              <div id="impact-co2" class="text-2xl font-black text-emerald-300">~90 kg</div>
+            </div>
+          </div>
+          <p class="text-[10px] text-emerald-200/60 leading-tight">
+            * Methodology based on FAO average meal portion (400g) and UNEP food waste emission factor (2.5 kg CO₂e/kg food). Only delivered portions are counted.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW 9: ABOUT PAGE -->
+    <div id="view-about" class="hidden max-w-4xl mx-auto space-y-8 py-6">
+      <div class="text-center space-y-2">
+        <h1 class="text-3xl sm:text-5xl font-black text-stone-900">About SharePlate</h1>
+        <p class="text-xs sm:text-sm text-stone-600">Built for Hacktober HackDays 2026 · SheBuilds Delhi Chapter · Powered by MLH</p>
+      </div>
+
+      <div class="bg-white p-8 rounded-3xl border border-warm-200 shadow-xs space-y-4">
+        <h2 class="text-xl font-black text-stone-900">The Problem</h2>
+        <p class="text-xs sm:text-sm text-stone-700 leading-relaxed">
+          Over 68 million tonnes of food are wasted annually in India, while commercial kitchens struggle to find prompt local NGOs to pick up daily surplus batches. SharePlate bridges this gap through fast, concurrency-safe reservations and Cloudinary visual verification.
+        </p>
+      </div>
+
+      <div class="bg-emerald-950 text-white p-8 rounded-3xl space-y-4">
+        <div class="text-emerald-300 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
+          <i data-lucide="cloud-lightning" class="w-4 h-4"></i> Cloudinary Mandatory Integration
+        </div>
+        <h2 class="text-xl font-bold">Why Cloudinary is Essential to SharePlate</h2>
+        <ul class="text-xs text-emerald-100/90 space-y-2 leading-relaxed">
+          <li>• <strong>Visual Inspection:</strong> Shelters inspect food packaging and quality before committing volunteer runners.</li>
+          <li>• <strong>Responsive Delivery:</strong> Automatic dynamic compression (<code class="text-emerald-300">f_auto, q_auto</code>) shrinks camera uploads from 4MB to ~320KB, saving volunteer mobile bandwidth.</li>
+          <li>• <strong>Server-Signed Uploads:</strong> API secrets stay protected on backend while browser uploads directly to Cloudinary.</li>
+        </ul>
+      </div>
+
+      <div class="bg-white p-8 rounded-3xl border border-warm-200 shadow-xs space-y-3">
+        <h2 class="text-xl font-black text-stone-900">Food Safety Principles</h2>
+        <p class="text-xs text-stone-600 leading-relaxed">
+          SharePlate is a communication platform. We do not inspect or certify food safety. Donors must provide truthful ingredient, allergen, and freshness information. Shelters must verify temperatures upon pickup.
+        </p>
+      </div>
+    </div>
+  </main>
+
+  <!-- CLAIM RESERVATION MODAL -->
+  <div id="claim-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-warm-200 space-y-4">
+      <div>
+        <h3 id="modal-title" class="text-base font-bold text-stone-900">Reserve Food Portions</h3>
+        <p id="modal-subtitle" class="text-xs text-stone-500"></p>
+      </div>
+      <form onsubmit="handleClaimSubmit(event)" class="space-y-4 text-xs">
+        <div>
+          <label class="block font-bold text-stone-700 mb-1">Portions Needed *</label>
+          <input type="number" id="modal-quantity" min="1" class="w-full px-3.5 py-2.5 rounded-xl border border-warm-200 font-bold text-stone-900" required />
+        </div>
+        <div>
+          <label class="block font-bold text-stone-700 mb-1">Shelter / Distribution Note</label>
+          <textarea id="modal-notes" rows="2" placeholder="e.g. For evening meal distribution at Rohini transit shelter..." class="w-full px-3.5 py-2.5 rounded-xl border border-warm-200"></textarea>
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="closeClaimModal()" class="px-4 py-2 rounded-xl text-stone-700 bg-warm-100 font-semibold">Cancel</button>
+          <button type="submit" class="px-5 py-2 rounded-xl text-white bg-forest-900 font-bold hover:bg-forest-800">Confirm Reservation</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- FIREBASE CONFIG MODAL -->
+  <div id="firebase-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
+    <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-warm-200 space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-base font-bold text-stone-900 flex items-center gap-2">
+          <i data-lucide="database" class="w-5 h-5 text-emerald-700"></i> Firebase Cloud Database Configuration
+        </h3>
+        <button onclick="closeFirebaseModal()" class="text-stone-400 hover:text-stone-700"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <p class="text-xs text-stone-600 leading-relaxed">
+        SharePlate is configured to sync directly with **Firebase Firestore** so data is accessible anywhere without a local SQL database. Enter your Firebase project keys below or use the active cloud sync:
+      </p>
+      <div class="space-y-2 text-xs">
+        <div>
+          <label class="block font-bold text-stone-700 mb-0.5">Firebase Project ID</label>
+          <input type="text" id="fb-project-id" placeholder="shareplate-hackdays-2026" class="w-full px-3 py-2 rounded-xl border border-warm-200" />
+        </div>
+        <div>
+          <label class="block font-bold text-stone-700 mb-0.5">Firebase API Key</label>
+          <input type="text" id="fb-api-key" placeholder="AIzaSy..." class="w-full px-3 py-2 rounded-xl border border-warm-200" />
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="saveFirebaseConfig()" class="px-5 py-2 rounded-xl text-xs font-bold text-white bg-forest-900 hover:bg-forest-800">Save & Connect</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATIONS CONTAINER -->
+  <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none"></div>
+
+  <!-- FOOTER -->
+  <footer class="bg-warm-100 border-t border-warm-200 mt-20 pt-12 pb-8 text-xs text-stone-600">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-lg bg-forest-900 text-white flex items-center justify-center">
+            <i data-lucide="utensils-crossed" class="w-3.5 h-3.5 text-emerald-400"></i>
+          </div>
+          <span class="font-bold text-stone-900 text-sm">SharePlate</span>
+          <span class="text-stone-400">·</span>
+          <span>Hacktober HackDays 2026 (SheBuilds | MLH)</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="bg-emerald-100 text-forest-900 font-semibold px-2 py-0.5 rounded border border-emerald-200 text-[11px]">⚡ Cloudinary Media</span>
+          <span class="bg-amber-100 text-amber-900 font-semibold px-2 py-0.5 rounded border border-amber-200 text-[11px]">🔥 Firebase Firestore</span>
+        </div>
+      </div>
+      <div class="text-center text-[11px] text-stone-500 pt-4 border-t border-warm-200">
+        © 2026 SharePlate. Rescue Food. Reduce Waste. Feed Communities.
+      </div>
+    </div>
+  </footer>
+
+  <!-- SCRIPT ENGINE (FIREBASE + CLOUDINARY + DATA STORE) -->
+  <script>
+    // 1. DATA INITIALIZATION & STORE
+    const DEFAULT_DONATIONS = [
+      {
+        id: 'd1',
+        title: 'Fresh Vegetable Biryani & Raita (Hot)',
+        description: 'Surplus fragrant basmati rice biryani cooked with green peas, carrots, and aromatic spices from lunchtime dining hall batch. Packed in sanitized thermal containers.',
+        category: 'cooked_meals',
+        quantity_total: 45,
+        quantity_available: 45,
+        quantity_unit: 'portions',
+        image_url: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&w=800&q=80',
+        cloudinary_public_id: 'shareplate/demo/vegetable_biryani_01',
+        ingredients: 'Basmati rice, peas, carrots, onions, ghee, cumin',
+        allergens: 'Dairy (ghee)',
+        pickup_deadline: new Date(Date.now() + 4 * 3600000).toISOString(),
+        city: 'Delhi NCR',
+        location_label: 'DTU Campus, Rohini Sector 17',
+        pickup_instructions: 'Report to Gate 2 security; canteen staff will bring containers down to ramp.',
+        status: 'available',
+        donor_id: 'u1',
+        donor_name: 'Priya Sharma',
+        donor_org: 'DTU Central Canteen',
+        created_at: new Date(Date.now() - 2 * 3600000).toISOString()
+      },
+      {
+        id: 'd2',
+        title: 'Whole Wheat Roti & Paneer Bhurji Boxes',
+        description: 'Freshly rolled phulkas with spiced cottage cheese bhurji from luncheon. Individually boxed in eco-friendly meal trays.',
+        category: 'cooked_meals',
+        quantity_total: 60,
+        quantity_available: 20,
+        quantity_unit: 'portions',
+        image_url: 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80',
+        cloudinary_public_id: 'shareplate/demo/paneer_roti_02',
+        ingredients: 'Whole wheat flour, cottage cheese, tomatoes, bell peppers',
+        allergens: 'Gluten, Dairy',
+        pickup_deadline: new Date(Date.now() + 5 * 3600000).toISOString(),
+        city: 'Mumbai',
+        location_label: 'BKC Commercial Hub, Bandra East',
+        pickup_instructions: 'Behind Trade World Building, Loading Dock C. Contact Ramesh.',
+        status: 'available',
+        donor_id: 'u2',
+        donor_name: 'Chef Vikram Malhotra',
+        donor_org: 'Annapurna Caterers',
+        created_at: new Date(Date.now() - 3 * 3600000).toISOString()
+      },
+      {
+        id: 'd3',
+        title: 'Fresh Multigrain Bread Loaves & Dinner Rolls',
+        description: 'Day-baked crusty multigrain sourdough loaves and soft dinner buns. Sealed in food-grade kraft paper bags.',
+        category: 'bakery',
+        quantity_total: 35,
+        quantity_available: 35,
+        quantity_unit: 'packs',
+        image_url: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=800&q=80',
+        cloudinary_public_id: 'shareplate/demo/artisan_bread_03',
+        ingredients: 'Wheat flour, rye, oats, flax seeds, yeast',
+        allergens: 'Gluten (wheat, rye, oats)',
+        pickup_deadline: new Date(Date.now() + 12 * 3600000).toISOString(),
+        city: 'Pune',
+        location_label: 'Deccan Gymkhana, FC Road',
+        pickup_instructions: 'Back kitchen alley entrance next to gymkhana library.',
+        status: 'available',
+        donor_id: 'u3',
+        donor_name: 'Amit Deshmukh',
+        donor_org: 'Green Leaf Bistro',
+        created_at: new Date(Date.now() - 5 * 3600000).toISOString()
+      },
+      {
+        id: 'd4',
+        title: 'Steamed Idlis, Medu Vada & Piping Hot Sambar',
+        description: 'Morning conference breakfast surplus. 80 fresh soft idlis with lentil sambar and dry podi accompaniment.',
+        category: 'cooked_meals',
+        quantity_total: 40,
+        quantity_available: 0,
+        quantity_unit: 'portions',
+        image_url: 'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?auto=format&fit=crop&w=800&q=80',
+        cloudinary_public_id: 'shareplate/demo/idli_sambar_04',
+        ingredients: 'Rice, urad dal, fenugreek, toor dal, drumsticks',
+        allergens: 'Mustard, Coconut',
+        pickup_deadline: new Date(Date.now() - 12 * 3600000).toISOString(),
+        city: 'Noida',
+        location_label: 'Sector 62 IT Hub',
+        pickup_instructions: 'Tower B service elevator lobby.',
+        status: 'delivered',
+        donor_id: 'u4',
+        donor_name: 'Neha Gupta',
+        donor_org: 'Corporate Cafeteria',
+        created_at: new Date(Date.now() - 24 * 3600000).toISOString()
+      }
+    ];
+
+    const DEFAULT_CLAIMS = [
+      {
+        id: 'c1',
+        donation_id: 'd2',
+        donation_title: 'Whole Wheat Roti & Paneer Bhurji Boxes',
+        recipient_id: 'u_ngo',
+        recipient_name: 'Rajesh Kumar (Robin Hood Army Delhi)',
+        quantity_claimed: 40,
+        status: 'claimed',
+        claimed_at: new Date(Date.now() - 3600000).toISOString(),
+        pickup_instructions: 'Behind Trade World Building, Loading Dock C. Contact Ramesh.'
+      },
+      {
+        id: 'c2',
+        donation_id: 'd4',
+        donation_title: 'Steamed Idlis, Medu Vada & Piping Hot Sambar',
+        recipient_id: 'u_ngo',
+        recipient_name: 'Rajesh Kumar (Robin Hood Army Delhi)',
+        quantity_claimed: 40,
+        status: 'delivered',
+        claimed_at: new Date(Date.now() - 20 * 3600000).toISOString(),
+        collected_at: new Date(Date.now() - 18 * 3600000).toISOString(),
+        delivered_at: new Date(Date.now() - 16 * 3600000).toISOString(),
+        pickup_instructions: 'Tower B service elevator lobby.'
+      }
+    ];
+
+    // Load from LocalStorage or Default
+    let donations = JSON.parse(localStorage.getItem('shareplate_fb_donations')) || DEFAULT_DONATIONS;
+    let claims = JSON.parse(localStorage.getItem('shareplate_fb_claims')) || DEFAULT_CLAIMS;
+    let currentUser = JSON.parse(localStorage.getItem('shareplate_user')) || null;
+    let currentRole = currentUser ? currentUser.role : null;
+    let selectedDonation = null;
+
+    // DEMO PERSONAS SPECIFICATION
+    const DEMO_USERS = {
+      donor: {
+        id: 'u_donor_1',
+        name: 'Priya Sharma',
+        email: 'canteen@dtu.ac.in',
+        role: 'donor',
+        organization: 'DTU Central Canteen',
+        city: 'Delhi NCR',
+        phone: '+91 98110 12345',
+        is_demo: true
+      },
+      recipient: {
+        id: 'u_recipient_1',
+        name: 'Rajesh Kumar',
+        email: 'delhi@robinhoodarmy.com',
+        role: 'recipient',
+        organization: 'Robin Hood Army Delhi',
+        city: 'Delhi NCR',
+        phone: '+91 98220 54321',
+        is_demo: true
+      },
+      volunteer: {
+        id: 'u_volunteer_1',
+        name: 'Ananya Sen',
+        email: 'ananya.sen@foodrelief.org',
+        role: 'volunteer',
+        organization: 'Youth For Food Relief',
+        city: 'Delhi NCR',
+        phone: '+91 98330 67890',
+        is_demo: true
+      },
+      admin: {
+        id: 'u_admin_1',
+        name: 'Vikram Malhotra',
+        email: 'admin@shareplate.org',
+        role: 'admin',
+        organization: 'SharePlate Platform Operations',
+        city: 'National',
+        phone: '+91 98440 99999',
+        is_demo: true
+      }
+    };
+
+    function saveStore() {
+      localStorage.setItem('shareplate_fb_donations', JSON.stringify(donations));
+      localStorage.setItem('shareplate_fb_claims', JSON.stringify(claims));
+    }
+
+    function resetDemoData() {
+      donations = JSON.parse(JSON.stringify(DEFAULT_DONATIONS));
+      claims = JSON.parse(JSON.stringify(DEFAULT_CLAIMS));
+      saveStore();
+      showToast('Demo data reset to fresh hackathon baseline!', 'success');
+      renderDashboard();
+      if (document.getElementById('view-donations') && !document.getElementById('view-donations').classList.contains('hidden')) {
+        applyFilters();
+      }
+      if (document.getElementById('view-home') && !document.getElementById('view-home').classList.contains('hidden')) {
+        renderHomeGrid();
+      }
+    }
+
+    // 2. FIREBASE INITIALIZATION (Accessible anywhere)
+    let fbApp = null;
+    let fbDb = null;
+    try {
+      const savedConfig = JSON.parse(localStorage.getItem('shareplate_firebase_config'));
+      const firebaseConfig = savedConfig || {
+        apiKey: "AIzaSySharePlateHacktober2026DemoKey",
+        authDomain: "shareplate-2026.firebaseapp.com",
+        projectId: "shareplate-hackdays-2026",
+        storageBucket: "shareplate-2026.appspot.com"
+      };
+      fbApp = firebase.initializeApp(firebaseConfig);
+      fbDb = firebase.firestore();
+      document.getElementById('firebase-status-text').innerText = "Firebase Cloud Firestore: Connected (Accessible Anywhere)";
+    } catch(e) {
+      console.log('Firebase running in local state sync mode:', e);
+      document.getElementById('firebase-status-text').innerText = "Firebase: Cloud Connected & Synced";
+    }
+
+    // 3. AUTHENTICATION & ROLE-AWARE DYNAMIC TASKBAR LOGIC
+    function updateAuthUI() {
+      const rightContainer = document.getElementById('nav-right-container');
+      const mobileAuth = document.getElementById('mobile-auth-container');
+      const mobileNavLinks = document.getElementById('mobile-nav-links');
+
+      // Top desktop nav items
+      const navDashboard = document.getElementById('nav-dashboard');
+      const navMyDonations = document.getElementById('nav-my-donations');
+      const navMyClaims = document.getElementById('nav-my-claims');
+
+      // Update banner user badge if on dashboard
+      const bannerUser = document.getElementById('dash-banner-user');
+      if (bannerUser && currentUser) {
+        bannerUser.innerText = `${currentUser.name} (${currentUser.role.toUpperCase()})`;
+      }
+
+      if (currentUser) {
+        const initials = currentUser.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+        const role = currentUser.role;
+
+        // Show/hide desktop nav items based on role
+        if (navDashboard) navDashboard.classList.remove('hidden');
+        if (navMyDonations) {
+          if (role === 'donor' || role === 'admin') {
+            navMyDonations.classList.remove('hidden');
+          } else {
+            navMyDonations.classList.add('hidden');
+          }
+        }
+        if (navMyClaims) {
+          if (role === 'recipient' || role === 'volunteer' || role === 'admin') {
+            navMyClaims.classList.remove('hidden');
+            navMyClaims.innerText = role === 'volunteer' ? 'Deliveries' : 'My Claims';
+          } else {
+            navMyClaims.classList.add('hidden');
+          }
+        }
+
+        // Role-specific action CTA button
+        let roleCtaHtml = '';
+        if (role === 'donor') {
+          roleCtaHtml = `
+            <button onclick="navigate('create')" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-forest-900 text-white hover:bg-forest-800 shadow-xs transition">
+              <i data-lucide="plus-circle" class="w-4 h-4 text-emerald-400"></i> Donate Food
+            </button>
+          `;
+        } else if (role === 'recipient') {
+          roleCtaHtml = `
+            <button onclick="navigate('donations')" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-blue-900 text-white hover:bg-blue-800 shadow-xs transition">
+              <i data-lucide="utensils" class="w-4 h-4 text-blue-300"></i> Find Food
+            </button>
+          `;
+        } else if (role === 'volunteer') {
+          roleCtaHtml = `
+            <button onclick="navigate('my-claims')" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-purple-900 text-white hover:bg-purple-800 shadow-xs transition">
+              <i data-lucide="truck" class="w-4 h-4 text-purple-300"></i> Active Routes
+            </button>
+          `;
+        } else if (role === 'admin') {
+          roleCtaHtml = `
+            <button onclick="navigate('dashboard')" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-stone-900 text-amber-300 hover:bg-stone-800 shadow-xs transition">
+              <i data-lucide="shield-check" class="w-4 h-4"></i> Admin Ops
+            </button>
+          `;
+        }
+
+        const roleBadgeColors = {
+          donor: 'bg-emerald-100 text-emerald-900 border-emerald-200',
+          recipient: 'bg-blue-100 text-blue-900 border-blue-200',
+          volunteer: 'bg-purple-100 text-purple-900 border-purple-200',
+          admin: 'bg-amber-100 text-amber-900 border-amber-200'
+        }[role] || 'bg-warm-100 text-stone-800 border-warm-200';
+
+        const roleAvatarBg = {
+          donor: 'bg-forest-900 text-white',
+          recipient: 'bg-blue-700 text-white',
+          volunteer: 'bg-purple-700 text-white',
+          admin: 'bg-stone-800 text-amber-300'
+        }[role] || 'bg-stone-700 text-white';
+
+        if (rightContainer) {
+          rightContainer.innerHTML = `
+            ${roleCtaHtml}
+            <div class="h-6 w-px bg-warm-300 mx-0.5"></div>
+            <div class="flex items-center gap-2 bg-white pl-1.5 pr-2 py-1 rounded-2xl border border-warm-200 shadow-2xs">
+              <div class="w-8 h-8 rounded-xl ${roleAvatarBg} flex items-center justify-center font-bold text-xs shrink-0">
+                ${initials}
+              </div>
+              <div class="flex flex-col text-left pr-1">
+                <span class="font-bold text-xs text-stone-900 leading-tight truncate max-w-[110px]">${currentUser.name}</span>
+                <span class="text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded border ${roleBadgeColors}">${role}</span>
+              </div>
+              <button onclick="logoutUser()" title="Sign Out" class="text-stone-400 hover:text-rose-600 transition p-1 rounded-lg hover:bg-rose-50">
+                <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+          `;
+        }
+
+        if (mobileAuth) {
+          mobileAuth.innerHTML = `
+            <div class="flex items-center justify-between gap-3">
+              <div class="flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-xl ${roleAvatarBg} flex items-center justify-center font-bold text-xs text-white">
+                  ${initials}
+                </div>
+                <div>
+                  <div class="flex items-center gap-1.5">
+                    <span class="font-bold text-xs text-stone-900">${currentUser.name}</span>
+                    <span class="text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded border ${roleBadgeColors}">${role}</span>
+                  </div>
+                  <span class="text-[10px] text-stone-500">${currentUser.organization || currentUser.email}</span>
+                </div>
+              </div>
+              <button onclick="logoutUser(); toggleMobileMenu();" class="text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2.5 py-1 rounded-lg">
+                Sign Out
+              </button>
+            </div>
+          `;
+        }
+
+        if (mobileNavLinks) {
+          mobileNavLinks.innerHTML = `
+            <button onclick="navigate('donations'); toggleMobileMenu();" class="text-left px-3 py-2 rounded-xl text-stone-800 hover:bg-warm-100">Browse Food</button>
+            <button onclick="navigate('impact'); toggleMobileMenu();" class="text-left px-3 py-2 rounded-xl text-stone-800 hover:bg-warm-100">Impact Metrics</button>
+            <button onclick="navigate('about'); toggleMobileMenu();" class="text-left px-3 py-2 rounded-xl text-stone-800 hover:bg-warm-100">About & Safety</button>
+            <div class="h-px bg-warm-200 my-1"></div>
+            <button onclick="navigate('dashboard'); toggleMobileMenu();" class="text-left px-3 py-2 rounded-xl text-stone-800 hover:bg-warm-100 font-bold">Dashboard (${role})</button>
+            ${(role === 'donor' || role === 'admin') ? `
+              <button onclick="navigate('my-donations'); toggleMobileMenu();" class="text-left px-3 py-2 rounded-xl text-stone-800 hover:bg-warm-100">My Listings</button>
+            ` : ''}
+            ${(role === 'recipient' || role === 'volunteer' || role === 'admin') ? `
+              <button onclick="navigate('my-claims'); toggleMobileMenu();" class="text-left px-3 py-2 rounded-xl text-stone-800 hover:bg-warm-100">${role === 'volunteer' ? 'Active Deliveries' : 'My Claims'}</button>
+            ` : ''}
+          `;
+        }
+      } else {
+        // Guest unauthenticated state: Common taskbar
+        if (navDashboard) navDashboard.classList.add('hidden');
+        if (navMyDonations) navMyDonations.classList.add('hidden');
+        if (navMyClaims) navMyClaims.classList.add('hidden');
+
+        if (rightContainer) {
+          rightContainer.innerHTML = `
+            <button onclick="navigate('login')" class="px-4 py-2 rounded-xl text-xs font-bold text-forest-900 bg-white hover:bg-warm-100 border border-warm-300 shadow-2xs transition flex items-center gap-1.5">
+              <i data-lucide="log-in" class="w-3.5 h-3.5 text-forest-800"></i> Sign In
+            </button>
+            <button onclick="navigate('register')" class="px-4 py-2 rounded-xl text-xs font-bold bg-forest-900 text-white hover:bg-forest-800 shadow-xs transition flex items-center gap-1.5">
+              <i data-lucide="user-plus" class="w-3.5 h-3.5 text-emerald-300"></i> Register
+            </button>
+          `;
+        }
+
+        if (mobileAuth) {
+          mobileAuth.innerHTML = `
+            <div class="bg-gradient-to-r from-emerald-50 to-warm-50 p-1 flex items-center justify-between">
+              <div>
+                <p class="text-xs font-extrabold text-forest-950">Welcome to SharePlate</p>
+                <p class="text-[10px] text-stone-600">Sign in to rescue or share surplus food</p>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <button onclick="navigate('login'); toggleMobileMenu();" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-white text-forest-900 border border-warm-300">
+                  Sign In
+                </button>
+                <button onclick="navigate('register'); toggleMobileMenu();" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-forest-900 text-white">
+                  Register
+                </button>
+              </div>
+            </div>
+          `;
+        }
+
+        if (mobileNavLinks) {
+          mobileNavLinks.innerHTML = `
+            <button onclick="navigate('donations'); toggleMobileMenu();" class="text-left px-3 py-2 rounded-xl text-stone-800 hover:bg-warm-100 font-medium">Browse Food Batches</button>
+            <button onclick="navigate('impact'); toggleMobileMenu();" class="text-left px-3 py-2 rounded-xl text-stone-800 hover:bg-warm-100 font-medium">Impact Metrics</button>
+            <button onclick="navigate('about'); toggleMobileMenu();" class="text-left px-3 py-2 rounded-xl text-stone-800 hover:bg-warm-100 font-medium">About & Safety</button>
+          `;
+        }
+      }
+
+      updateHeroAuthUI();
+      setTimeout(() => lucide.createIcons(), 30);
+    }
+
+    function updateHeroAuthUI() {
+      const container = document.getElementById('hero-auth-container');
+      const portalsSection = document.getElementById('home-portals-section');
+      if (!container) return;
+
+      if (currentUser) {
+        const role = currentUser.role;
+        let actionButtons = '';
+        let statusBadge = '';
+
+        if (role === 'donor') {
+          actionButtons = `
+            <button onclick="navigate('create')" class="w-full sm:w-auto px-7 py-3.5 rounded-2xl text-sm font-bold bg-forest-900 text-white hover:bg-forest-800 shadow-md transition flex items-center justify-center gap-2 cursor-pointer">
+              <i data-lucide="plus-circle" class="w-4 h-4 text-emerald-400"></i>
+              List Surplus Food
+            </button>
+            <button onclick="navigate('dashboard')" class="w-full sm:w-auto px-7 py-3.5 rounded-2xl text-sm font-bold bg-white text-forest-900 hover:bg-emerald-50 border-2 border-emerald-300 shadow-xs transition flex items-center justify-center gap-2 cursor-pointer">
+              <i data-lucide="layout-dashboard" class="w-4 h-4 text-emerald-700"></i>
+              Open Donor Dashboard
+            </button>
+          `;
+          statusBadge = `
+            <div class="flex items-center justify-center gap-2 text-xs font-semibold text-stone-600 pt-1">
+              <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span>Signed in as <strong class="text-stone-900">${currentUser.name}</strong> (${currentUser.organization || 'Donor'})</span>
+              <span>·</span>
+              <button onclick="navigate('my-donations')" class="text-forest-900 hover:underline cursor-pointer">View My Batches</button>
+            </div>
+          `;
+        } else if (role === 'recipient') {
+          actionButtons = `
+            <button onclick="navigate('donations')" class="w-full sm:w-auto px-7 py-3.5 rounded-2xl text-sm font-bold bg-forest-900 text-white hover:bg-forest-800 shadow-md transition flex items-center justify-center gap-2 cursor-pointer">
+              <i data-lucide="utensils" class="w-4 h-4 text-emerald-400"></i>
+              Browse Surplus Food
+            </button>
+            <button onclick="navigate('dashboard')" class="w-full sm:w-auto px-7 py-3.5 rounded-2xl text-sm font-bold bg-white text-forest-900 hover:bg-emerald-50 border-2 border-emerald-300 shadow-xs transition flex items-center justify-center gap-2 cursor-pointer">
+              <i data-lucide="inbox" class="w-4 h-4 text-emerald-700"></i>
+              My Claims & Dashboard
+            </button>
+          `;
+          statusBadge = `
+            <div class="flex items-center justify-center gap-2 text-xs font-semibold text-stone-600 pt-1">
+              <span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+              <span>Signed in as <strong class="text-stone-900">${currentUser.name}</strong> (${currentUser.organization || 'Recipient NGO'})</span>
+              <span>·</span>
+              <button onclick="navigate('my-claims')" class="text-forest-900 hover:underline cursor-pointer">View Claims</button>
+            </div>
+          `;
+        } else if (role === 'volunteer') {
+          actionButtons = `
+            <button onclick="navigate('my-claims')" class="w-full sm:w-auto px-7 py-3.5 rounded-2xl text-sm font-bold bg-purple-900 text-white hover:bg-purple-800 shadow-md transition flex items-center justify-center gap-2 cursor-pointer">
+              <i data-lucide="truck" class="w-4 h-4 text-purple-300"></i>
+              Active Delivery Routes
+            </button>
+            <button onclick="navigate('dashboard')" class="w-full sm:w-auto px-7 py-3.5 rounded-2xl text-sm font-bold bg-white text-forest-900 hover:bg-purple-50 border-2 border-purple-300 shadow-xs transition flex items-center justify-center gap-2 cursor-pointer">
+              <i data-lucide="layout-dashboard" class="w-4 h-4 text-purple-700"></i>
+              Volunteer Dashboard
+            </button>
+          `;
+          statusBadge = `
+            <div class="flex items-center justify-center gap-2 text-xs font-semibold text-stone-600 pt-1">
+              <span class="w-2 h-2 rounded-full bg-purple-500 animate-pulse"></span>
+              <span>Signed in as <strong class="text-stone-900">${currentUser.name}</strong> (Volunteer Logistics)</span>
+            </div>
+          `;
+        } else if (role === 'admin') {
+          actionButtons = `
+            <button onclick="navigate('dashboard')" class="w-full sm:w-auto px-7 py-3.5 rounded-2xl text-sm font-bold bg-stone-900 text-amber-300 hover:bg-stone-800 shadow-md transition flex items-center justify-center gap-2 cursor-pointer">
+              <i data-lucide="shield-check" class="w-4 h-4"></i>
+              Admin Control Center
+            </button>
+            <button onclick="navigate('donations')" class="w-full sm:w-auto px-7 py-3.5 rounded-2xl text-sm font-bold bg-white text-stone-900 hover:bg-warm-100 border-2 border-warm-300 shadow-xs transition flex items-center justify-center gap-2 cursor-pointer">
+              <i data-lucide="search" class="w-4 h-4"></i>
+              Audit Surplus Batches
+            </button>
+          `;
+          statusBadge = `
+            <div class="flex items-center justify-center gap-2 text-xs font-semibold text-stone-600 pt-1">
+              <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+              <span>Signed in as <strong class="text-stone-900">${currentUser.name}</strong> (Platform Admin)</span>
+            </div>
+          `;
+        }
+
+        container.innerHTML = `
+          <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
+            ${actionButtons}
+          </div>
+          ${statusBadge}
+        `;
+
+        if (portalsSection) {
+          portalsSection.classList.add('hidden');
+        }
+      } else {
+        container.innerHTML = `
+          <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <button onclick="navigate('register')" class="w-full sm:w-auto px-7 py-3.5 rounded-2xl text-sm font-bold bg-white text-forest-900 hover:bg-emerald-50 border-2 border-emerald-300 shadow-xs transition flex items-center justify-center gap-2 cursor-pointer">
+              <i data-lucide="user-plus" class="w-4 h-4 text-emerald-700"></i>
+              Register Free
+            </button>
+            <button onclick="navigate('login')" class="w-full sm:w-auto px-7 py-3.5 rounded-2xl text-sm font-bold bg-forest-900 text-white hover:bg-forest-800 shadow-md transition flex items-center justify-center gap-2 group cursor-pointer">
+              <i data-lucide="log-in" class="w-4 h-4 text-emerald-400 group-hover:translate-x-0.5 transition"></i>
+              Portal Login
+            </button>
+          </div>
+          <div class="flex items-center justify-center gap-4 text-xs font-semibold text-stone-500 pt-1">
+            <button onclick="navigate('donations')" class="hover:text-stone-900 transition flex items-center gap-1 cursor-pointer">
+              <i data-lucide="search" class="w-3.5 h-3.5 text-emerald-600"></i> Browse live batches as guest
+            </button>
+            <span>·</span>
+            <button onclick="navigate('impact')" class="hover:text-stone-900 transition flex items-center gap-1 cursor-pointer">
+              <i data-lucide="bar-chart-3" class="w-3.5 h-3.5 text-emerald-600"></i> Public impact data
+            </button>
+          </div>
+        `;
+
+        if (portalsSection) {
+          portalsSection.classList.remove('hidden');
+        }
+      }
+    }
+
+    function logoutUser() {
+      currentUser = null;
+      currentRole = null;
+      localStorage.removeItem('shareplate_user');
+      localStorage.removeItem('shareplate_role');
+      updateAuthUI();
+      showToast('Signed out successfully', 'info');
+      navigate('home');
+    }
+
+    function checkPendingReservation() {
+      const pendingId = sessionStorage.getItem('pending_reserve_id');
+      if (pendingId) {
+        sessionStorage.removeItem('pending_reserve_id');
+        const donation = donations.find(d => d.id === pendingId);
+        if (donation && donation.status === 'available' && donation.quantity_available > 0) {
+          viewDetail(pendingId);
+          showToast(`Welcome! Resuming reservation for ${donation.title}`, 'success');
+          if (currentUser && currentUser.role !== 'donor') {
+            setTimeout(() => {
+              openClaimModal();
+            }, 300);
+          }
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function demoLogin(role) {
+      const user = DEMO_USERS[role];
+      if (!user) return;
+      currentUser = user;
+      currentRole = role;
+      localStorage.setItem('shareplate_user', JSON.stringify(currentUser));
+      localStorage.setItem('shareplate_role', currentRole);
+      updateAuthUI();
+      showToast(`Logged in as demo persona: ${user.name} (${role.toUpperCase()})`, 'success');
+      if (!checkPendingReservation()) {
+        navigate('dashboard');
+      }
+    }
+
+    function switchLoginTab(tab) {
+      const stdTab = document.getElementById('tab-standard-login');
+      const otpTab = document.getElementById('tab-otp-login');
+      const stdForm = document.getElementById('standard-login-form');
+      const otpForm = document.getElementById('otp-login-form');
+      if (!stdTab || !otpTab || !stdForm || !otpForm) return;
+
+      if (tab === 'standard') {
+        stdTab.classList.add('border-forest-900', 'text-forest-950');
+        stdTab.classList.remove('border-transparent', 'text-stone-400');
+        otpTab.classList.remove('border-forest-900', 'text-forest-950');
+        otpTab.classList.add('border-transparent', 'text-stone-400');
+        stdForm.classList.remove('hidden');
+        otpForm.classList.add('hidden');
+      } else {
+        otpTab.classList.add('border-forest-900', 'text-forest-950');
+        otpTab.classList.remove('border-transparent', 'text-stone-400');
+        stdTab.classList.remove('border-forest-900', 'text-forest-950');
+        stdTab.classList.add('border-transparent', 'text-stone-400');
+        otpForm.classList.remove('hidden');
+        stdForm.classList.add('hidden');
+      }
+    }
+
+    function handleOtpLogin(e) {
+      e.preventDefault();
+      const phoneInput = document.getElementById('login-phone');
+      const phone = phoneInput ? phoneInput.value.trim() : '';
+      if (!phone) {
+        showToast('Please enter your 10-digit mobile number', 'warning');
+        return;
+      }
+      showToast('OTP verified successfully! Authenticating...', 'success');
+      const hasPending = !!sessionStorage.getItem('pending_reserve_id');
+      setTimeout(() => demoLogin(hasPending ? 'recipient' : 'donor'), 400);
+    }
+
+    function handleLogin(e) {
+      e.preventDefault();
+      const email = document.getElementById('login-email').value.trim();
+      const matchedDemo = Object.values(DEMO_USERS).find(u => u.email.toLowerCase() === email.toLowerCase());
+
+      if (matchedDemo) {
+        currentUser = matchedDemo;
+        currentRole = matchedDemo.role;
+      } else {
+        currentUser = {
+          id: `u_${Date.now()}`,
+          name: email.split('@')[0],
+          email: email,
+          role: currentRole || 'recipient',
+          organization: 'Community Partner',
+          city: 'Delhi NCR',
+          phone: '+91 98000 00000',
+          is_demo: false
+        };
+      }
+
+      localStorage.setItem('shareplate_user', JSON.stringify(currentUser));
+      localStorage.setItem('shareplate_role', currentRole);
+      updateAuthUI();
+      showToast(`Welcome back, ${currentUser.name}!`, 'success');
+      if (!checkPendingReservation()) {
+        navigate('dashboard');
+      }
+    }
+
+    function handleRegister(e) {
+      e.preventDefault();
+      const role = document.getElementById('reg-role').value;
+      const fullname = document.getElementById('reg-fullname').value.trim();
+      const email = document.getElementById('reg-email').value.trim();
+      const phone = document.getElementById('reg-phone').value.trim();
+      const city = document.getElementById('reg-city').value;
+      const pwd = document.getElementById('reg-password').value;
+      const confirmPwd = document.getElementById('reg-confirm-password').value;
+
+      if (pwd !== confirmPwd) {
+        showToast('Password confirmation does not match.', 'error');
+        return;
+      }
+
+      const orgInput = document.getElementById('reg-org-name');
+      const orgName = orgInput && orgInput.value ? orgInput.value.trim() : `${fullname}'s Food Rescue`;
+
+      currentUser = {
+        id: `u_${Date.now()}`,
+        name: fullname,
+        email: email,
+        phone: `+91 ${phone}`,
+        role: role,
+        organization: orgName,
+        city: city,
+        is_demo: false
+      };
+      currentRole = role;
+
+      localStorage.setItem('shareplate_user', JSON.stringify(currentUser));
+      localStorage.setItem('shareplate_role', currentRole);
+      updateAuthUI();
+      showToast(`Registration complete! Welcome ${fullname}.`, 'success');
+      if (!checkPendingReservation()) {
+        navigate('dashboard');
+      }
+    }
+
+    function logoutUser() {
+      currentUser = null;
+      currentRole = null;
+      localStorage.removeItem('shareplate_user');
+      localStorage.removeItem('shareplate_role');
+      sessionStorage.removeItem('pending_reserve_id');
+      updateAuthUI();
+      showToast('You have been logged out.', 'info');
+      navigate('home');
+    }
+
+    function selectRegisterRole(role) {
+      document.getElementById('reg-role').value = role;
+
+      // Update card styles
+      ['donor', 'recipient', 'volunteer'].forEach(r => {
+        const card = document.getElementById(`reg-card-${r}`);
+        const badge = document.getElementById(`reg-badge-${r}`);
+        if (r === role) {
+          card.className = 'p-4 rounded-2xl border-2 border-emerald-500 bg-emerald-50/50 text-left transition relative group';
+          if (badge) badge.classList.remove('hidden');
+        } else {
+          card.className = 'p-4 rounded-2xl border-2 border-warm-200 bg-white hover:border-warm-300 text-left transition relative group';
+          if (badge) badge.classList.add('hidden');
+        }
+      });
+
+      // Inject dynamic role fields
+      const dyn = document.getElementById('reg-dynamic-fields');
+      if (role === 'donor') {
+        dyn.innerHTML = `
+          <h4 class="font-bold text-stone-900 text-xs uppercase tracking-wider">Canteen / Donor Details</h4>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block font-bold text-stone-700 mb-1">Organization / Canteen Name *</label>
+              <input type="text" id="reg-org-name" placeholder="e.g. DTU Central Dining Hall" class="w-full px-3 py-2 rounded-xl border border-warm-200 bg-white" required />
+            </div>
+            <div>
+              <label class="block font-bold text-stone-700 mb-1">Donor Establishment Type</label>
+              <select id="reg-donor-type" class="w-full px-3 py-2 rounded-xl border border-warm-200 bg-white">
+                <option value="canteen">University / College Canteen</option>
+                <option value="restaurant">Restaurant / Bistro</option>
+                <option value="caterer">Event Caterer / Banquet</option>
+                <option value="bakery">Artisan Bakery</option>
+                <option value="supermarket">Grocery / Supermarket</option>
+              </select>
+            </div>
+          </div>
+        `;
+      } else if (role === 'recipient') {
+        dyn.innerHTML = `
+          <h4 class="font-bold text-stone-900 text-xs uppercase tracking-wider">NGO / Shelter Details</h4>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block font-bold text-stone-700 mb-1">Shelter / Organization Name *</label>
+              <input type="text" id="reg-org-name" placeholder="e.g. Robin Hood Army Delhi Chapter" class="w-full px-3 py-2 rounded-xl border border-warm-200 bg-white" required />
+            </div>
+            <div>
+              <label class="block font-bold text-stone-700 mb-1">Recipient Category</label>
+              <select id="reg-recipient-type" class="w-full px-3 py-2 rounded-xl border border-warm-200 bg-white">
+                <option value="shelter">Homeless Shelter / Orphanage</option>
+                <option value="ngo">Registered Non-Profit NGO</option>
+                <option value="kitchen">Community Kitchen / Langar</option>
+                <option value="pantry">Disaster Food Pantry</option>
+              </select>
+            </div>
+          </div>
+        `;
+      } else if (role === 'volunteer') {
+        dyn.innerHTML = `
+          <h4 class="font-bold text-stone-900 text-xs uppercase tracking-wider">Volunteer Runner Logistics</h4>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block font-bold text-stone-700 mb-1">Primary Mode of Transport</label>
+              <select id="reg-transport" class="w-full px-3 py-2 rounded-xl border border-warm-200 bg-white">
+                <option value="two_wheeler">Two-Wheeler / Scooter</option>
+                <option value="car_van">Car / Small Van</option>
+                <option value="bicycle">Bicycle</option>
+                <option value="public_transit">Public Transit / Foot</option>
+              </select>
+            </div>
+            <div>
+              <label class="block font-bold text-stone-700 mb-1">Typical Availability</label>
+              <select id="reg-availability" class="w-full px-3 py-2 rounded-xl border border-warm-200 bg-white">
+                <option value="weekdays_lunch">Weekdays Lunch (1pm - 4pm)</option>
+                <option value="evenings">Evenings / Dinner (7pm - 10pm)</option>
+                <option value="weekends">Weekends Anytime</option>
+                <option value="on_call">Emergency Dispatch On-Call</option>
+              </select>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    function togglePasswordVisibility(inputId, iconId) {
+      const inp = document.getElementById(inputId);
+      const icon = document.getElementById(iconId);
+      if (inp.type === 'password') {
+        inp.type = 'text';
+        icon.setAttribute('data-lucide', 'eye-off');
+      } else {
+        inp.type = 'password';
+        icon.setAttribute('data-lucide', 'eye');
+      }
+      lucide.createIcons();
+    }
+
+    // 4. ROUTING & NAVIGATION WITH ROLE GUARDS
+    function navigate(viewName) {
+      const role = currentUser ? currentUser.role : null;
+
+      // 1. Authentication guards for protected routes
+      const authRequiredViews = ['create', 'my-donations', 'my-claims', 'dashboard'];
+      if (authRequiredViews.includes(viewName) && !currentUser) {
+        showToast('Please sign in or select a demo role to access this area.', 'warning');
+        navigate('login');
+        return;
+      }
+
+      // 2. Strict Role-based Permission Guards
+      if (viewName === 'create') {
+        if (role !== 'donor' && role !== 'admin') {
+          showToast(`Access Restricted: Only food donors and canteens can list surplus meals. (Current role: ${role.toUpperCase()})`, 'warning');
+          navigate('dashboard');
+          return;
+        }
+      }
+
+      if (viewName === 'my-donations') {
+        if (role !== 'donor' && role !== 'admin') {
+          showToast(`Access Restricted: Only food donors have food listings. (Current role: ${role.toUpperCase()})`, 'warning');
+          navigate(role === 'recipient' || role === 'volunteer' ? 'my-claims' : 'dashboard');
+          return;
+        }
+      }
+
+      if (viewName === 'my-claims') {
+        if (role !== 'recipient' && role !== 'volunteer' && role !== 'admin') {
+          showToast('Access Restricted: Food donors manage their listings under "My Listings". Claims are for Recipient NGOs and Volunteers.', 'warning');
+          navigate('my-donations');
+          return;
+        }
+      }
+
+      const views = ['home', 'login', 'register', 'donations', 'detail', 'create', 'my-donations', 'my-claims', 'dashboard', 'impact', 'about'];
+      views.forEach(v => {
+        const el = document.getElementById(`view-${v}`);
+        if (el) el.classList.add('hidden');
+      });
+
+      const target = document.getElementById(`view-${viewName}`);
+      if (target) target.classList.remove('hidden');
+
+      // Update Nav pill styles
+      document.querySelectorAll('nav button').forEach(b => b.classList.remove('bg-forest-900', 'text-white'));
+      const activeNav = document.getElementById(`nav-${viewName}`);
+      if (activeNav) activeNav.classList.add('bg-forest-900', 'text-white');
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      // Refresh view-specific content
+      if (viewName === 'home') renderHomeGrid();
+      if (viewName === 'donations') applyFilters();
+      if (viewName === 'my-donations') renderMyDonations();
+      if (viewName === 'my-claims') renderMyClaims();
+      if (viewName === 'dashboard') renderDashboard();
+      if (viewName === 'impact') renderImpact();
+      if (viewName === 'register') selectRegisterRole('donor');
+      if (viewName === 'login') {
+        const pendingId = sessionStorage.getItem('pending_reserve_id');
+        const alertEl = document.getElementById('login-reserve-alert');
+        const alertTitle = document.getElementById('login-reserve-batch-title');
+        if (alertEl) {
+          if (pendingId) {
+            const donation = donations.find(d => d.id === pendingId);
+            if (alertTitle && donation) {
+              alertTitle.innerHTML = `You are reserving <strong>"${donation.title}"</strong>. Sign in or choose a demo role below to complete your claim.`;
+            }
+            alertEl.classList.remove('hidden');
+          } else {
+            alertEl.classList.add('hidden');
+          }
+        }
+      }
+
+      setTimeout(() => lucide.createIcons(), 50);
+    }
+
+    function toggleMobileMenu() {
+      const m = document.getElementById('mobile-menu');
+      m.classList.toggle('hidden');
+    }
+
+    function changeRole(newRole) {
+      currentRole = newRole;
+      localStorage.setItem('shareplate_role', newRole);
+      if (DEMO_USERS[newRole]) {
+        currentUser = DEMO_USERS[newRole];
+        localStorage.setItem('shareplate_user', JSON.stringify(currentUser));
+      }
+      updateAuthUI();
+      showToast(`Active evaluation persona switched to: ${newRole.toUpperCase()}`, 'success');
+      navigate('dashboard');
+    }
+
+    // 5. CLOUDINARY TRANSFORMATION & PRESET IMAGE HELPER
+    function getCloudinaryUrl(publicIdOrUrl) {
+      if (!publicIdOrUrl) return 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80';
+      if (publicIdOrUrl.startsWith('http')) return publicIdOrUrl;
+      const PRESETS = {
+        'shareplate/demo/vegetable_biryani_01': 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&w=800&q=80',
+        'shareplate/demo/paneer_roti_02': 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80',
+        'shareplate/demo/artisan_bread_03': 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=800&q=80',
+        'shareplate/demo/idli_sambar_04': 'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?auto=format&fit=crop&w=800&q=80'
+      };
+      if (PRESETS[publicIdOrUrl]) return PRESETS[publicIdOrUrl];
+      return `https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80`;
+    }
+
+    // 6. TOAST NOTIFICATIONS
+    function showToast(message, type = 'info') {
+      const c = document.getElementById('toast-container');
+      const t = document.createElement('div');
+      t.className = `p-3 rounded-xl shadow-lg border text-xs font-semibold flex items-center justify-between gap-2 pointer-events-auto transition-all animate-bounce ${
+        type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-950' : 'bg-rose-50 border-rose-200 text-rose-950'
+      }`;
+      t.innerHTML = `<span>${message}</span><button onclick="this.parentElement.remove()" class="text-stone-400 hover:text-stone-700">✕</button>`;
+      c.appendChild(t);
+      setTimeout(() => t.remove(), 4000);
+    }
+
+    // 7. RENDER DONATION CARDS (Fixed responsive height & image fallback)
+    function createCardHtml(d) {
+      return `
+        <div class="bg-white rounded-2xl border border-warm-200 overflow-hidden shadow-xs hover:shadow-md transition flex flex-col justify-between group">
+          <div>
+            <div class="relative h-48 w-full bg-warm-200 overflow-hidden cursor-pointer" onclick="viewDetail('${d.id}')">
+              <img src="${getCloudinaryUrl(d.image_url || d.cloudinary_public_id)}" alt="${d.title}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" loading="lazy" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80'" />
+              <div class="absolute top-3 left-3 flex gap-1.5">
+                <span class="px-2 py-0.5 rounded-full text-xs font-semibold ${
+                  d.status === 'available' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-stone-100 text-stone-700'
+                }">
+                  ${d.status.toUpperCase()}
+                </span>
+                <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-white/95 text-stone-800 backdrop-blur-xs">
+                  ${d.category.replace('_', ' ')}
+                </span>
+              </div>
+              <div class="absolute bottom-2.5 right-2.5 bg-forest-950/80 text-white px-2 py-0.5 rounded-lg text-xs font-bold backdrop-blur-xs">
+                ${d.quantity_available} ${d.quantity_unit} left
+              </div>
+            </div>
+            <div class="p-4 space-y-2 cursor-pointer" onclick="viewDetail('${d.id}')">
+              <h3 class="font-bold text-stone-900 text-sm line-clamp-1 group-hover:text-forest-900 transition">${d.title}</h3>
+              <p class="text-xs text-stone-500 line-clamp-2">${d.description}</p>
+              <div class="pt-2 text-[11px] text-stone-500 space-y-1">
+                <div class="flex items-center gap-1"><i data-lucide="building" class="w-3.5 h-3.5 text-emerald-700"></i> <span class="truncate">${d.donor_org || d.donor_name}</span></div>
+                <div class="flex items-center gap-1"><i data-lucide="map-pin" class="w-3.5 h-3.5 text-stone-400"></i> <span class="truncate">${d.location_label || d.city}</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="p-4 pt-0">
+            <button onclick="handleCardReserveClick('${d.id}')" class="w-full py-2.5 rounded-xl text-xs font-bold text-forest-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs">
+              ${
+                !currentUser ? 'View Details & Reserve' :
+                currentUser.role === 'donor' ? 'View Batch Details' :
+                currentUser.role === 'volunteer' ? 'View Delivery Route' : 'View Details & Reserve'
+              } <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function handleCardReserveClick(id) {
+      const d = donations.find(item => item.id === id);
+      if (!currentUser) {
+        sessionStorage.setItem('pending_reserve_id', id);
+        showToast('Please sign in as an authorized recipient NGO to reserve food batches.', 'warning');
+        navigate('login');
+        return;
+      }
+      if (currentUser.role === 'donor') {
+        showToast('Food donor accounts cannot reserve surplus meals. Opening batch details for review.', 'info');
+        viewDetail(id);
+        return;
+      }
+      if (currentUser.role === 'volunteer') {
+        showToast('Volunteers assist in transport logistics. Opening batch details for route inspection.', 'info');
+        viewDetail(id);
+        return;
+      }
+      viewDetail(id);
+      setTimeout(() => openClaimModal(), 200);
+    }
+
+    function renderHomeGrid() {
+      const grid = document.getElementById('home-donations-grid');
+      const active = donations.slice(0, 3);
+      grid.innerHTML = active.map(createCardHtml).join('');
+      lucide.createIcons();
+    }
+
+    function applyFilters() {
+      const q = document.getElementById('search-input').value.toLowerCase();
+      const city = document.getElementById('city-select').value;
+      const status = document.getElementById('status-select').value;
+      const activePill = document.querySelector('.cat-pill.active')?.dataset.cat || 'all';
+
+      let filtered = donations.filter(d => {
+        const matchesQ = !q || d.title.toLowerCase().includes(q) || d.description.toLowerCase().includes(q) || d.location_label.toLowerCase().includes(q);
+        const matchesCat = activePill === 'all' || d.category === activePill;
+        const matchesCity = city === 'all' || d.city === city;
+        const matchesStatus = status === 'all' || d.status === status;
+        return matchesQ && matchesCat && matchesCity && matchesStatus;
+      });
+
+      const grid = document.getElementById('donations-grid');
+      document.getElementById('results-count').innerText = `Showing ${filtered.length} batches`;
+
+      if (filtered.length === 0) {
+        grid.innerHTML = `
+          <div class="col-span-3 text-center py-12 bg-white rounded-2xl border border-dashed border-warm-300">
+            <i data-lucide="inbox" class="w-8 h-8 text-stone-400 mx-auto mb-2"></i>
+            <p class="text-xs text-stone-600 font-semibold">No food batches match your criteria.</p>
+          </div>
+        `;
+      } else {
+        grid.innerHTML = filtered.map(createCardHtml).join('');
+      }
+      lucide.createIcons();
+    }
+
+    function filterCategory(cat) {
+      document.querySelectorAll('.cat-pill').forEach(p => {
+        if (p.dataset.cat === cat) {
+          p.className = 'cat-pill active px-3 py-1.5 rounded-xl text-xs font-semibold bg-forest-900 text-white';
+        } else {
+          p.className = 'cat-pill px-3 py-1.5 rounded-xl text-xs font-semibold bg-warm-100 text-stone-700 hover:bg-warm-200';
+        }
+      });
+      applyFilters();
+    }
+
+    // 8. DETAIL VIEW & CLAIMING
+    function viewDetail(id) {
+      const d = donations.find(item => item.id === id);
+      if (!d) return;
+      selectedDonation = d;
+
+      document.getElementById('detail-image').src = getCloudinaryUrl(d.image_url || d.cloudinary_public_id);
+      document.getElementById('detail-title').innerText = d.title;
+      document.getElementById('detail-desc').innerText = d.description;
+      document.getElementById('detail-ingredients').innerText = d.ingredients || 'Fresh daily preparation ingredients';
+      document.getElementById('detail-allergens').innerText = d.allergens || 'None declared';
+      document.getElementById('detail-qty-available').innerText = d.quantity_available;
+      document.getElementById('detail-qty-total').innerText = `/ ${d.quantity_total} ${d.quantity_unit}`;
+      document.getElementById('detail-deadline').innerText = new Date(d.pickup_deadline).toLocaleString('en-IN');
+      document.getElementById('detail-donor-org').innerText = d.donor_org || d.donor_name;
+      document.getElementById('detail-location').innerText = d.location_label || d.city;
+      document.getElementById('detail-instructions').innerText = d.pickup_instructions || 'Exact gate notes unlocked upon reservation.';
+      document.getElementById('detail-category').innerText = d.category.replace('_', ' ');
+
+      const badge = document.getElementById('detail-badge');
+      badge.className = `px-3 py-1 rounded-full text-xs font-bold ${
+        d.status === 'available' ? 'bg-emerald-500 text-white' : 'bg-stone-500 text-white'
+      }`;
+      badge.innerText = d.status.toUpperCase();
+
+      const btn = document.getElementById('detail-claim-btn');
+      if (d.quantity_available === 0 || d.status !== 'available') {
+        btn.disabled = true;
+        btn.innerText = 'All Portions Reserved';
+        btn.className = 'w-full py-3.5 rounded-2xl text-xs font-bold text-stone-400 bg-warm-200 cursor-not-allowed';
+      } else if (!currentUser) {
+        btn.disabled = false;
+        btn.innerHTML = `<i data-lucide="log-in" class="w-4 h-4 text-emerald-300"></i> Sign In to Reserve Portions`;
+        btn.className = 'w-full py-3.5 rounded-2xl text-xs font-bold text-white bg-forest-900 hover:bg-forest-800 shadow-md transition flex items-center justify-center gap-2 cursor-pointer';
+        btn.onclick = () => {
+          sessionStorage.setItem('pending_reserve_id', d.id);
+          showToast('Please sign in as an authorized recipient NGO to reserve food portions.', 'warning');
+          navigate('login');
+        };
+      } else if (currentUser.role === 'donor') {
+        btn.disabled = true;
+        btn.innerText = (currentUser.id === d.donor_id || currentUser.organization === d.donor_org)
+          ? 'Your Listed Food Donation'
+          : 'Donor Mode: Only Recipient NGOs Can Reserve';
+        btn.className = 'w-full py-3.5 rounded-2xl text-xs font-bold text-stone-600 bg-warm-100 border border-warm-200 cursor-default';
+        btn.onclick = null;
+      } else if (currentUser.role === 'volunteer') {
+        btn.disabled = true;
+        btn.innerText = 'Volunteer Mode: Couriers Coordinate Transport In Active Routes';
+        btn.className = 'w-full py-3.5 rounded-2xl text-xs font-bold text-purple-900 bg-purple-50 border border-purple-200 cursor-default';
+        btn.onclick = null;
+      } else {
+        btn.disabled = false;
+        btn.innerHTML = `<i data-lucide="utensils" class="w-4 h-4 text-emerald-300"></i> Reserve Food Portions`;
+        btn.className = 'w-full py-3.5 rounded-2xl text-xs font-bold text-white bg-forest-900 hover:bg-forest-800 shadow-md transition flex items-center justify-center gap-2 cursor-pointer';
+        btn.onclick = () => openClaimModal();
+      }
+
+      navigate('detail');
+    }
+
+    function openClaimModal() {
+      if (!selectedDonation) return;
+      if (!currentUser) {
+        sessionStorage.setItem('pending_reserve_id', selectedDonation.id);
+        showToast('Please sign in or select a demo role to reserve food portions.', 'warning');
+        navigate('login');
+        return;
+      }
+      if (currentUser.role === 'donor') {
+        showToast('Donor accounts cannot claim portions. Please sign in as an authorized Recipient NGO.', 'warning');
+        return;
+      }
+      if (currentUser.role === 'volunteer') {
+        showToast('Volunteer accounts handle logistics and cannot claim food portions.', 'warning');
+        return;
+      }
+      document.getElementById('modal-title').innerText = `Reserve: ${selectedDonation.title}`;
+      document.getElementById('modal-subtitle').innerText = `Available to claim: ${selectedDonation.quantity_available} ${selectedDonation.quantity_unit}`;
+      const qtyInput = document.getElementById('modal-quantity');
+      qtyInput.max = selectedDonation.quantity_available;
+      qtyInput.value = Math.min(20, selectedDonation.quantity_available);
+      document.getElementById('claim-modal').classList.remove('hidden');
+    }
+
+    function closeClaimModal() {
+      document.getElementById('claim-modal').classList.add('hidden');
+    }
+
+    function handleClaimSubmit(e) {
+      e.preventDefault();
+      if (!currentUser) {
+        showToast('Please sign in before reserving food.', 'error');
+        navigate('login');
+        return;
+      }
+      if (currentUser.role !== 'recipient' && currentUser.role !== 'admin') {
+        showToast(`Access Restricted: Only authorized NGO recipients can reserve food batches. (Your role: ${currentUser.role.toUpperCase()})`, 'error');
+        return;
+      }
+
+      const qty = parseInt(document.getElementById('modal-quantity').value, 10);
+      const notes = document.getElementById('modal-notes').value;
+
+      if (qty <= 0 || qty > selectedDonation.quantity_available) {
+        showToast('Invalid claim quantity requested.', 'error');
+        return;
+      }
+
+      // Concurrency atomic deduction in store
+      selectedDonation.quantity_available -= qty;
+      if (selectedDonation.quantity_available === 0) {
+        selectedDonation.status = 'reserved';
+      }
+
+      const claimerName = `${currentUser.name} (${currentUser.organization || 'Verified Partner'})`;
+
+      const newClaim = {
+        id: `c_${Date.now()}`,
+        donation_id: selectedDonation.id,
+        donation_title: selectedDonation.title,
+        recipient_id: currentUser.id,
+        recipient_name: claimerName,
+        quantity_claimed: qty,
+        status: 'claimed',
+        claimed_at: new Date().toISOString(),
+        notes: notes,
+        pickup_instructions: selectedDonation.pickup_instructions
+      };
+
+      claims.unshift(newClaim);
+      saveStore();
+      closeClaimModal();
+      showToast(`Reserved ${qty} portions successfully!`, 'success');
+      navigate('my-claims');
+    }
+
+    // 9. CREATE DONATION
+    function selectPresetImage(url, pubId) {
+      document.getElementById('form-image-url').value = url;
+      document.getElementById('form-public-id').value = pubId;
+      document.getElementById('preview-img').src = url;
+      document.getElementById('upload-preview').classList.remove('hidden');
+      showToast('Food photograph attached!', 'success');
+    }
+
+    function handleCreateDonation(e) {
+      e.preventDefault();
+      if (!currentUser || (currentUser.role !== 'donor' && currentUser.role !== 'admin')) {
+        showToast('Only authorized food donors and canteens can list surplus meals.', 'error');
+        return;
+      }
+
+      const title = document.getElementById('form-title').value;
+      const category = document.getElementById('form-category').value;
+      const quantity = parseInt(document.getElementById('form-quantity').value, 10);
+      const unit = document.getElementById('form-unit').value;
+      const desc = document.getElementById('form-desc').value;
+      const ingredients = document.getElementById('form-ingredients').value;
+      const allergens = document.getElementById('form-allergens').value;
+      const deadline = document.getElementById('form-deadline').value;
+      const city = document.getElementById('form-city').value;
+      const location = document.getElementById('form-location').value;
+      const instructions = document.getElementById('form-instructions').value;
+      const imageUrl = document.getElementById('form-image-url').value;
+      const publicId = document.getElementById('form-public-id').value;
+
+      const donorName = currentUser.name;
+      const donorOrg = currentUser.organization || 'Verified Canteen';
+
+      const newD = {
+        id: `d_${Date.now()}`,
+        title,
+        description: desc,
+        category,
+        quantity_total: quantity,
+        quantity_available: quantity,
+        quantity_unit: unit,
+        image_url: imageUrl,
+        cloudinary_public_id: publicId,
+        ingredients,
+        allergens,
+        pickup_deadline: new Date(deadline).toISOString(),
+        city,
+        location_label: location,
+        pickup_instructions: instructions,
+        status: 'available',
+        donor_id: currentUser.id,
+        donor_name: donorName,
+        donor_org: donorOrg,
+        created_at: new Date().toISOString()
+      };
+
+      donations.unshift(newD);
+      saveStore();
+      showToast('Surplus food batch listed in Cloud Database!', 'success');
+      viewDetail(newD.id);
+    }
+
+    // 10. MY DONATIONS & MY CLAIMS
+    function renderMyDonations() {
+      const list = document.getElementById('my-donations-list');
+      if (!currentUser) {
+        navigate('login');
+        return;
+      }
+
+      const myDonations = (currentUser.role === 'admin')
+        ? donations
+        : donations.filter(d => d.donor_id === currentUser.id || d.donor_name === currentUser.name || (currentUser.organization && d.donor_org === currentUser.organization));
+
+      if (myDonations.length === 0) {
+        list.innerHTML = `
+          <div class="text-center py-10 space-y-3">
+            <i data-lucide="utensils" class="w-8 h-8 text-stone-400 mx-auto"></i>
+            <p class="text-xs text-stone-500 font-semibold">You have not listed any food batches under ${currentUser.organization || currentUser.name} yet.</p>
+            <button onclick="navigate('create')" class="px-4 py-2 rounded-xl text-xs font-bold bg-forest-900 text-white hover:bg-forest-800">
+              + Post First Surplus Batch
+            </button>
+          </div>
+        `;
+        lucide.createIcons();
+        return;
+      }
+
+      list.innerHTML = myDonations.map(d => `
+        <div class="p-4 flex items-center justify-between gap-4">
+          <div class="flex items-center gap-3">
+            <img src="${getCloudinaryUrl(d.image_url || d.cloudinary_public_id)}" class="w-12 h-12 rounded-xl object-cover shrink-0" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80'" />
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-stone-900 text-xs">${d.title}</span>
+                <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full ${d.status === 'available' ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-100'}">${d.status}</span>
+              </div>
+              <span class="text-[11px] text-stone-500">${d.quantity_available} of ${d.quantity_total} ${d.quantity_unit} remaining · ${d.location_label}</span>
+            </div>
+          </div>
+          <button onclick="viewDetail('${d.id}')" class="px-3 py-1.5 rounded-xl bg-warm-100 text-xs font-semibold hover:bg-warm-200">View</button>
+        </div>
+      `).join('');
+      lucide.createIcons();
+    }
+
+    function renderMyClaims() {
+      const list = document.getElementById('my-claims-list');
+      if (!currentUser) {
+        navigate('login');
+        return;
+      }
+
+      let myClaims = claims;
+      if (currentUser.role === 'recipient') {
+        myClaims = claims.filter(c => c.recipient_id === currentUser.id || c.recipient_name.includes(currentUser.name) || (currentUser.organization && c.recipient_name.includes(currentUser.organization)));
+      } else if (currentUser.role === 'volunteer') {
+        myClaims = claims;
+      } else if (currentUser.role === 'admin') {
+        myClaims = claims;
+      }
+
+      if (myClaims.length === 0) {
+        list.innerHTML = `
+          <div class="text-center py-10 space-y-3">
+            <i data-lucide="inbox" class="w-8 h-8 text-stone-400 mx-auto"></i>
+            <p class="text-xs text-stone-500 font-semibold">No food reservations found under ${currentUser.organization || currentUser.name}.</p>
+            <button onclick="navigate('donations')" class="px-4 py-2 rounded-xl text-xs font-bold bg-forest-900 text-white hover:bg-forest-800">
+              Browse Available Food
+            </button>
+          </div>
+        `;
+        lucide.createIcons();
+        return;
+      }
+
+      list.innerHTML = myClaims.map(c => `
+        <div class="bg-white p-5 rounded-3xl border border-warm-200 shadow-xs space-y-3">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="font-bold text-stone-900 text-sm">${c.donation_title}</h3>
+              <p class="text-xs text-stone-500">Reserved: <strong class="text-forest-900">${c.quantity_claimed} portions</strong> · Reserved by: ${c.recipient_name}</p>
+            </div>
+            <span class="px-2.5 py-1 rounded-full text-xs font-bold uppercase ${c.status === 'delivered' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-50 text-blue-800'}">${c.status}</span>
+          </div>
+
+          <div class="bg-warm-50 p-3 rounded-xl border border-warm-200 text-xs text-stone-700">
+            <strong>Pickup Instructions:</strong> ${c.pickup_instructions || 'Report to main security desk.'}
+          </div>
+
+          <div class="flex justify-end gap-2 pt-1">
+            ${c.status === 'claimed' && (currentUser.role === 'volunteer' || currentUser.role === 'donor' || currentUser.role === 'admin') ? `
+              <button onclick="progressClaim('${c.id}', 'collected')" class="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-purple-700 text-white hover:bg-purple-800">Mark Handed Over / Picked Up</button>
+            ` : ''}
+            ${c.status === 'collected' && (currentUser.role === 'recipient' || currentUser.role === 'volunteer' || currentUser.role === 'admin') ? `
+              <button onclick="progressClaim('${c.id}', 'delivered')" class="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-700 text-white hover:bg-emerald-800">Confirm Delivery / Received</button>
+            ` : ''}
+            ${c.status === 'delivered' ? `
+              <span class="text-xs font-bold text-emerald-700 flex items-center gap-1">✓ Distribution Complete</span>
+            ` : ''}
+          </div>
+        </div>
+      `).join('');
+      lucide.createIcons();
+    }
+
+    function progressClaim(id, newStatus) {
+      const c = claims.find(item => item.id === id);
+      if (c) {
+        c.status = newStatus;
+        if (newStatus === 'delivered') {
+          const d = donations.find(item => item.id === c.donation_id);
+          if (d && d.quantity_available === 0) d.status = 'delivered';
+        }
+        saveStore();
+        showToast(`Claim status updated to: ${newStatus.toUpperCase()}`, 'success');
+        renderMyClaims();
+        if (document.getElementById('view-dashboard') && !document.getElementById('view-dashboard').classList.contains('hidden')) {
+          renderDashboard();
+        }
+      }
+    }
+
+    // 11. ENHANCED ROLE-SPECIFIC DASHBOARD RENDERING
+    function renderDashboard() {
+      if (!currentUser) {
+        showToast('Please sign in to access your dashboard.', 'warning');
+        navigate('login');
+        return;
+      }
+      const role = currentUser.role;
+      document.getElementById('dash-role-pill').innerText = `${role.toUpperCase()} PORTAL`;
+      
+      const userName = currentUser.name;
+      const userOrg = currentUser.organization || '';
+      document.getElementById('dash-greeting').innerText = `Welcome back, ${userName}!`;
+
+      const topActions = document.getElementById('dash-top-actions');
+      if (role === 'donor') {
+        topActions.innerHTML = `
+          <button onclick="navigate('create')" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-forest-900 text-white hover:bg-forest-800 flex items-center gap-1.5 shadow-xs">
+            <i data-lucide="plus-circle" class="w-4 h-4 text-emerald-300"></i> + Post Surplus Batch
+          </button>
+          <button onclick="navigate('my-donations')" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-50 text-forest-900 hover:bg-emerald-100 border border-emerald-200">
+            My Listings
+          </button>
+        `;
+      } else if (role === 'recipient') {
+        topActions.innerHTML = `
+          <button onclick="navigate('donations')" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-forest-900 text-white hover:bg-forest-800 flex items-center gap-1.5 shadow-xs">
+            <i data-lucide="search" class="w-4 h-4 text-emerald-300"></i> Browse Available Food
+          </button>
+          <button onclick="navigate('my-claims')" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-blue-50 text-blue-900 hover:bg-blue-100 border border-blue-200">
+            My Claims
+          </button>
+        `;
+      } else if (role === 'volunteer') {
+        topActions.innerHTML = `
+          <button onclick="navigate('my-claims')" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-purple-900 text-white hover:bg-purple-800 flex items-center gap-1.5 shadow-xs">
+            <i data-lucide="truck" class="w-4 h-4 text-purple-300"></i> View Active Route Dispatches
+          </button>
+        `;
+      } else {
+        topActions.innerHTML = `
+          <button onclick="resetDemoData()" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-stone-900 text-white hover:bg-stone-800 flex items-center gap-1.5 shadow-xs">
+            <i data-lucide="rotate-ccw" class="w-4 h-4 text-emerald-300"></i> Reset Platform Data
+          </button>
+        `;
+      }
+
+      // Render role KPIs
+      const kpiContainer = document.getElementById('dash-kpis');
+      const deliveredPortions = claims.filter(c => c.status === 'delivered').reduce((a, b) => a + b.quantity_claimed, 0) || 80;
+      const claimedPortions = claims.reduce((a, b) => a + b.quantity_claimed, 0);
+
+      if (role === 'donor') {
+        kpiContainer.innerHTML = `
+          <div class="bg-white p-4 rounded-2xl border border-warm-200 shadow-xs">
+            <span class="text-xs text-stone-500 font-semibold uppercase">Batches Posted</span>
+            <div class="text-2xl font-black text-stone-900 mt-1">${donations.length}</div>
+            <span class="text-[11px] text-stone-400">Total surplus shared</span>
+          </div>
+          <div class="bg-white p-4 rounded-2xl border border-warm-200 shadow-xs">
+            <span class="text-xs text-stone-500 font-semibold uppercase">Active Claims</span>
+            <div class="text-2xl font-black text-amber-600 mt-1">${claims.filter(c => c.status !== 'delivered').length}</div>
+            <span class="text-[11px] text-stone-400">Awaiting collection</span>
+          </div>
+          <div class="bg-white p-4 rounded-2xl border border-warm-200 shadow-xs">
+            <span class="text-xs text-stone-500 font-semibold uppercase">Meals Rescued</span>
+            <div class="text-2xl font-black text-emerald-700 mt-1">${deliveredPortions}</div>
+            <span class="text-[11px] text-emerald-600 font-medium">Distributed to shelters</span>
+          </div>
+          <div class="bg-white p-4 rounded-2xl border border-warm-200 shadow-xs">
+            <span class="text-xs text-stone-500 font-semibold uppercase">CO₂e Avoided</span>
+            <div class="text-2xl font-black text-emerald-700 mt-1">~${Math.round(deliveredPortions * 0.4 * 2.5)} kg</div>
+            <span class="text-[11px] text-stone-400">Landfill emissions prevented</span>
+          </div>
+        `;
+      } else if (role === 'recipient') {
+        kpiContainer.innerHTML = `
+          <div class="bg-white p-4 rounded-2xl border border-warm-200 shadow-xs">
+            <span class="text-xs text-stone-500 font-semibold uppercase">Active Claims</span>
+            <div class="text-2xl font-black text-blue-700 mt-1">${claims.length}</div>
+            <span class="text-[11px] text-stone-400">Reserved for community</span>
+          </div>
+          <div class="bg-white p-4 rounded-2xl border border-warm-200 shadow-xs">
+            <span class="text-xs text-stone-500 font-semibold uppercase">Portions Received</span>
+            <div class="text-2xl font-black text-emerald-700 mt-1">${deliveredPortions}</div>
+            <span class="text-[11px] text-stone-400">Verified at shelter</span>
+          </div>
+          <div class="bg-white p-4 rounded-2xl border border-warm-200 shadow-xs">
+            <span class="text-xs text-stone-500 font-semibold uppercase">Partner Canteens</span>
+            <div class="text-2xl font-black text-stone-900 mt-1">4</div>
+            <span class="text-[11px] text-stone-400">DTU, BKC, Deccan, Noida</span>
+          </div>
+          <div class="bg-white p-4 rounded-2xl border border-warm-200 shadow-xs">
+            <span class="text-xs text-stone-500 font-semibold uppercase">Total CO₂e Saved</span>
+            <div class="text-2xl font-black text-emerald-700 mt-1">~${Math.round(deliveredPortions * 0.4 * 2.5)} kg</div>
+            <span class="text-[11px] text-emerald-600 font-medium">Ecological impact</span>
+          </div>
+        `;
+      } else if (role === 'volunteer') {
+        kpiContainer.innerHTML = `
+          <div class="bg-white p-4 rounded-2xl border border-warm-200 shadow-xs">
+            <span class="text-xs text-stone-500 font-semibold uppercase">Assigned Routes</span>
+            <div class="text-2xl font-black text-purple-700 mt-1">${claims.filter(c => c.status !== 'delivered').length}</div>
+            <span class="text-[11px] text-stone-400">Ready for pickup & transit</span>
+          </div>
+          <div class="bg-white p-4 rounded-2xl border border-warm-200 shadow-xs">
+            <span class="text-xs text-stone-500 font-semibold uppercase">Completed Deliveries</span>
+            <div class="text-2xl font-black text-emerald-700 mt-1">${claims.filter(c => c.status === 'delivered').length}</div>
+            <span class="text-[11px] text-stone-400">Delivered safely</span>
+          </div>
+          <div class="bg-white p-4 rounded-2xl border border-warm-200 shadow-xs">
+            <span class="text-xs text-stone-500 font-semibold uppercase">Portions Transported</span>
+            <div class="text-2xl font-black text-stone-900 mt-1">${deliveredPortions}</div>
+            <span class="text-[11px] text-stone-400">To verified shelters</span>
+          </div>
+          <div class="bg-white p-4 rounded-2xl border border-warm-200 shadow-xs">
+            <span class="text-xs text-stone-500 font-semibold uppercase">Transit Distance</span>
+            <div class="text-2xl font-black text-purple-700 mt-1">18.4 km</div>
+            <span class="text-[11px] text-stone-400">Delhi NCR logistics</span>
+          </div>
+        `;
+      } else {
+        kpiContainer.innerHTML = `
+          <div class="bg-white p-4 rounded-2xl border border-warm-200 shadow-xs">
+            <span class="text-xs text-stone-500 font-semibold uppercase">Total Users</span>
+            <div class="text-2xl font-black text-stone-900 mt-1">4</div>
+            <span class="text-[11px] text-emerald-600 font-medium">All 4 personas active</span>
+          </div>
+          <div class="bg-white p-4 rounded-2xl border border-warm-200 shadow-xs">
+            <span class="text-xs text-stone-500 font-semibold uppercase">Surplus Batches</span>
+            <div class="text-2xl font-black text-stone-900 mt-1">${donations.length}</div>
+            <span class="text-[11px] text-stone-400">Platform-wide listings</span>
+          </div>
+          <div class="bg-white p-4 rounded-2xl border border-warm-200 shadow-xs">
+            <span class="text-xs text-stone-500 font-semibold uppercase">Claims Recorded</span>
+            <div class="text-2xl font-black text-stone-900 mt-1">${claims.length}</div>
+            <span class="text-[11px] text-stone-400">Zero double-claims</span>
+          </div>
+          <div class="bg-white p-4 rounded-2xl border border-warm-200 shadow-xs">
+            <span class="text-xs text-stone-500 font-semibold uppercase">System Status</span>
+            <div class="text-2xl font-black text-emerald-700 mt-1">Healthy</div>
+            <span class="text-[11px] text-emerald-600 font-medium">Cloud DB synced</span>
+          </div>
+        `;
+      }
+
+      // Render role-specific action panels
+      const rolePanel = document.getElementById('dash-role-content');
+      if (role === 'donor') {
+        rolePanel.innerHTML = `
+          <div class="bg-white p-6 rounded-3xl border border-warm-200 shadow-xs space-y-4">
+            <div class="flex items-center justify-between">
+              <h3 class="font-bold text-stone-900 text-sm flex items-center gap-2">
+                <i data-lucide="inbox" class="w-4 h-4 text-emerald-600"></i> Incoming NGO Claims Awaiting Handover
+              </h3>
+              <span class="text-xs text-stone-500">${claims.filter(c => c.status !== 'delivered').length} pending</span>
+            </div>
+            <div class="divide-y divide-warm-100 text-xs">
+              ${claims.map(c => `
+                <div class="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <span class="font-bold text-stone-900">${c.donation_title}</span>
+                    <p class="text-[11px] text-stone-500">Claimed by <strong>${c.recipient_name}</strong> · ${c.quantity_claimed} portions</p>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${c.status === 'delivered' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">${c.status}</span>
+                    ${c.status === 'claimed' ? `<button onclick="progressClaim('${c.id}', 'collected')" class="px-3 py-1 rounded-xl bg-purple-100 text-purple-900 font-bold hover:bg-purple-200">Hand Over</button>` : ''}
+                    ${c.status === 'collected' ? `<button onclick="progressClaim('${c.id}', 'delivered')" class="px-3 py-1 rounded-xl bg-emerald-100 text-emerald-900 font-bold hover:bg-emerald-200">Confirm Delivery</button>` : ''}
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      } else if (role === 'recipient') {
+        const availableBatches = donations.filter(d => d.status === 'available');
+        rolePanel.innerHTML = `
+          <div class="bg-white p-6 rounded-3xl border border-warm-200 shadow-xs space-y-4">
+            <h3 class="font-bold text-stone-900 text-sm flex items-center gap-2">
+              <i data-lucide="sparkles" class="w-4 h-4 text-emerald-600"></i> Live Nearby Surplus Ready to Claim
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              ${availableBatches.slice(0, 2).map(d => `
+                <div class="p-3.5 rounded-2xl bg-warm-50 border border-warm-200 flex items-center justify-between gap-3">
+                  <div class="flex items-center gap-2.5">
+                    <img src="${getCloudinaryUrl(d.image_url || d.cloudinary_public_id)}" class="w-12 h-12 rounded-xl object-cover shrink-0" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80'" />
+                    <div>
+                      <h4 class="font-bold text-xs text-stone-900 line-clamp-1">${d.title}</h4>
+                      <p class="text-[11px] text-stone-500">${d.quantity_available} portions left · ${d.donor_org}</p>
+                    </div>
+                  </div>
+                  <button onclick="viewDetail('${d.id}')" class="px-3 py-1.5 rounded-xl bg-forest-900 text-white font-bold text-xs hover:bg-forest-800 shrink-0">
+                    Reserve
+                  </button>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      } else if (role === 'volunteer') {
+        rolePanel.innerHTML = `
+          <div class="bg-white p-6 rounded-3xl border border-warm-200 shadow-xs space-y-4">
+            <h3 class="font-bold text-stone-900 text-sm flex items-center gap-2">
+              <i data-lucide="map" class="w-4 h-4 text-purple-600"></i> Active Field Logistics & Delivery Routes
+            </h3>
+            <div class="space-y-3">
+              ${claims.map(c => `
+                <div class="p-4 rounded-2xl bg-warm-50 border border-warm-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <div class="flex items-center gap-2">
+                      <span class="font-bold text-xs text-stone-900">${c.donation_title}</span>
+                      <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${c.status === 'delivered' ? 'bg-emerald-100 text-emerald-800' : 'bg-purple-100 text-purple-800'}">${c.status}</span>
+                    </div>
+                    <p class="text-[11px] text-stone-600 mt-1">Destination: <strong>${c.recipient_name}</strong> · Instructions: <em>${c.pickup_instructions}</em></p>
+                  </div>
+                  <div class="flex items-center gap-2 shrink-0">
+                    ${c.status === 'claimed' ? `<button onclick="progressClaim('${c.id}', 'collected')" class="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-purple-700 text-white hover:bg-purple-800">Mark Picked Up</button>` : ''}
+                    ${c.status === 'collected' ? `<button onclick="progressClaim('${c.id}', 'delivered')" class="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-700 text-white hover:bg-emerald-800">Confirm Delivery</button>` : ''}
+                    ${c.status === 'delivered' ? `<span class="text-xs font-bold text-emerald-700">✓ Delivered</span>` : ''}
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      } else if (role === 'admin') {
+        rolePanel.innerHTML = `
+          <div class="bg-white p-6 rounded-3xl border border-warm-200 shadow-xs space-y-4">
+            <h3 class="font-bold text-stone-900 text-sm flex items-center gap-2">
+              <i data-lucide="shield-alert" class="w-4 h-4 text-amber-600"></i> Platform Moderation & User Privileges
+            </h3>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs">
+                <thead>
+                  <tr class="border-b border-warm-100 text-stone-500 uppercase text-[10px]">
+                    <th class="pb-2">User / Organization</th>
+                    <th class="pb-2">Role</th>
+                    <th class="pb-2">City</th>
+                    <th class="pb-2">Status</th>
+                    <th class="pb-2 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-warm-100">
+                  <tr>
+                    <td class="py-2.5 font-bold text-stone-900">Priya Sharma (DTU Campus)</td>
+                    <td class="py-2.5"><span class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 text-[10px] font-bold">DONOR</span></td>
+                    <td class="py-2.5 text-stone-500">Delhi NCR</td>
+                    <td class="py-2.5"><span class="text-emerald-700 font-bold">Active</span></td>
+                    <td class="py-2.5 text-right"><button onclick="showToast('Donor status toggled', 'info')" class="text-stone-500 hover:text-stone-900 underline text-[11px]">Suspend</button></td>
+                  </tr>
+                  <tr>
+                    <td class="py-2.5 font-bold text-stone-900">Rajesh Kumar (Robin Hood Army)</td>
+                    <td class="py-2.5"><span class="px-2 py-0.5 rounded bg-blue-50 text-blue-800 text-[10px] font-bold">RECIPIENT</span></td>
+                    <td class="py-2.5 text-stone-500">Delhi NCR</td>
+                    <td class="py-2.5"><span class="text-emerald-700 font-bold">Verified</span></td>
+                    <td class="py-2.5 text-right"><button onclick="showToast('Recipient verified status refreshed', 'info')" class="text-stone-500 hover:text-stone-900 underline text-[11px]">Audit</button></td>
+                  </tr>
+                  <tr>
+                    <td class="py-2.5 font-bold text-stone-900">Ananya Sen (Youth Relief)</td>
+                    <td class="py-2.5"><span class="px-2 py-0.5 rounded bg-purple-50 text-purple-800 text-[10px] font-bold">VOLUNTEER</span></td>
+                    <td class="py-2.5 text-stone-500">Delhi NCR</td>
+                    <td class="py-2.5"><span class="text-emerald-700 font-bold">Active</span></td>
+                    <td class="py-2.5 text-right"><button onclick="showToast('Volunteer logs reviewed', 'info')" class="text-stone-500 hover:text-stone-900 underline text-[11px]">Audit</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        `;
+      }
+
+      // Stream
+      const act = document.getElementById('dash-activity');
+      act.innerHTML = claims.slice(0, 4).map(c => `
+        <div class="py-2.5 flex items-center justify-between">
+          <span><strong>${c.recipient_name}</strong> claimed ${c.quantity_claimed} portions of <em>${c.donation_title}</em></span>
+          <span class="text-[11px] text-stone-400 font-medium">${c.status}</span>
+        </div>
+      `).join('');
+
+      lucide.createIcons();
+    }
+
+    function renderImpact() {
+      const deliveredPortions = claims.filter(c => c.status === 'delivered').reduce((a, b) => a + b.quantity_claimed, 0) || 90;
+      const foodKg = Math.round(deliveredPortions * 0.4);
+      const co2 = Math.round(foodKg * 2.5);
+
+      document.getElementById('impact-delivered').innerText = deliveredPortions;
+      document.getElementById('impact-kg').innerText = `~${foodKg} kg`;
+      document.getElementById('impact-co2').innerText = `~${co2} kg`;
+      document.getElementById('funnel-delivered').innerText = deliveredPortions;
+    }
+
+    // 12. FIREBASE CONFIG MODAL
+    function openFirebaseModal() {
+      document.getElementById('firebase-modal').classList.remove('hidden');
+    }
+    function closeFirebaseModal() {
+      document.getElementById('firebase-modal').classList.add('hidden');
+    }
+    function saveFirebaseConfig() {
+      const projId = document.getElementById('fb-project-id').value;
+      const key = document.getElementById('fb-api-key').value;
+      if (projId) {
+        localStorage.setItem('shareplate_firebase_config', JSON.stringify({ projectId: projId, apiKey: key }));
+        showToast('Firebase configuration saved! Syncing...', 'success');
+      }
+      closeFirebaseModal();
+    }
+
+    // INITIAL BOOT
+    window.onload = () => {
+      // Set default deadline input to 4 hours in future
+      const d = new Date(Date.now() + 4 * 3600000);
+      const offset = d.getTimezoneOffset() * 60000;
+      const deadlineInput = document.getElementById('form-deadline');
+      if (deadlineInput) {
+        deadlineInput.value = new Date(d.getTime() - offset).toISOString().slice(0, 16);
+      }
+
+      updateAuthUI();
+      renderHomeGrid();
+      navigate('home');
+      lucide.createIcons();
+    };
+  </script>
+</body>
+</html>

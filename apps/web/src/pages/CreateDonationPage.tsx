@@ -26,6 +26,10 @@ export const CreateDonationPage: React.FC = () => {
     ingredients: '',
     allergens: '',
     preparation_time: '',
+    prepared_at: '',
+    consume_within_hours: 6,
+    storage_note: 'Keep insulated in thermal container until pickup',
+    dietary_type: 'veg',
     image_url: '',
     cloudinary_public_id: '',
   });
@@ -64,8 +68,21 @@ export const CreateDonationPage: React.FC = () => {
     }));
   };
 
+  const handleTagSelected = (tag: string) => {
+    setFormData((prev) => {
+      if (prev.description.includes(tag)) return prev;
+      const updated = prev.description ? `${prev.description} | ${tag}` : tag;
+      return { ...prev, description: updated };
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!user || (user.role !== 'donor' && user.role !== 'admin')) {
+      error('Access restricted: Only food donors and admins can publish surplus batches.');
+      return;
+    }
 
     // Client-side validation
     if (!formData.title.trim()) {
@@ -129,7 +146,11 @@ export const CreateDonationPage: React.FC = () => {
 
       <form onSubmit={handleSubmit} className="bg-white p-6 sm:p-8 rounded-3xl border border-warm-200 shadow-xs space-y-6">
         {/* Cloudinary Image Uploader */}
-        <ImageUploader onUploadComplete={handleImageUploaded} currentImageUrl={formData.image_url} />
+        <ImageUploader
+          onUploadComplete={handleImageUploaded}
+          currentImageUrl={formData.image_url}
+          onTagSelected={handleTagSelected}
+        />
 
         {/* Title & Category */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
@@ -233,6 +254,47 @@ export const CreateDonationPage: React.FC = () => {
               value={formData.allergens}
               onChange={handleChange}
               placeholder="e.g. Dairy (ghee), Gluten (wheat) or None"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-warm-200 text-stone-900 focus:border-forest-900 focus:outline-hidden"
+            />
+          </div>
+        </div>
+
+        {/* Food Safety & Dietary Classification */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs pt-4 border-t border-warm-100">
+          <div>
+            <label className="block font-bold text-stone-700 mb-1">Dietary Type</label>
+            <select
+              name="dietary_type"
+              value={formData.dietary_type}
+              onChange={handleChange}
+              className="w-full px-3.5 py-2.5 rounded-xl border border-warm-200 text-stone-900 focus:border-forest-900 focus:outline-hidden"
+            >
+              <option value="veg">🌱 Vegetarian</option>
+              <option value="non-veg">🍗 Non-Vegetarian</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block font-bold text-stone-700 mb-1">Consume Within (Hours)</label>
+            <input
+              type="number"
+              min={1}
+              max={168}
+              name="consume_within_hours"
+              value={formData.consume_within_hours}
+              onChange={handleChange}
+              className="w-full px-3.5 py-2.5 rounded-xl border border-warm-200 text-stone-900 focus:border-forest-900 focus:outline-hidden"
+            />
+          </div>
+
+          <div>
+            <label className="block font-bold text-stone-700 mb-1">Storage Instruction</label>
+            <input
+              type="text"
+              name="storage_note"
+              value={formData.storage_note}
+              onChange={handleChange}
+              placeholder="e.g. Keep hot in thermal box or refrigerate"
               className="w-full px-3.5 py-2.5 rounded-xl border border-warm-200 text-stone-900 focus:border-forest-900 focus:outline-hidden"
             />
           </div>

@@ -184,97 +184,99 @@ export const HomePage: React.FC = () => {
         )}
       </section>
 
-      {/* Role Portal Entry Cards (Login or Register by Role) */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
-        <div className="text-center max-w-xl mx-auto">
-          <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Dedicated Portals</span>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-stone-900 mt-1">Join the Food Rescue Mission</h2>
-          <p className="text-xs text-stone-600 mt-1">Select your role to access your dedicated portal or register your organization.</p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Donor Card */}
-          <div className="bg-white p-6 sm:p-7 rounded-3xl border border-warm-200 shadow-xs space-y-4 flex flex-col justify-between">
-            <div className="space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-forest-900 flex items-center justify-center font-bold">
-                <Utensils className="w-6 h-6" />
-              </div>
-              <h3 className="text-lg font-bold text-stone-900">Canteens & Donors</h3>
-              <p className="text-xs text-stone-600 leading-relaxed">
-                Publish daily surplus meal batches in 60 seconds with food photos and coordinate atomic, double-claim-proof shelter collections.
-              </p>
-            </div>
-            <div className="pt-2 space-y-2">
-              <Link
-                to="/login"
-                className="w-full py-2.5 rounded-xl text-xs font-bold bg-forest-900 text-white hover:bg-forest-800 transition flex items-center justify-center gap-1.5"
-              >
-                Sign In as Donor <ArrowRight className="w-3.5 h-3.5 text-emerald-300" />
-              </Link>
-              <Link
-                to="/register"
-                className="w-full py-2.5 rounded-xl text-xs font-bold bg-emerald-50 text-forest-900 hover:bg-emerald-100 border border-emerald-200 transition text-center block"
-              >
-                Register New Canteen
-              </Link>
-            </div>
+      {/* Role Portal Entry Cards (Login or Register by Role - Only shown to Guests) */}
+      {!user && (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+          <div className="text-center max-w-xl mx-auto">
+            <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Dedicated Portals</span>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-stone-900 mt-1">Join the Food Rescue Mission</h2>
+            <p className="text-xs text-stone-600 mt-1">Select your role to access your dedicated portal or register your organization.</p>
           </div>
 
-          {/* Recipient Card */}
-          <div className="bg-white p-6 sm:p-7 rounded-3xl border border-warm-200 shadow-xs space-y-4 flex flex-col justify-between">
-            <div className="space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-blue-100 text-blue-900 flex items-center justify-center font-bold">
-                <Building className="w-6 h-6" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Donor Card */}
+            <div className="bg-white p-6 sm:p-7 rounded-3xl border border-warm-200 shadow-xs space-y-4 flex flex-col justify-between">
+              <div className="space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-forest-900 flex items-center justify-center font-bold">
+                  <Utensils className="w-6 h-6" />
+                </div>
+                <h3 className="text-lg font-bold text-stone-900">Canteens & Donors</h3>
+                <p className="text-xs text-stone-600 leading-relaxed">
+                  Publish daily surplus meal batches in 60 seconds with food photos and coordinate atomic, double-claim-proof shelter collections.
+                </p>
               </div>
-              <h3 className="text-lg font-bold text-stone-900">Shelters & NGOs</h3>
-              <p className="text-xs text-stone-600 leading-relaxed">
-                Inspect food ingredients and packaging photos, claim exact needed portions, and unlock protected gate pickup instructions.
-              </p>
+              <div className="pt-2 space-y-2">
+                <Link
+                  to="/login"
+                  className="w-full py-2.5 rounded-xl text-xs font-bold bg-forest-900 text-white hover:bg-forest-800 transition flex items-center justify-center gap-1.5"
+                >
+                  Sign In as Donor <ArrowRight className="w-3.5 h-3.5 text-emerald-300" />
+                </Link>
+                <Link
+                  to="/register"
+                  className="w-full py-2.5 rounded-xl text-xs font-bold bg-emerald-50 text-forest-900 hover:bg-emerald-100 border border-emerald-200 transition text-center block"
+                >
+                  Register New Canteen
+                </Link>
+              </div>
             </div>
-            <div className="pt-2 space-y-2">
-              <Link
-                to="/login"
-                className="w-full py-2.5 rounded-xl text-xs font-bold bg-blue-900 text-white hover:bg-blue-800 transition flex items-center justify-center gap-1.5"
-              >
-                Sign In as Recipient <ArrowRight className="w-3.5 h-3.5 text-blue-300" />
-              </Link>
-              <Link
-                to="/register"
-                className="w-full py-2.5 rounded-xl text-xs font-bold bg-blue-50 text-blue-900 hover:bg-blue-100 border border-blue-200 transition text-center block"
-              >
-                Register Verified NGO
-              </Link>
-            </div>
-          </div>
 
-          {/* Volunteer Card */}
-          <div className="bg-white p-6 sm:p-7 rounded-3xl border border-warm-200 shadow-xs space-y-4 flex flex-col justify-between">
-            <div className="space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-purple-100 text-purple-900 flex items-center justify-center font-bold">
-                <Truck className="w-6 h-6" />
+            {/* Recipient Card */}
+            <div className="bg-white p-6 sm:p-7 rounded-3xl border border-warm-200 shadow-xs space-y-4 flex flex-col justify-between">
+              <div className="space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-blue-100 text-blue-900 flex items-center justify-center font-bold">
+                  <Building className="w-6 h-6" />
+                </div>
+                <h3 className="text-lg font-bold text-stone-900">Shelters & NGOs</h3>
+                <p className="text-xs text-stone-600 leading-relaxed">
+                  Inspect food ingredients and packaging photos, claim exact needed portions, and unlock protected gate pickup instructions.
+                </p>
               </div>
-              <h3 className="text-lg font-bold text-stone-900">Volunteer Logistics</h3>
-              <p className="text-xs text-stone-600 leading-relaxed">
-                Receive active dispatch routes, verify thermal packaging at canteen ramps, and confirm meal delivery to local community kitchens.
-              </p>
+              <div className="pt-2 space-y-2">
+                <Link
+                  to="/login"
+                  className="w-full py-2.5 rounded-xl text-xs font-bold bg-blue-900 text-white hover:bg-blue-800 transition flex items-center justify-center gap-1.5"
+                >
+                  Sign In as Recipient <ArrowRight className="w-3.5 h-3.5 text-blue-300" />
+                </Link>
+                <Link
+                  to="/register"
+                  className="w-full py-2.5 rounded-xl text-xs font-bold bg-blue-50 text-blue-900 hover:bg-blue-100 border border-blue-200 transition text-center block"
+                >
+                  Register Verified NGO
+                </Link>
+              </div>
             </div>
-            <div className="pt-2 space-y-2">
-              <Link
-                to="/login"
-                className="w-full py-2.5 rounded-xl text-xs font-bold bg-purple-900 text-white hover:bg-purple-800 transition flex items-center justify-center gap-1.5"
-              >
-                Sign In as Volunteer <ArrowRight className="w-3.5 h-3.5 text-purple-300" />
-              </Link>
-              <Link
-                to="/register"
-                className="w-full py-2.5 rounded-xl text-xs font-bold bg-purple-50 text-purple-900 hover:bg-purple-100 border border-purple-200 transition text-center block"
-              >
-                Join Volunteer Fleet
-              </Link>
+
+            {/* Volunteer Card */}
+            <div className="bg-white p-6 sm:p-7 rounded-3xl border border-warm-200 shadow-xs space-y-4 flex flex-col justify-between">
+              <div className="space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-purple-100 text-purple-900 flex items-center justify-center font-bold">
+                  <Truck className="w-6 h-6" />
+                </div>
+                <h3 className="text-lg font-bold text-stone-900">Volunteer Logistics</h3>
+                <p className="text-xs text-stone-600 leading-relaxed">
+                  Receive active dispatch routes, verify thermal packaging at canteen ramps, and confirm meal delivery to local community kitchens.
+                </p>
+              </div>
+              <div className="pt-2 space-y-2">
+                <Link
+                  to="/login"
+                  className="w-full py-2.5 rounded-xl text-xs font-bold bg-purple-900 text-white hover:bg-purple-800 transition flex items-center justify-center gap-1.5"
+                >
+                  Sign In as Volunteer <ArrowRight className="w-3.5 h-3.5 text-purple-300" />
+                </Link>
+                <Link
+                  to="/register"
+                  className="w-full py-2.5 rounded-xl text-xs font-bold bg-purple-50 text-purple-900 hover:bg-purple-100 border border-purple-200 transition text-center block"
+                >
+                  Join Volunteer Fleet
+                </Link>
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* How SharePlate Works Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

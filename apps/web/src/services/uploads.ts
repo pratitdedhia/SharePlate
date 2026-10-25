@@ -1,5 +1,14 @@
 import { apiRequest } from './api';
-import { uploadToCloudinary } from '../lib/cloudinary';
+import {
+  uploadToCloudinary,
+  uploadToCloudinaryUnsigned,
+  isUnsignedUploadConfigured,
+  getCloudinaryUrl,
+  getAspectRatioPreviews,
+  extractAIFoodTags,
+  CLOUD_NAME,
+  UPLOAD_PRESET,
+} from '../lib/cloudinary';
 
 export interface UploadSignatureResponse {
   success: boolean;
@@ -9,8 +18,31 @@ export interface UploadSignatureResponse {
   folder?: string;
   apiKey?: string;
   cloudName?: string;
+  eager?: string;
+  tags?: string;
   message?: string;
-  sampleImages?: Array<{ name: string; url: string; publicId: string }>;
+}
+
+export type UploadDestination = 'signed_cloudinary' | 'unsigned_cloudinary' | 'local_preview';
+
+export interface UploadResult {
+  imageUrl: string;
+  publicId: string;
+  uploadType: UploadDestination;
+  originalBytes: number;
+  deliveredBytes?: number;
+  width?: number;
+  height?: number;
+  format?: string;
+  isCloudinaryHosted: boolean;
+  notes?: string;
+  tags?: string[];
+  aiTags?: string[];
+  aspectRatios?: {
+    card: string;
+    banner: string;
+    square: string;
+  };
 }
 
 export const uploadService = {
@@ -20,25 +52,9 @@ export const uploadService = {
       return res;
     } catch {
       return {
-        success: true,
+        success: false,
         isConfigured: false,
-        sampleImages: [
-          {
-            name: 'Vegetable Biryani',
-            url: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&w=800&q=80',
-            publicId: 'shareplate/sample/biryani',
-          },
-          {
-            name: 'Fresh Chapati & Sabzi',
-            url: 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80',
-            publicId: 'shareplate/sample/roti',
-          },
-          {
-            name: 'Bakery Breads',
-            url: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=800&q=80',
-            publicId: 'shareplate/sample/bread',
-          },
-        ],
+        message: 'Express backend signature endpoint unreachable (static host or backend offline).',
       };
     }
   },
@@ -46,45 +62,145 @@ export const uploadService = {
   async uploadDonationImage(
     file: File,
     onProgress?: (percent: number) => void
-  ): Promise<{ imageUrl: string; publicId: string }> {
-    const signatureData = await this.getSignature();
-
-    if (signatureData.isConfigured && signatureData.signature && signatureData.apiKey && signatureData.cloudName && signatureData.folder) {
-      // Perform genuine signed upload directly to Cloudinary
-      const res = await uploadToCloudinary(
-        file,
-        {
-          signature: signatureData.signature,
-          timestamp: signatureData.timestamp!,
-          folder: signatureData.folder,
-          apiKey: signatureData.apiKey,
-          cloudName: signatureData.cloudName,
-        },
-        onProgress
-      );
-
-      return {
-        imageUrl: res.secure_url,
-        publicId: res.public_id,
-      };
+  ): Promise<UploadResult> {
+    // 1. Client-side validation: Max 5 MB
+    const MAX_SIZE = 5 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+      throw new Error(`File size (${(file.size / (1024 * 1024)).toFixed(2)} MB) exceeds the 5 MB limit.`);
     }
 
-    // Demo/offline mode simulation: simulate upload progress
+    // 2. Client-side validation: Image MIME types only
+    const validMimes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!validMimes.includes(file.type)) {
+      throw new Error(`Unsupported image format: ${file.type || 'unknown'}. Only JPEG, PNG, and WebP are allowed.`);
+    }
+
+    // Attempt 1: Signed upload via Express API signature endpoint
+    try {
+      const signatureData = await this.getSignature();
+      if (
+        signatureData.isConfigured &&
+        signatureData.signature &&
+        signatureData.apiKey &&
+        signatureData.cloudName &&
+        signatureData.folder
+      ) {
+        const res = await uploadToCloudinary(
+          file,
+          {
+            signature: signatureData.signature,
+            timestamp: signatureData.timestamp!,
+            folder: signatureData.folder,
+            apiKey: signatureData.apiKey,
+            cloudName: signatureData.cloudName,
+            eager: signatureData.eager,
+            tags: signatureData.tags,
+          },
+          onProgress
+        );
+
+        const targetForTransforms = res.secure_url || res.public_id;
+        const aspectRatios = getAspectRatioPreviews(targetForTransforms);
+        const optimizedUrl = getCloudinaryUrl(targetForTransforms, {
+          crop: 'fill',
+          gravity: 'auto',
+          format: 'auto',
+          quality: 'auto',
+          width: 800,
+          height: 600,
+        });
+
+        return {
+          imageUrl: optimizedUrl || res.secure_url,
+          publicId: res.public_id,
+          uploadType: 'signed_cloudinary',
+          originalBytes: file.size,
+          width: res.width,
+          height: res.height,
+          format: res.format,
+          isCloudinaryHosted: true,
+          tags: res.tags || [],
+          aiTags: res.aiTags || extractAIFoodTags(res.tags || [], file.name),
+          aspectRatios,
+          notes: 'Signed Cloudinary upload with auto-crop (g_auto) and AI food tagging.',
+        };
+      }
+    } catch {
+      // Proceed to Attempt 2
+    }
+
+    // Attempt 2: Direct unsigned upload using upload_preset
+    if (isUnsignedUploadConfigured()) {
+      try {
+        const res = await uploadToCloudinaryUnsigned(
+          file,
+          {
+            cloudName: CLOUD_NAME,
+            uploadPreset: UPLOAD_PRESET,
+            folder: 'shareplate/donations',
+            tags: 'shareplate,food-donation,social-good',
+            context: `app=shareplate|timestamp=${Date.now()}`,
+          },
+          onProgress
+        );
+
+        const targetForTransforms = res.secure_url || res.public_id;
+        const aspectRatios = getAspectRatioPreviews(targetForTransforms);
+        const optimizedUrl = getCloudinaryUrl(targetForTransforms, {
+          crop: 'fill',
+          gravity: 'auto',
+          format: 'auto',
+          quality: 'auto',
+          width: 800,
+          height: 600,
+        });
+
+        return {
+          imageUrl: optimizedUrl || res.secure_url,
+          publicId: res.public_id,
+          uploadType: 'unsigned_cloudinary',
+          originalBytes: file.size,
+          width: res.width,
+          height: res.height,
+          format: res.format,
+          isCloudinaryHosted: true,
+          tags: res.tags || [],
+          aiTags: res.aiTags || extractAIFoodTags(res.tags || [], file.name),
+          aspectRatios,
+          notes: 'Direct unsigned Cloudinary upload with auto-crop (g_auto) and format optimization (f_auto, q_auto).',
+        };
+      } catch (err: any) {
+        console.warn('Unsigned Cloudinary upload failed, falling back to labeled local preview:', err);
+      }
+    }
+
+    // Attempt 3: Local preview fallback — strictly labeled
     return new Promise((resolve) => {
-      let progress = 0;
+      let currentProgress = 0;
       const interval = setInterval(() => {
-        progress += 25;
-        if (onProgress) onProgress(progress);
-        if (progress >= 100) {
+        currentProgress += 25;
+        if (onProgress) onProgress(currentProgress);
+        if (currentProgress >= 100) {
           clearInterval(interval);
-          // Create local object URL for preview and assign demo public ID
           const localUrl = URL.createObjectURL(file);
+          const mockAiTags = extractAIFoodTags([], file.name);
           resolve({
             imageUrl: localUrl,
-            publicId: `shareplate/local/${file.name.replace(/\.[^/.]+$/, '')}`,
+            publicId: `local-preview-${Date.now()}`,
+            uploadType: 'local_preview',
+            originalBytes: file.size,
+            isCloudinaryHosted: false,
+            tags: ['local-preview'],
+            aiTags: mockAiTags,
+            aspectRatios: {
+              card: localUrl,
+              banner: localUrl,
+              square: localUrl,
+            },
+            notes: 'Demo preview — not uploaded to Cloudinary (no cloud name or upload preset configured).',
           });
         }
-      }, 100);
+      }, 80);
     });
   },
 };

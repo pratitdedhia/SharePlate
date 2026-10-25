@@ -1,4 +1,6 @@
 import { Donation, Claim, UserProfile, ImpactMetrics } from '../types';
+import { getCloudinaryUrl } from './cloudinary';
+import { calculateImpactMetrics } from './impactMath';
 
 export const DEMO_PROFILES: Record<string, UserProfile> = {
   donor: {
@@ -57,6 +59,19 @@ export const DEMO_PROFILES: Record<string, UserProfile> = {
   },
 };
 
+/**
+ * Single constant array of Cloudinary seed public IDs.
+ * Edit these IDs to point to your real Cloudinary uploaded seed assets.
+ */
+export const CLOUDINARY_SEED_PUBLIC_IDS = [
+  'shareplate/seed/vegetable_biryani_01',
+  'shareplate/seed/paneer_roti_02',
+  'shareplate/seed/artisan_bread_03',
+  'shareplate/seed/idli_sambar_04',
+  'shareplate/seed/fresh_fruits_05',
+  'shareplate/seed/dal_makhani_06',
+] as const;
+
 export const INITIAL_DEMO_DONATIONS: Donation[] = [
   {
     id: 'd0000000-0000-0000-0000-000000000001',
@@ -67,11 +82,16 @@ export const INITIAL_DEMO_DONATIONS: Donation[] = [
     quantity_total: 45,
     quantity_available: 45,
     quantity_unit: 'portions',
-    image_url: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&w=800&q=80',
-    cloudinary_public_id: 'shareplate/demo/vegetable_biryani_01',
+    cloudinary_public_id: CLOUDINARY_SEED_PUBLIC_IDS[0],
+    image_url: getCloudinaryUrl(CLOUDINARY_SEED_PUBLIC_IDS[0]),
+    fallback_unsplash_url: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&w=800&q=80',
     ingredients: 'Basmati rice, green peas, carrots, beans, onions, ghee, cumin, coriander',
     allergens: 'Dairy (ghee)',
+    dietary_type: 'veg',
     preparation_time: new Date(Date.now() - 3 * 3600000).toISOString(),
+    prepared_at: new Date(Date.now() - 3 * 3600000).toISOString(),
+    consume_within_hours: 6,
+    storage_note: 'Keep insulated in thermal containers at 60°C+ until served.',
     pickup_deadline: new Date(Date.now() + 5 * 3600000).toISOString(),
     pickup_instructions: 'Report to Gate 2 Security; canteen staff will bring containers down to the vehicle ramp.',
     city: 'Delhi NCR',
@@ -95,11 +115,16 @@ export const INITIAL_DEMO_DONATIONS: Donation[] = [
     quantity_total: 60,
     quantity_available: 20,
     quantity_unit: 'portions',
-    image_url: 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80',
-    cloudinary_public_id: 'shareplate/demo/paneer_roti_02',
+    cloudinary_public_id: CLOUDINARY_SEED_PUBLIC_IDS[1],
+    image_url: getCloudinaryUrl(CLOUDINARY_SEED_PUBLIC_IDS[1]),
+    fallback_unsplash_url: 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80',
     ingredients: 'Whole wheat flour, cottage cheese (paneer), tomatoes, bell peppers, turmeric, mustard oil',
     allergens: 'Gluten, Dairy',
+    dietary_type: 'veg',
     preparation_time: new Date(Date.now() - 2 * 3600000).toISOString(),
+    prepared_at: new Date(Date.now() - 2 * 3600000).toISOString(),
+    consume_within_hours: 6,
+    storage_note: 'Store sealed in eco-friendly foil meal trays away from direct sunlight.',
     pickup_deadline: new Date(Date.now() + 4 * 3600000).toISOString(),
     pickup_instructions: 'Behind Trade World Building, Loading Dock C. Contact Security Supervisor Ramesh.',
     city: 'Mumbai',
@@ -123,11 +148,16 @@ export const INITIAL_DEMO_DONATIONS: Donation[] = [
     quantity_total: 35,
     quantity_available: 35,
     quantity_unit: 'packs',
-    image_url: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=800&q=80',
-    cloudinary_public_id: 'shareplate/demo/artisan_bread_03',
+    cloudinary_public_id: CLOUDINARY_SEED_PUBLIC_IDS[2],
+    image_url: getCloudinaryUrl(CLOUDINARY_SEED_PUBLIC_IDS[2]),
+    fallback_unsplash_url: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=800&q=80',
     ingredients: 'Wheat flour, rye, oats, flax seeds, active yeast, rock salt, water',
     allergens: 'Gluten (wheat, rye, oats)',
+    dietary_type: 'veg',
     preparation_time: new Date(Date.now() - 5 * 3600000).toISOString(),
+    prepared_at: new Date(Date.now() - 5 * 3600000).toISOString(),
+    consume_within_hours: 48,
+    storage_note: 'Keep dry at ambient room temperature in kraft paper bags.',
     pickup_deadline: new Date(Date.now() + 12 * 3600000).toISOString(),
     pickup_instructions: 'Pickup from back kitchen alley entrance next to Deccan Gymkhana library.',
     city: 'Pune',
@@ -151,11 +181,16 @@ export const INITIAL_DEMO_DONATIONS: Donation[] = [
     quantity_total: 40,
     quantity_available: 0,
     quantity_unit: 'portions',
-    image_url: 'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?auto=format&fit=crop&w=800&q=80',
-    cloudinary_public_id: 'shareplate/demo/idli_sambar_04',
+    cloudinary_public_id: CLOUDINARY_SEED_PUBLIC_IDS[3],
+    image_url: getCloudinaryUrl(CLOUDINARY_SEED_PUBLIC_IDS[3]),
+    fallback_unsplash_url: 'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?auto=format&fit=crop&w=800&q=80',
     ingredients: 'Rice, urad dal, fenugreek, toor dal, drumsticks, pumpkin, curry leaves, tamarind',
     allergens: 'Mustard, Coconut',
+    dietary_type: 'veg',
     preparation_time: new Date(Date.now() - 24 * 3600000).toISOString(),
+    prepared_at: new Date(Date.now() - 24 * 3600000).toISOString(),
+    consume_within_hours: 4,
+    storage_note: 'Hot holding in stainless steel dispensers.',
     pickup_deadline: new Date(Date.now() - 18 * 3600000).toISOString(),
     pickup_instructions: 'Service elevator entrance at Tower B baseline lobby.',
     city: 'Noida',
@@ -179,11 +214,16 @@ export const INITIAL_DEMO_DONATIONS: Donation[] = [
     quantity_total: 50,
     quantity_available: 50,
     quantity_unit: 'portions',
-    image_url: 'https://images.unsplash.com/photo-1610832958506-aa56368176cf?auto=format&fit=crop&w=800&q=80',
-    cloudinary_public_id: 'shareplate/demo/fresh_fruits_05',
+    cloudinary_public_id: CLOUDINARY_SEED_PUBLIC_IDS[4],
+    image_url: getCloudinaryUrl(CLOUDINARY_SEED_PUBLIC_IDS[4]),
+    fallback_unsplash_url: 'https://images.unsplash.com/photo-1610832958506-aa56368176cf?auto=format&fit=crop&w=800&q=80',
     ingredients: 'Shimla apples, Robusta bananas, Kinnow oranges',
     allergens: 'None',
+    dietary_type: 'veg',
     preparation_time: new Date(Date.now() - 4 * 3600000).toISOString(),
+    prepared_at: new Date(Date.now() - 4 * 3600000).toISOString(),
+    consume_within_hours: 72,
+    storage_note: 'Store in ventilated crates in a cool, shaded environment.',
     pickup_deadline: new Date(Date.now() + 24 * 3600000).toISOString(),
     pickup_instructions: 'Ring service bell at Annapurna Central Kitchen, Sakinaka.',
     city: 'Mumbai',
@@ -207,11 +247,16 @@ export const INITIAL_DEMO_DONATIONS: Donation[] = [
     quantity_total: 50,
     quantity_available: 0,
     quantity_unit: 'portions',
-    image_url: 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80',
-    cloudinary_public_id: 'shareplate/demo/dal_makhani_06',
+    cloudinary_public_id: CLOUDINARY_SEED_PUBLIC_IDS[5],
+    image_url: getCloudinaryUrl(CLOUDINARY_SEED_PUBLIC_IDS[5]),
+    fallback_unsplash_url: 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80',
     ingredients: 'Black urad dal, kidney beans, butter, cream, basmati rice, cumin',
     allergens: 'Dairy',
+    dietary_type: 'veg',
     preparation_time: new Date(Date.now() - 48 * 3600000).toISOString(),
+    prepared_at: new Date(Date.now() - 48 * 3600000).toISOString(),
+    consume_within_hours: 8,
+    storage_note: 'Reheat thoroughly to 74°C before distribution.',
     pickup_deadline: new Date(Date.now() - 40 * 3600000).toISOString(),
     pickup_instructions: 'Gate 1 DTU, Administrative block portico.',
     city: 'Delhi NCR',
@@ -270,17 +315,35 @@ export const INITIAL_DEMO_CLAIMS: Claim[] = [
 
 /**
  * In-Memory Demo Storage Engine
- * Keeps state reactive during user interactions in demo mode.
+ * Keeps state reactive during user interactions in browser demo mode.
+ * Enforces atomic quantity safety and expired deadline rejection client-side.
  */
 class DemoStore {
   private donations: Donation[] = [...INITIAL_DEMO_DONATIONS];
   private claims: Claim[] = [...INITIAL_DEMO_CLAIMS];
 
+  /**
+   * Helper that evaluates and updates status for expired pickup deadlines.
+   */
+  private checkExpiredDonations() {
+    const now = Date.now();
+    for (const d of this.donations) {
+      if (
+        (d.status === 'available' || d.status === 'reserved') &&
+        new Date(d.pickup_deadline).getTime() < now
+      ) {
+        d.status = 'expired';
+      }
+    }
+  }
+
   getDonations(): Donation[] {
+    this.checkExpiredDonations();
     return [...this.donations];
   }
 
   getDonationById(id: string): Donation | undefined {
+    this.checkExpiredDonations();
     return this.donations.find((d) => d.id === id);
   }
 
@@ -297,10 +360,34 @@ class DemoStore {
   }
 
   claimDonation(donationId: string, recipientId: string, quantity: number, notes?: string): Claim {
+    this.checkExpiredDonations();
     const donation = this.donations.find((d) => d.id === donationId);
     if (!donation) throw new Error('Donation not found');
-    if (donation.quantity_available < quantity) throw new Error('Requested quantity exceeds available');
 
+    if (donation.donor_id === recipientId) {
+      throw new Error('Donors cannot claim their own donation');
+    }
+
+    if (!quantity || quantity <= 0) {
+      throw new Error('Requested quantity must be at least 1 portion');
+    }
+
+    if (new Date(donation.pickup_deadline).getTime() < Date.now()) {
+      donation.status = 'expired';
+      throw new Error('Donation pickup deadline has passed and this batch is expired');
+    }
+
+    if (donation.status !== 'available' && donation.status !== 'reserved') {
+      throw new Error(`Donation is not available for claiming (current status: ${donation.status})`);
+    }
+
+    if (donation.quantity_available < quantity) {
+      throw new Error(
+        `Requested quantity (${quantity}) exceeds available quantity (${donation.quantity_available})`
+      );
+    }
+
+    // Atomic deduction in memory
     donation.quantity_available -= quantity;
     if (donation.quantity_available === 0) {
       donation.status = 'reserved';
@@ -369,33 +456,8 @@ class DemoStore {
   }
 
   getImpactMetrics(): ImpactMetrics {
-    const portionsListed = this.donations.reduce((acc, d) => acc + d.quantity_total, 0);
-    const portionsDelivered = this.claims
-      .filter((c) => c.status === 'delivered')
-      .reduce((acc, c) => acc + c.quantity_claimed, 0);
-    const portionsReserved = this.claims
-      .filter((c) => c.status === 'claimed' || c.status === 'collected')
-      .reduce((acc, c) => acc + c.quantity_claimed, 0);
-    const completedRescues = this.claims.filter((c) => c.status === 'delivered').length;
-    const activeClaims = this.claims.filter((c) => c.status === 'claimed' || c.status === 'collected').length;
-
-    const estimatedFoodRescuedKg = Math.round(portionsDelivered * 0.4);
-    const estimatedCo2eSavedKg = Math.round(estimatedFoodRescuedKg * 2.5);
-
-    return {
-      donationsListed: this.donations.length,
-      portionsListed,
-      portionsReserved,
-      portionsDelivered,
-      completedRescues,
-      activeDonors: 4,
-      participatingRecipients: 3,
-      activeClaims,
-      completionRatePercent: 100,
-      estimatedFoodRescuedKg,
-      estimatedCo2eSavedKg,
-      methodologyNote: 'Estimates based on FAO average meal portion (400g) and UNEP food waste emission factor (2.5 kg CO2e/kg food). Only delivered portions are counted.',
-    };
+    this.checkExpiredDonations();
+    return calculateImpactMetrics(this.donations, this.claims, 4, 3);
   }
 
   // Users & Admin Moderation
@@ -454,12 +516,50 @@ class DemoStore {
 
   addUser(user: UserProfile) {
     this.users.unshift(user);
+    this.addActivityLog('admin_user_created', {
+      user: user.full_name,
+      role: user.role,
+      email: user.email,
+    });
+  }
+
+  updateUser(userId: string, updates: Partial<UserProfile>): UserProfile | null {
+    const userIndex = this.users.findIndex((u) => u.id === userId);
+    if (userIndex === -1) return null;
+    this.users[userIndex] = { ...this.users[userIndex], ...updates };
+    this.addActivityLog('admin_user_updated', {
+      user_id: userId,
+      updates,
+    });
+    return this.users[userIndex];
+  }
+
+  deleteUser(userId: string): boolean {
+    const initialLength = this.users.length;
+    const deletedUser = this.users.find((u) => u.id === userId);
+    this.users = this.users.filter((u) => u.id !== userId);
+    if (this.users.length < initialLength) {
+      this.addActivityLog('admin_user_deleted', {
+        user_id: userId,
+        name: deletedUser?.full_name,
+      });
+      return true;
+    }
+    return false;
+  }
+
+  getAllClaims(): Claim[] {
+    return [...this.claims];
   }
 
   toggleUserStatus(userId: string): boolean {
     const u = this.users.find((user) => user.id === userId);
     if (u) {
       u.is_active = !u.is_active;
+      this.addActivityLog('admin_user_status_toggled', {
+        user_id: userId,
+        new_status: u.is_active ? 'active' : 'deactivated',
+      });
       return u.is_active;
     }
     return false;
