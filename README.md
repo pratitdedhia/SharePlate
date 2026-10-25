@@ -65,7 +65,7 @@ To provide instant, zero-friction evaluation for hackathon judges without requir
 
 ```mermaid
 graph TD
-    subgraph Client ["Frontend (apps/web) - GitHub Pages Deployed"]
+    subgraph Client ["Frontend apps/web - GitHub Pages Deployed"]
         Browser["React 18 + Vite Web App (HashRouter)"]
         Uploader["ImageUploader Component"]
         Store["DemoStore (Browser-Local Storage)"]
@@ -77,20 +77,20 @@ graph TD
         EdgeCDN["Dynamic Delivery CDN (f_auto, q_auto, c_fill, g_auto)"]
     end
 
-    subgraph ProductionServer ["Production Express API (apps/api - In Repo)"]
+    subgraph ProductionServer ["Production Express API (apps/api)"]
         ExpressApp["Express Server (:5000)"]
         Signer["Upload Signature Generator (/api/uploads/signature)"]
         Controllers["Donations & Claims Handlers"]
     end
 
-    subgraph ProductionDB ["Production PostgreSQL (supabase/ - In Repo)"]
+    subgraph ProductionDB ["Production PostgreSQL (supabase/)"]
         RLS["Row Level Security Policies"]
-        AtomicRPC["claim_donation_atomic() RPC"]
+        AtomicRPC["claim_donation_atomic RPC"]
         Tables["profiles, donations, claims, reports, logs"]
     end
 
-    Browser -->|Unsigned Direct Upload (Preset)| CloudAPI
-    Browser -->|Read Transformed WebP (srcset)| EdgeCDN
+    Browser -->|Unsigned Direct Upload with Preset| CloudAPI
+    Browser -->|Read Transformed WebP srcset| EdgeCDN
     Browser -->|Local State Mutations| Store
     Store --> Impact
     
