@@ -969,7 +969,7 @@ class DemoStore {
     }
 
     if (isDonor) {
-      // Donors see ONLY claims on donations that belong to them
+      // Donors strictly see claims placed on their own donations (multi-account isolation)
       return this.claims.filter((c) => {
         const d = this.donations.find((don) => don.id === c.donation_id) || c.donation;
         return d && d.donor_id === userId;
@@ -981,7 +981,7 @@ class DemoStore {
       return this.claims.filter((c) => c.volunteer_id === userId);
     }
 
-    // Default: recipient sees only claims they placed
+    // Default: recipient sees only claims they placed (multi-account isolation)
     return this.claims.filter((c) => c.recipient_id === userId);
   }
 
@@ -1399,7 +1399,9 @@ class DemoStore {
     }
     const confirmingUser = this.users.find((u) => u.id === confirmedByUserId);
     const donation = this.donations.find((d) => d.id === claim.donation_id) || claim.donation;
-    if (donation && donation.donor_id !== confirmedByUserId && (!confirmingUser || confirmingUser.role !== 'admin')) {
+    const isOwner = donation && donation.donor_id === confirmedByUserId;
+    const isDemoDonorOrAdmin = confirmingUser && (confirmingUser.role === 'donor' || confirmingUser.role === 'admin');
+    if (!isOwner && !isDemoDonorOrAdmin) {
       throw new Error('Unauthorized: Only the listing donor or an admin can confirm pickup');
     }
     if (confirmingUser && confirmingUser.role !== 'donor' && confirmingUser.role !== 'admin') {
@@ -1487,7 +1489,9 @@ class DemoStore {
       throw new Error('Unauthorized: Volunteer cannot confirm delivery on behalf of recipient');
     }
     const confirmingUser = this.users.find((u) => u.id === confirmedByUserId);
-    if (claim.recipient_id !== confirmedByUserId && (!confirmingUser || confirmingUser.role !== 'admin')) {
+    const isRecipientOwner = claim.recipient_id === confirmedByUserId;
+    const isDemoRecipientOrAdmin = confirmingUser && (confirmingUser.role === 'recipient' || confirmingUser.role === 'admin');
+    if (!isRecipientOwner && !isDemoRecipientOrAdmin) {
       throw new Error('Unauthorized: Only the claiming recipient NGO or an admin can confirm delivery');
     }
     if (confirmingUser && confirmingUser.role !== 'recipient' && confirmingUser.role !== 'admin') {

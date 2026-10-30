@@ -8,6 +8,7 @@ import { useLiveUpdates } from '../../hooks/useLiveUpdates';
 import { Donation, Claim } from '../../types';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { DemoAccountBanner } from '../../components/common/DemoAccountBanner';
+import { CloudinaryImage } from '../../components/common/CloudinaryImage';
 import {
   UtensilsCrossed,
   PackageCheck,
@@ -203,17 +204,14 @@ export const RecipientDashboard: React.FC = () => {
                 myClaims.map((claim) => (
                   <div key={claim.id} className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-warm-50/50 transition">
                     <div className="flex items-start gap-3.5">
-                      {claim.donation?.image_url ? (
-                        <img
-                          src={claim.donation.image_url}
-                          alt={claim.donation.title}
-                          className="w-14 h-14 rounded-2xl object-cover shrink-0 border border-warm-200"
-                        />
-                      ) : (
-                        <div className="w-14 h-14 rounded-2xl bg-warm-100 flex items-center justify-center shrink-0 text-stone-400">
-                          <UtensilsCrossed className="w-6 h-6" />
-                        </div>
-                      )}
+                      <CloudinaryImage
+                        publicId={claim.donation?.cloudinary_public_id}
+                        src={claim.donation?.image_url || undefined}
+                        fallbackSrc={claim.donation?.fallback_unsplash_url || undefined}
+                        alt={claim.donation?.title || 'Food Donation'}
+                        className="w-14 h-14 rounded-2xl object-cover shrink-0 border border-warm-200"
+                        containerClassName="w-14 h-14 rounded-2xl overflow-hidden shrink-0"
+                      />
                       <div>
                         <div className="flex items-center gap-2">
                           <StatusBadge status={claim.status} />
@@ -254,61 +252,55 @@ export const RecipientDashboard: React.FC = () => {
                         </span>
                       )}
                       {claim.status === 'collected' && (
-                        claim.verification_status === 'delivery_pending' ? (
-                          <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 bg-blue-50/80 p-2.5 rounded-xl border border-blue-300">
-                            <div className="text-right sm:text-left">
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-blue-900 block">
-                                Volunteer Arrived · Confirm Receipt:
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                              <div className="flex items-center gap-1">
-                                <label className="text-[10px] font-bold text-stone-600">Portions:</label>
-                                <input
-                                  type="number"
-                                  min={1}
-                                  max={claim.quantity_claimed}
-                                  value={portionsInput[claim.id] ?? claim.quantity_claimed}
-                                  onChange={(e) =>
-                                    setPortionsInput((prev) => ({
-                                      ...prev,
-                                      [claim.id]: parseInt(e.target.value) || 1,
-                                    }))
-                                  }
-                                  className="w-16 px-2 py-1 text-xs font-bold text-center border border-blue-300 rounded-lg bg-white"
-                                  title="Confirmed portions received"
-                                />
-                              </div>
+                        <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 bg-blue-50/80 p-2.5 rounded-xl border border-blue-300">
+                          <div className="text-right sm:text-left">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-blue-900 block">
+                              Volunteer Arrived · Confirm Receipt:
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <div className="flex items-center gap-1">
+                              <label className="text-[10px] font-bold text-stone-600">Portions:</label>
                               <input
-                                type="text"
-                                maxLength={4}
-                                placeholder="4-digit OTP"
-                                value={deliveryCodeInput[claim.id] || ''}
+                                type="number"
+                                min={1}
+                                max={claim.quantity_claimed}
+                                value={portionsInput[claim.id] ?? claim.quantity_claimed}
                                 onChange={(e) =>
-                                  setDeliveryCodeInput((prev) => ({
+                                  setPortionsInput((prev) => ({
                                     ...prev,
-                                    [claim.id]: e.target.value.replace(/\D/g, ''),
+                                    [claim.id]: parseInt(e.target.value) || 1,
                                   }))
                                 }
-                                className="w-24 px-2 py-1 text-xs font-mono font-bold text-center border border-blue-300 rounded-lg focus:border-blue-700 focus:outline-hidden bg-white text-stone-900 shadow-2xs"
-                                title="Enter 4-digit OTP shown on volunteer's screen"
+                                className="w-16 px-2 py-1 text-xs font-bold text-center border border-blue-300 rounded-lg bg-white"
+                                title="Confirmed portions received"
                               />
-                              <button
-                                type="button"
-                                onClick={() => handleVerifyDeliveryReceipt(claim)}
-                                disabled={confirmingClaimId === claim.id}
-                                className="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-blue-700 hover:bg-blue-800 transition cursor-pointer shadow-xs disabled:opacity-50 flex items-center gap-1 shrink-0"
-                              >
-                                <CheckCircle2 className="w-3.5 h-3.5 text-blue-200" />
-                                <span>{confirmingClaimId === claim.id ? 'Verifying...' : 'Verify Receipt & Release Points'}</span>
-                              </button>
                             </div>
+                            <input
+                              type="text"
+                              maxLength={4}
+                              placeholder="4-digit OTP"
+                              value={deliveryCodeInput[claim.id] || ''}
+                              onChange={(e) =>
+                                setDeliveryCodeInput((prev) => ({
+                                  ...prev,
+                                  [claim.id]: e.target.value.replace(/\D/g, ''),
+                                }))
+                              }
+                              className="w-24 px-2 py-1 text-xs font-mono font-bold text-center border border-blue-300 rounded-lg focus:border-blue-700 focus:outline-hidden bg-white text-stone-900 shadow-2xs"
+                              title="Enter 4-digit OTP shown on volunteer's screen"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleVerifyDeliveryReceipt(claim)}
+                              disabled={confirmingClaimId === claim.id}
+                              className="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-blue-700 hover:bg-blue-800 transition cursor-pointer shadow-xs disabled:opacity-50 flex items-center gap-1 shrink-0"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5 text-blue-200" />
+                              <span>{confirmingClaimId === claim.id ? 'Verifying...' : 'Verify Receipt & Release Points'}</span>
+                            </button>
                           </div>
-                        ) : (
-                          <span className="text-xs font-semibold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200 flex items-center gap-1">
-                            <Clock className="w-3.5 h-3.5 text-blue-600" /> In Transit · Awaiting Volunteer Arrival
-                          </span>
-                        )
+                        </div>
                       )}
                       {claim.status === 'delivered' && (
                         <div className="text-right">

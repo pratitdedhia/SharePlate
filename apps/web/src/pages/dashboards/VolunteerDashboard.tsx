@@ -1130,14 +1130,27 @@ export const VolunteerDashboard: React.FC = () => {
                                     Present this 4-digit code to donor staff. The donor verifies and releases food from their own authenticated portal.
                                   </p>
                                 </div>
-                                <div className="flex items-center justify-between pt-1">
-                                  <span className="text-[10px] text-stone-500 italic">
-                                    Volunteer cannot self-confirm on behalf of donor.
-                                  </span>
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-amber-200/70 mt-1">
+                                  <div className="text-[11px] text-amber-900 leading-relaxed">
+                                    <strong>Where to enter this OTP?</strong> Open the{' '}
+                                    <a
+                                      href="#/dashboard/donor"
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="font-bold underline text-forest-900 hover:text-forest-700"
+                                    >
+                                      Donor Portal ↗
+                                    </a>{' '}
+                                    (for <strong>{stop.name || 'Donor Kitchen'}</strong> under <em>Incoming Claims & Reservations</em>) and enter{' '}
+                                    <strong className="font-mono px-1 py-0.5 rounded bg-amber-100 border border-amber-300 text-stone-900">
+                                      {linkedClaim?.pickup_code || '4821'}
+                                    </strong>{' '}
+                                    to verify & release the food.
+                                  </div>
                                   <button
                                     type="button"
                                     onClick={() => handleVolunteerInitiatePickup(claimId)}
-                                    className="text-[11px] font-bold text-forest-900 hover:underline cursor-pointer"
+                                    className="text-[11px] font-bold text-forest-900 hover:underline cursor-pointer shrink-0"
                                   >
                                     Re-generate Pickup Code
                                   </button>
@@ -1208,6 +1221,22 @@ export const VolunteerDashboard: React.FC = () => {
                                     <p className="text-[11px] text-stone-600 sm:text-right max-w-xs leading-relaxed">
                                       Present this 4-digit code to recipient NGO coordinator. The NGO verifies portions and confirms receipt in their portal to release your points.
                                     </p>
+                                  </div>
+                                  <div className="text-[11px] text-blue-900 bg-blue-100/70 p-2.5 rounded-xl border border-blue-200">
+                                    <strong>Where to enter this OTP?</strong> Open the{' '}
+                                    <a
+                                      href="#/dashboard/recipient"
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="font-bold underline text-blue-900 hover:text-blue-950"
+                                    >
+                                      Recipient NGO Portal ↗
+                                    </a>{' '}
+                                    (under <em>Active Claims</em>) and enter{' '}
+                                    <strong className="font-mono px-1 py-0.5 rounded bg-blue-100 border border-blue-300 text-stone-900">
+                                      {linkedClaim?.delivery_code || '7392'}
+                                    </strong>{' '}
+                                    to confirm delivery and release your reward points.
                                   </div>
                                   <div className="flex items-center justify-between pt-1">
                                     <button

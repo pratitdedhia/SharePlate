@@ -9,6 +9,7 @@ import { demoStore } from '../../lib/mockData';
 import { Donation, Claim, DonorRewardsSummary, DONOR_REWARD_RULES } from '../../types';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { DemoAccountBanner } from '../../components/common/DemoAccountBanner';
+import { CloudinaryImage } from '../../components/common/CloudinaryImage';
 import {
   UtensilsCrossed,
   PlusCircle,
@@ -276,17 +277,14 @@ export const DonorDashboard: React.FC = () => {
                   donations.slice(0, 4).map((d) => (
                     <div key={d.id} className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-warm-50/50 transition">
                       <div className="flex items-start gap-3.5">
-                        {d.image_url ? (
-                          <img
-                            src={d.image_url}
-                            alt={d.title}
-                            className="w-14 h-14 rounded-2xl object-cover shrink-0 border border-warm-200"
-                          />
-                        ) : (
-                          <div className="w-14 h-14 rounded-2xl bg-warm-100 flex items-center justify-center shrink-0 text-stone-400">
-                            <UtensilsCrossed className="w-6 h-6" />
-                          </div>
-                        )}
+                        <CloudinaryImage
+                          publicId={d.cloudinary_public_id}
+                          src={d.image_url || undefined}
+                          fallbackSrc={d.fallback_unsplash_url || undefined}
+                          alt={d.title}
+                          className="w-14 h-14 rounded-2xl object-cover shrink-0 border border-warm-200"
+                          containerClassName="w-14 h-14 rounded-2xl overflow-hidden shrink-0"
+                        />
                         <div>
                           <div className="flex items-center gap-2">
                             <StatusBadge status={d.status} />
@@ -340,8 +338,19 @@ export const DonorDashboard: React.FC = () => {
 
               <div className="divide-y divide-warm-100">
                 {incomingClaims.length === 0 ? (
-                  <div className="p-8 text-center text-xs text-stone-500">
-                    No pending claims on your active donations. When an NGO reserves food, it will appear here.
+                  <div className="p-8 text-center text-xs text-stone-500 space-y-3">
+                    <p>No pending claims on your active donations. When an NGO reserves food from your kitchen, it will appear here.</p>
+                    <div className="bg-amber-50/80 border border-amber-200 rounded-xl p-3 text-[11px] text-amber-900 max-w-lg mx-auto text-left leading-relaxed">
+                      <strong>Looking for Volunteer Pickup OTP entry?</strong>
+                      <p className="mt-1 text-stone-600">
+                        You are currently signed in as <strong>{user?.organization_name || user?.full_name || 'this donor'}</strong>. Under SharePlate's multi-account food safety rules, each donor kitchen can only verify handovers for their own listings.
+                      </p>
+                      <p className="mt-1 text-stone-600">
+                        • If your volunteer is picking up from <strong>Annapurna Grand Caterers (Mumbai)</strong>, sign in as Chef Vikram or use the <strong>Admin Portal</strong> to verify.
+                        <br />
+                        • To test OTP verification with this account, select the <strong>Delhi (Rohini → Connaught Place)</strong> corridor in the Volunteer Portal, or list new food above!
+                      </p>
+                    </div>
                   </div>
                 ) : (
                   incomingClaims.map((claim) => (
@@ -366,45 +375,38 @@ export const DonorDashboard: React.FC = () => {
 
                       <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 self-end sm:self-center">
                         {claim.status === 'claimed' && (
-                          claim.verification_status === 'pickup_pending' ? (
-                            <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 bg-emerald-50/80 p-2.5 rounded-xl border border-emerald-300">
-                              <div className="text-right sm:text-left">
-                                <span className="text-[10px] font-bold uppercase tracking-wider text-forest-900 block">
-                                  Volunteer Arrived · Enter OTP:
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-1.5">
-                                <input
-                                  type="text"
-                                  maxLength={4}
-                                  placeholder="4-digit OTP"
-                                  value={pickupCodeInput[claim.id] || ''}
-                                  onChange={(e) =>
-                                    setPickupCodeInput((prev) => ({
-                                      ...prev,
-                                      [claim.id]: e.target.value.replace(/\D/g, ''),
-                                    }))
-                                  }
-                                  className="w-24 px-2 py-1.5 text-xs font-mono font-bold text-center border border-emerald-300 rounded-lg focus:border-forest-900 focus:outline-hidden bg-white text-stone-900 shadow-2xs"
-                                  title="Enter the 4-digit code shown on volunteer's screen"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => handleVerifyPickupHandoff(claim.id)}
-                                  disabled={verifyingClaimId === claim.id}
-                                  className="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-forest-900 hover:bg-forest-800 transition cursor-pointer shadow-xs disabled:opacity-50 flex items-center gap-1 shrink-0"
-                                >
-                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300" />
-                                  <span>{verifyingClaimId === claim.id ? 'Verifying...' : 'Verify & Release Food'}</span>
-                                </button>
-                              </div>
+                          <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 bg-emerald-50/80 p-2.5 rounded-xl border border-emerald-300">
+                            <div className="text-right sm:text-left">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-forest-900 block">
+                                Volunteer Arrived · Enter OTP:
+                              </span>
                             </div>
-                          ) : (
-                            <span className="text-xs font-semibold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 flex items-center gap-1">
-                              <Clock className="w-3.5 h-3.5 text-amber-600" />
-                              Awaiting Volunteer Handover Arrival
-                            </span>
-                          )
+                            <div className="flex items-center gap-1.5">
+                              <input
+                                type="text"
+                                maxLength={4}
+                                placeholder="4-digit OTP"
+                                value={pickupCodeInput[claim.id] || ''}
+                                onChange={(e) =>
+                                  setPickupCodeInput((prev) => ({
+                                    ...prev,
+                                    [claim.id]: e.target.value.replace(/\D/g, ''),
+                                  }))
+                                }
+                                className="w-24 px-2 py-1.5 text-xs font-mono font-bold text-center border border-emerald-300 rounded-lg focus:border-forest-900 focus:outline-hidden bg-white text-stone-900 shadow-2xs"
+                                title="Enter the 4-digit code shown on volunteer's screen"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleVerifyPickupHandoff(claim.id)}
+                                disabled={verifyingClaimId === claim.id}
+                                className="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-forest-900 hover:bg-forest-800 transition cursor-pointer shadow-xs disabled:opacity-50 flex items-center gap-1 shrink-0"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300" />
+                                <span>{verifyingClaimId === claim.id ? 'Verifying...' : 'Verify & Release Food'}</span>
+                              </button>
+                            </div>
+                          </div>
                         )}
                         {claim.status === 'collected' && (
                           <span className="text-xs font-semibold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200 flex items-center gap-1">
