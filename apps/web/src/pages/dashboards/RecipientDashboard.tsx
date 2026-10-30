@@ -7,7 +7,7 @@ import { claimsService } from '../../services/claims';
 import { useLiveUpdates } from '../../hooks/useLiveUpdates';
 import { Donation, Claim } from '../../types';
 import { StatusBadge } from '../../components/common/StatusBadge';
-import { areCitiesCompatible } from '../../lib/utils';
+import { areCitiesCompatible, areStatesCompatible, inferStateFromCity } from '../../lib/utils';
 import { DemoAccountBanner } from '../../components/common/DemoAccountBanner';
 import { CloudinaryImage } from '../../components/common/CloudinaryImage';
 import {
@@ -38,10 +38,11 @@ export const RecipientDashboard: React.FC = () => {
   const loadData = async () => {
     if (!user) return;
     try {
-      // 1. Available donations to claim within the recipient's operating city/state
+      // 1. Available donations strictly within the recipient's operating state
+      const userState = user.state || inferStateFromCity(user.city);
       const allDonations = await donationsService.getDonations({
         status: 'available',
-        city: user.city || undefined,
+        state: userState,
       });
       setAvailableDonations(allDonations.data);
 
@@ -127,7 +128,7 @@ export const RecipientDashboard: React.FC = () => {
             </span>
             <span className="text-xs text-stone-500 font-medium flex items-center gap-1">
               <MapPin className="w-3.5 h-3.5" />
-              {user?.city || 'Delhi NCR'}
+              {user?.city ? `${user.city}, ` : ''}{user?.state || inferStateFromCity(user?.city)}
             </span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-black text-stone-900 mt-1">
@@ -151,7 +152,7 @@ export const RecipientDashboard: React.FC = () => {
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
         {/* Available Donations */}
         <div className="bg-white p-5 rounded-2xl border border-warm-200 shadow-xs space-y-1">
-          <div className="text-stone-500 text-xs font-semibold">Available in {user?.city || 'Your Area'}</div>
+          <div className="text-stone-500 text-xs font-semibold">Available in {user?.state || inferStateFromCity(user?.city) || 'Your State'}</div>
           <div className="text-2xl sm:text-3xl font-black text-emerald-700">{availableCount}</div>
           <div className="text-[11px] text-stone-500">Listings ready to claim</div>
         </div>
@@ -262,9 +263,9 @@ export const RecipientDashboard: React.FC = () => {
                     <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 self-end sm:self-center">
                       {claim.status === 'claimed' && (
                         <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2">
-                          {user?.city && claim.donation?.city && !areCitiesCompatible(user.city, claim.donation.city) && (
-                            <span className="text-[10px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200" title="This claimed food is in a different city than your organization">
-                              ⚠️ Out-of-City ({claim.donation.city})
+                          {claim.donation && !areStatesCompatible(user?.state || inferStateFromCity(user?.city), claim.donation?.state || inferStateFromCity(claim.donation?.city)) && (
+                            <span className="text-[10px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200" title="This claimed food is in a different state than your organization">
+                              ⚠️ Out-of-State ({claim.donation.state || claim.donation.city})
                             </span>
                           )}
                           <span className="text-xs font-semibold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 flex items-center gap-1">
@@ -360,18 +361,18 @@ export const RecipientDashboard: React.FC = () => {
           <div className="bg-white rounded-3xl border border-warm-200 shadow-xs p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-warm-100 pb-3">
               <h2 className="text-sm font-black text-stone-900 uppercase tracking-wide">
-                Available Food in {user?.city || 'Your Area'}
+                Available Food in {user?.state || inferStateFromCity(user?.city) || 'Your State'}
               </h2>
               <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                Local Feed
+                State Feed
               </span>
             </div>
 
             <div className="space-y-3.5">
               {availableDonations.length === 0 ? (
                 <div className="p-4 text-center text-xs text-stone-500 bg-warm-50/50 rounded-2xl border border-warm-200 space-y-1">
-                  <p className="font-semibold text-stone-700">No active surplus in {user?.city || 'your area'}</p>
-                  <p className="text-[11px] text-stone-500">When local donors post food, it will appear here immediately.</p>
+                  <p className="font-semibold text-stone-700">No active surplus in {user?.state || inferStateFromCity(user?.city) || 'your state'}</p>
+                  <p className="text-[11px] text-stone-500">When local donors in your state post food, it will appear here immediately.</p>
                 </div>
               ) : (
                 availableDonations.slice(0, 4).map((item) => (
@@ -383,7 +384,7 @@ export const RecipientDashboard: React.FC = () => {
                       </span>
                     </div>
                     <div className="text-[11px] text-stone-500 flex items-center justify-between">
-                      <span>{item.location_label}</span>
+                      <span>{item.location_label} ({item.city})</span>
                       <Link
                         to={`/donations/${item.id}`}
                         className="font-bold text-forest-900 hover:underline flex items-center gap-0.5"
@@ -397,10 +398,10 @@ export const RecipientDashboard: React.FC = () => {
             </div>
 
             <Link
-              to={`/donations?city=${encodeURIComponent(user?.city || 'all')}`}
+              to={`/donations?state=${encodeURIComponent(user?.state || inferStateFromCity(user?.city) || 'Delhi')}`}
               className="block w-full py-2.5 rounded-xl text-center text-xs font-bold text-forest-900 bg-warm-100 hover:bg-warm-200 transition"
             >
-              Browse All {user?.city ? `${user.city} ` : ''}Listings
+              Browse All {user?.state || inferStateFromCity(user?.city) || ''} Listings
             </Link>
           </div>
 

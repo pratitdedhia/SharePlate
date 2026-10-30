@@ -331,4 +331,69 @@ describe('SharePlate Authentication & Role Governance Suite', () => {
     const reloaded = demoStore.getUsers().find((u) => u.id === 'user-donor-mumbai');
     expect(reloaded?.city).toBe('Mumbai');
   });
+
+  // 23 & 24: State on Registration & Strict State Listing Policy
+  it('captures state during user registration and sets state on profile', () => {
+    const newRecipientUser = {
+      id: 'user-rec-karnataka',
+      email: 'coordinator@bangalorefood.org',
+      full_name: 'Suresh Gowda',
+      role: 'recipient' as const,
+      state: 'Karnataka',
+      city: 'Bengaluru',
+      is_active: true,
+    };
+    demoStore.addUser(newRecipientUser);
+
+    const retrieved = demoStore.getUsers().find((u) => u.id === 'user-rec-karnataka');
+    expect(retrieved).toBeDefined();
+    expect(retrieved?.state).toBe('Karnataka');
+    expect(retrieved?.city).toBe('Bengaluru');
+  });
+
+  it('strictly filters donations by registered state for non-admins while allowing admin global access', () => {
+    // Seed one donation in Maharashtra and one in Delhi
+    demoStore.createDonation({
+      donor_id: DEMO_PROFILES.donor.id,
+      title: 'Delhi Canteen Biryani',
+      description: 'Hot vegetarian biryani in Delhi.',
+      category: 'cooked_meals',
+      quantity_total: 40,
+      quantity_unit: 'portions',
+      pickup_deadline: new Date(Date.now() + 4 * 3600000).toISOString(),
+      city: 'Delhi NCR',
+      state: 'Delhi',
+      location_label: 'Rohini Sector 17',
+    });
+
+    demoStore.createDonation({
+      donor_id: DEMO_PROFILES.donor.id,
+      title: 'Mumbai Pav Bhaji Packs',
+      description: 'Fresh Mumbai food packs.',
+      category: 'cooked_meals',
+      quantity_total: 50,
+      quantity_unit: 'portions',
+      pickup_deadline: new Date(Date.now() + 4 * 3600000).toISOString(),
+      city: 'Mumbai',
+      state: 'Maharashtra',
+      location_label: 'Bandra West',
+    });
+
+    // 1. Recipient in Delhi strictly only sees Delhi listings
+    const delhiDonations = demoStore.getDonations({ state: 'Delhi' });
+    expect(delhiDonations.length).toBeGreaterThan(0);
+    expect(delhiDonations.every((d) => (d.state === 'Delhi' || d.city.includes('Delhi')))).toBe(true);
+    expect(delhiDonations.some((d) => d.title === 'Mumbai Pav Bhaji Packs')).toBe(false);
+
+    // 2. Recipient in Maharashtra strictly only sees Maharashtra listings
+    const maharashtraDonations = demoStore.getDonations({ state: 'Maharashtra' });
+    expect(maharashtraDonations.length).toBeGreaterThan(0);
+    expect(maharashtraDonations.every((d) => (d.state === 'Maharashtra' || d.city === 'Mumbai' || d.city === 'Pune'))).toBe(true);
+    expect(maharashtraDonations.some((d) => d.title === 'Delhi Canteen Biryani')).toBe(false);
+
+    // 3. Admin can query with state 'all' or no state filter and receive listings across all states
+    const allStateDonations = demoStore.getDonations({ state: 'all' });
+    expect(allStateDonations.some((d) => d.title === 'Delhi Canteen Biryani')).toBe(true);
+    expect(allStateDonations.some((d) => d.title === 'Mumbai Pav Bhaji Packs')).toBe(true);
+  });
 });

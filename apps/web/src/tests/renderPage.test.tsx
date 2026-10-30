@@ -70,6 +70,7 @@ describe('DonationDetailPage Server Render Test', () => {
         pickup_deadline: new Date(Date.now() + 3600000).toISOString(),
         created_at: new Date().toISOString(),
         city: 'Delhi NCR',
+        state: 'Delhi',
         location_label: 'DTU Campus',
       },
     };
@@ -131,6 +132,7 @@ describe('DonationDetailPage Server Render Test', () => {
         pickup_deadline: new Date(Date.now() + 3600000).toISOString(),
         created_at: new Date().toISOString(),
         city: 'Delhi NCR',
+        state: 'Delhi',
         location_label: 'DTU Campus',
       },
     };

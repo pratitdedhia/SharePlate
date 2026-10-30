@@ -13,6 +13,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { DEMO_PROFILES, demoStore } from '../lib/mockData';
 import { liveUpdatesService } from '../services/liveUpdates';
 import { UserProfile, UserRole, RegistrationData } from '../types';
+import { inferStateFromCity } from '../lib/utils';
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -46,7 +47,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const saved = localStorage.getItem('shareplate_current_user');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const u = JSON.parse(saved);
+        if (u && !u.state && u.city) {
+          u.state = inferStateFromCity(u.city);
+        }
+        return u;
       } catch {
         return null;
       }
@@ -199,10 +204,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             email: fbUser.email || '',
             role: intendedRole,
             avatar_url: fbUser.photoURL || null,
-            city: 'Mumbai',
+            city: 'Delhi NCR',
+            state: 'Delhi',
             phone: fbUser.phoneNumber || '+91 98110 00000',
             organization_name: fbUser.displayName ? `${fbUser.displayName}'s Organization` : 'Community Kitchen Partner',
-            service_area: 'Mumbai & Suburban Corridors',
+            service_area: 'Delhi NCR & Suburban Corridors',
             is_active: true,
           };
 
@@ -385,6 +391,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (cred?.user) {
             const token = await cred.user.getIdToken();
             localStorage.setItem('shareplate_token', token);
+            const registeredCity = data.city || 'Delhi NCR';
+            const registeredState = data.state || inferStateFromCity(registeredCity);
             const newProfile: UserProfile = {
               id: cred.user.uid,
               full_name: data.fullName,
@@ -392,7 +400,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               role: data.role,
               organization_name: data.organizationName || null,
               phone: data.phone,
-              city: data.city || 'Mumbai',
+              city: registeredCity,
+              state: registeredState,
               service_area: data.serviceArea || null,
               donor_type: data.donorType || null,
               recipient_type: data.recipientType || null,
@@ -441,6 +450,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (error) throw error;
 
         if (authData.user) {
+          const regCity = data.city || 'Delhi NCR';
+          const regState = data.state || inferStateFromCity(regCity);
           const newProfile: UserProfile = {
             id: authData.user.id,
             full_name: data.fullName,
@@ -448,7 +459,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             role: data.role,
             organization_name: data.organizationName || null,
             phone: data.phone,
-            city: data.city,
+            city: regCity,
+            state: regState,
             service_area: data.serviceArea || null,
             donor_type: data.donorType || null,
             recipient_type: data.recipientType || null,
@@ -478,6 +490,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       // 3. Demo Mode Registration
+      const regDemoCity = data.city || 'Delhi NCR';
+      const regDemoState = data.state || inferStateFromCity(regDemoCity);
       const newDemoUser: UserProfile = {
         id: `user-${Date.now()}`,
         full_name: data.fullName,
@@ -485,7 +499,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role: data.role,
         organization_name: data.organizationName || null,
         phone: data.phone,
-        city: data.city || 'Mumbai',
+        city: regDemoCity,
+        state: regDemoState,
         service_area: data.serviceArea || null,
         donor_type: data.donorType || null,
         recipient_type: data.recipientType || null,

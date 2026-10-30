@@ -17,6 +17,7 @@ import {
 } from '../types';
 import { getCloudinaryUrl } from './cloudinary';
 import { calculateImpactMetrics } from './impactMath';
+import { areStatesCompatible, inferStateFromCity } from './utils';
 
 export const DEMO_PROFILES: Record<string, UserProfile> = {
   donor: {
@@ -27,6 +28,7 @@ export const DEMO_PROFILES: Record<string, UserProfile> = {
     organization_name: 'DTU Campus Central Canteen',
     phone: '+91 98110 12345',
     city: 'Delhi NCR',
+    state: 'Delhi',
     service_area: 'Rohini & Pitampura',
     donor_type: 'canteen',
     contact_person: 'Priya Sharma (Canteen Operations Lead)',
@@ -41,6 +43,7 @@ export const DEMO_PROFILES: Record<string, UserProfile> = {
     organization_name: 'Robin Hood Army - Delhi Chapter',
     phone: '+91 98711 22334',
     city: 'Delhi NCR',
+    state: 'Delhi',
     service_area: 'North & West Delhi',
     recipient_type: 'ngo',
     contact_person: 'Rajesh Kumar (Distribution Coordinator)',
@@ -55,6 +58,7 @@ export const DEMO_PROFILES: Record<string, UserProfile> = {
     organization_name: 'Youth For Food Relief',
     phone: '+91 98118 77665',
     city: 'Delhi NCR',
+    state: 'Delhi',
     service_area: 'South Delhi & Noida',
     availability: 'evenings',
     bio: 'Dedicated food rescue cyclist and delivery coordinator with 2+ years field experience.',
@@ -69,6 +73,7 @@ export const DEMO_PROFILES: Record<string, UserProfile> = {
     organization_name: 'SharePlate Foundation',
     phone: '+91 11 2345 6789',
     city: 'Delhi NCR',
+    state: 'Delhi',
     service_area: 'Pan-India',
     avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=256&q=80',
     is_active: true,
@@ -111,6 +116,7 @@ export const INITIAL_DEMO_DONATIONS: Donation[] = [
     pickup_deadline: new Date(Date.now() + 5 * 3600000).toISOString(),
     pickup_instructions: 'Report to Gate 2 Security; canteen staff will bring containers down to the vehicle ramp.',
     city: 'Delhi NCR',
+    state: 'Delhi',
     location_label: 'DTU Campus, Rohini Sector 17',
     status: 'available',
     created_at: new Date(Date.now() - 3 * 3600000).toISOString(),
@@ -119,6 +125,7 @@ export const INITIAL_DEMO_DONATIONS: Donation[] = [
       full_name: 'Priya Sharma',
       organization_name: 'DTU Campus Central Canteen',
       city: 'Delhi NCR',
+      state: 'Delhi',
       phone: '+91 98110 12345',
     },
   },
@@ -144,6 +151,7 @@ export const INITIAL_DEMO_DONATIONS: Donation[] = [
     pickup_deadline: new Date(Date.now() + 4 * 3600000).toISOString(),
     pickup_instructions: 'Behind Trade World Building, Loading Dock C. Contact Security Supervisor Ramesh.',
     city: 'Mumbai',
+    state: 'Maharashtra',
     location_label: 'BKC Commercial Hub, Bandra East',
     status: 'available',
     created_at: new Date(Date.now() - 2 * 3600000).toISOString(),
@@ -152,6 +160,7 @@ export const INITIAL_DEMO_DONATIONS: Donation[] = [
       full_name: 'Chef Vikram Malhotra',
       organization_name: 'Annapurna Grand Caterers',
       city: 'Mumbai',
+      state: 'Maharashtra',
       phone: '+91 98200 67890',
     },
   },
@@ -177,6 +186,7 @@ export const INITIAL_DEMO_DONATIONS: Donation[] = [
     pickup_deadline: new Date(Date.now() + 12 * 3600000).toISOString(),
     pickup_instructions: 'Pickup from back kitchen alley entrance next to Deccan Gymkhana library.',
     city: 'Pune',
+    state: 'Maharashtra',
     location_label: 'Deccan Gymkhana, FC Road',
     status: 'available',
     created_at: new Date(Date.now() - 5 * 3600000).toISOString(),
@@ -185,6 +195,7 @@ export const INITIAL_DEMO_DONATIONS: Donation[] = [
       full_name: 'Amit Deshmukh',
       organization_name: 'Green Leaf Bistro & Bakery',
       city: 'Pune',
+      state: 'Maharashtra',
       phone: '+91 98900 23456',
     },
   },
@@ -210,6 +221,7 @@ export const INITIAL_DEMO_DONATIONS: Donation[] = [
     pickup_deadline: new Date(Date.now() - 18 * 3600000).toISOString(),
     pickup_instructions: 'Service elevator entrance at Tower B baseline lobby.',
     city: 'Noida',
+    state: 'Uttar Pradesh',
     location_label: 'Sector 62 IT Hub',
     status: 'delivered',
     created_at: new Date(Date.now() - 24 * 3600000).toISOString(),
@@ -218,6 +230,7 @@ export const INITIAL_DEMO_DONATIONS: Donation[] = [
       full_name: 'Neha Gupta',
       organization_name: 'Sector 62 Corporate Cafeteria',
       city: 'Noida',
+      state: 'Uttar Pradesh',
       phone: '+91 99100 45678',
     },
   },
@@ -243,6 +256,7 @@ export const INITIAL_DEMO_DONATIONS: Donation[] = [
     pickup_deadline: new Date(Date.now() + 24 * 3600000).toISOString(),
     pickup_instructions: 'Ring service bell at Annapurna Central Kitchen, Sakinaka.',
     city: 'Mumbai',
+    state: 'Maharashtra',
     location_label: 'Andheri East, Sakinaka',
     status: 'available',
     created_at: new Date(Date.now() - 4 * 3600000).toISOString(),
@@ -251,6 +265,7 @@ export const INITIAL_DEMO_DONATIONS: Donation[] = [
       full_name: 'Chef Vikram Malhotra',
       organization_name: 'Annapurna Grand Caterers',
       city: 'Mumbai',
+      state: 'Maharashtra',
       phone: '+91 98200 67890',
     },
   },
@@ -276,6 +291,7 @@ export const INITIAL_DEMO_DONATIONS: Donation[] = [
     pickup_deadline: new Date(Date.now() - 40 * 3600000).toISOString(),
     pickup_instructions: 'Gate 1 DTU, Administrative block portico.',
     city: 'Delhi NCR',
+    state: 'Delhi',
     location_label: 'Rohini Sector 16',
     status: 'delivered',
     created_at: new Date(Date.now() - 48 * 3600000).toISOString(),
@@ -284,6 +300,7 @@ export const INITIAL_DEMO_DONATIONS: Donation[] = [
       full_name: 'Priya Sharma',
       organization_name: 'DTU Campus Central Canteen',
       city: 'Delhi NCR',
+      state: 'Delhi',
       phone: '+91 98110 12345',
     },
   },
@@ -747,7 +764,7 @@ class DemoStore {
     }
   }
 
-  getDonations(params?: { category?: string; city?: string; search?: string; status?: string; donor_id?: string }): Donation[] {
+  getDonations(params?: { category?: string; city?: string; state?: string; search?: string; status?: string; donor_id?: string }): Donation[] {
     this.reloadFromStorage();
     this.checkExpiredDonations();
     let results = [...this.donations];
@@ -756,6 +773,13 @@ class DemoStore {
     }
     if (params?.category && params.category !== 'all') {
       results = results.filter((d) => d.category === params.category);
+    }
+    if (params?.state && params.state !== 'all') {
+      const qState = params.state.toLowerCase().trim();
+      results = results.filter((d) => {
+        const dState = (d.state || inferStateFromCity(d.city) || '').toLowerCase().trim();
+        return areStatesCompatible(dState, qState);
+      });
     }
     if (params?.city && params.city !== 'all') {
       const qCity = params.city.toLowerCase().trim();
@@ -800,6 +824,7 @@ class DemoStore {
       'Registered Donor Kitchen';
     const donor_phone = donation.donor?.phone || donorUser?.phone || '+91 98110 12345';
     const donor_city = donation.city || donorUser?.city || 'Delhi NCR';
+    const donor_state = donation.state || donorUser?.state || inferStateFromCity(donor_city);
 
     const newDonation: Donation = {
       ...donation,
@@ -807,11 +832,14 @@ class DemoStore {
       created_at: new Date().toISOString(),
       quantity_available: donation.quantity_total,
       status: 'available',
+      city: donor_city,
+      state: donor_state,
       donor: {
         id: donation.donor_id || donorUser.id,
         full_name: donorUser.full_name || donor_name,
         organization_name: donorUser.organization_name || donor_name,
         city: donor_city,
+        state: donor_state,
         phone: donor_phone,
       },
     };

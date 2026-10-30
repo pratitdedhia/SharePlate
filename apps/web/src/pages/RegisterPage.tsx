@@ -21,6 +21,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { UserRole } from '../types';
+import { INDIAN_STATES, STATE_CITIES_MAP } from '../lib/utils';
 
 export const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
@@ -34,6 +35,7 @@ export const RegisterPage: React.FC = () => {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [state, setState] = useState('Delhi');
   const [city, setCity] = useState('Delhi NCR');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -58,6 +60,14 @@ export const RegisterPage: React.FC = () => {
 
   const [loading, setLoading] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+
+  const handleStateChange = (newState: string) => {
+    setState(newState);
+    const availableCities = STATE_CITIES_MAP[newState];
+    if (availableCities && availableCities.length > 0) {
+      setCity(availableCities[0]);
+    }
+  };
 
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {};
@@ -117,6 +127,7 @@ export const RegisterPage: React.FC = () => {
         fullName: fullName.trim(),
         role,
         phone: formattedPhone,
+        state: state.trim(),
         city: city.trim(),
         avatarUrl: avatarUrl.trim() || undefined,
         serviceArea:
@@ -566,14 +577,37 @@ export const RegisterPage: React.FC = () => {
                   )}
                 </div>
 
-                {/* City / State Selection */}
+                {/* State Selection */}
                 <div>
                   <label className="block text-xs font-bold text-stone-700 mb-1">
-                    City / State <span className="text-rose-500">*</span>
+                    Operating State <span className="text-rose-500">*</span>
                   </label>
                   <p className="text-[11px] text-stone-500 mb-1.5">
-                    Surplus food listings and courier routes are tailored exclusively to your state/city region.
+                    Surplus food listings and routes are strictly filtered to your registered state to preserve freshness.
                   </p>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-forest-700">
+                      <MapPin className="w-4 h-4" />
+                    </div>
+                    <select
+                      value={state}
+                      onChange={(e) => handleStateChange(e.target.value)}
+                      className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-warm-200 text-stone-900 text-sm focus:border-forest-900 focus:outline-hidden bg-warm-50/30 font-semibold"
+                    >
+                      {INDIAN_STATES.map((st) => (
+                        <option key={st} value={st}>
+                          {st}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* City Selection */}
+                <div>
+                  <label className="block text-xs font-bold text-stone-700 mb-1">
+                    Operating City <span className="text-rose-500">*</span>
+                  </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400">
                       <MapPin className="w-4 h-4" />
@@ -583,14 +617,11 @@ export const RegisterPage: React.FC = () => {
                       onChange={(e) => setCity(e.target.value)}
                       className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-warm-200 text-stone-900 text-sm focus:border-forest-900 focus:outline-hidden bg-warm-50/30"
                     >
-                      <option value="Delhi NCR">Delhi NCR</option>
-                      <option value="Mumbai">Mumbai</option>
-                      <option value="Pune">Pune</option>
-                      <option value="Noida">Noida</option>
-                      <option value="Bengaluru">Bengaluru</option>
-                      <option value="Hyderabad">Hyderabad</option>
-                      <option value="Kolkata">Kolkata</option>
-                      <option value="Chennai">Chennai</option>
+                      {(STATE_CITIES_MAP[state] || ['Delhi NCR']).map((ct) => (
+                        <option key={ct} value={ct}>
+                          {ct}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>

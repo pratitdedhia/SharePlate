@@ -217,7 +217,7 @@ Open **`http://localhost:5173`** in your browser.
 
 ## 🧪 Automated Testing & Verification
 
-All automated tests execute with 100% passing results across 98 tests:
+All automated tests execute with 100% passing results across 100 tests:
 
 ### Run Backend API Tests:
 ```bash
@@ -228,13 +228,13 @@ npm test --workspace=@shareplate/api
 ### Run Frontend Unit & Integration Tests:
 ```bash
 npm test --workspace=@shareplate/web
-# Result: 96 passed, 0 failed (App, Impact Math, Donor Rewards Ledger, Volunteer Multi-Stop Route Partitioning, Two-Party Pickup & Delivery OTP Flow, Cross-Portal Sync, Profile City Persistence, Auth, Upload Fallback & Error Handling, Features Suite, Render Safety)
+# Result: 98 passed, 0 failed (App, Impact Math, Donor Rewards Ledger, Volunteer Multi-Stop Route Partitioning, Two-Party Pickup & Delivery OTP Flow, Cross-Portal Sync, State on Registration & Strict Regional State Listing Isolation, Profile City Persistence, Auth, Upload Fallback & Error Handling, Features Suite, Render Safety)
 ```
 
 ### Run All Workspace Tests:
 ```bash
 npm test
-# Total: 98 passed, 0 failed
+# Total: 100 passed, 0 failed
 ```
 
 ### Verify Production Compilation:

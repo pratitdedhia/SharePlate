@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { User, Building, MapPin, Phone, ShieldCheck, Mail, Loader2, Save } from 'lucide-react';
+import { INDIAN_STATES, STATE_CITIES_MAP, inferStateFromCity } from '../lib/utils';
 
 export const ProfilePage: React.FC = () => {
   const { user, updateProfile } = useAuth();
@@ -10,6 +11,7 @@ export const ProfilePage: React.FC = () => {
   const [fullName, setFullName] = useState(user?.full_name || '');
   const [orgName, setOrgName] = useState(user?.organization_name || '');
   const [phone, setPhone] = useState(user?.phone || '');
+  const [state, setState] = useState(user?.state || inferStateFromCity(user?.city) || 'Delhi');
   const [city, setCity] = useState(user?.city || 'Delhi NCR');
   const [serviceArea, setServiceArea] = useState(user?.service_area || '');
   const [saving, setSaving] = useState(false);
@@ -19,10 +21,19 @@ export const ProfilePage: React.FC = () => {
       setFullName(user.full_name || '');
       setOrgName(user.organization_name || '');
       setPhone(user.phone || '');
+      setState(user.state || inferStateFromCity(user.city) || 'Delhi');
       setCity(user.city || 'Delhi NCR');
       setServiceArea(user.service_area || '');
     }
   }, [user]);
+
+  const handleStateChange = (newState: string) => {
+    setState(newState);
+    const availableCities = STATE_CITIES_MAP[newState];
+    if (availableCities && availableCities.length > 0) {
+      setCity(availableCities[0]);
+    }
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,6 +48,7 @@ export const ProfilePage: React.FC = () => {
         full_name: fullName.trim(),
         organization_name: orgName.trim() || null,
         phone: phone.trim() || null,
+        state: state,
         city: city,
         service_area: serviceArea.trim() || null,
       });
@@ -114,17 +126,32 @@ export const ProfilePage: React.FC = () => {
             </div>
 
             <div>
+              <label className="block font-bold text-stone-700 mb-1">State / Territory</label>
+              <select
+                value={state}
+                onChange={(e) => handleStateChange(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-warm-200 text-stone-900 text-sm focus:border-forest-900 focus:outline-hidden font-medium"
+              >
+                {INDIAN_STATES.map((st) => (
+                  <option key={st} value={st}>
+                    {st}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
               <label className="block font-bold text-stone-700 mb-1">City / Base Region</label>
               <select
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-warm-200 text-stone-900 text-sm focus:border-forest-900 focus:outline-hidden"
               >
-                <option value="Delhi NCR">Delhi NCR</option>
-                <option value="Mumbai">Mumbai</option>
-                <option value="Pune">Pune</option>
-                <option value="Noida">Noida</option>
-                <option value="Bengaluru">Bengaluru</option>
+                {(STATE_CITIES_MAP[state] || ['Delhi NCR']).map((ct) => (
+                  <option key={ct} value={ct}>
+                    {ct}
+                  </option>
+                ))}
               </select>
             </div>
 

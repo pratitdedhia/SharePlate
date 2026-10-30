@@ -7,7 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { CloudinaryImage } from '../components/common/CloudinaryImage';
-import { formatDate, formatTimeRemaining, getCategoryLabel, areCitiesCompatible } from '../lib/utils';
+import { formatDate, formatTimeRemaining, getCategoryLabel, areCitiesCompatible, areStatesCompatible, inferStateFromCity } from '../lib/utils';
 import {
   Clock,
   MapPin,
@@ -62,19 +62,21 @@ export const DonationDetailPage: React.FC = () => {
     : { text: '', isUrgent: false, isExpired: false };
   const isExpired = Boolean(donation && (donation.status === 'expired' || timeInfo.isExpired));
   const isOwnDonation = Boolean(user && donation && user.id === donation.donor_id);
-  const isCityMismatch = Boolean(
+  const userState = user?.state || inferStateFromCity(user?.city);
+  const donationState = donation?.state || inferStateFromCity(donation?.city);
+  const isStateMismatch = Boolean(
     user &&
-    user.role === 'recipient' &&
-    user.city &&
-    donation?.city &&
-    !areCitiesCompatible(user.city, donation.city)
+    !isAdmin &&
+    userState &&
+    donationState &&
+    !areStatesCompatible(userState, donationState)
   );
   const canClaim = Boolean(
     donation &&
     (isRecipient || isAdmin) &&
     !isOwnDonation &&
     !isExpired &&
-    !isCityMismatch &&
+    !isStateMismatch &&
     donation.status === 'available' &&
     donation.quantity_available > 0
   );
@@ -93,8 +95,8 @@ export const DonationDetailPage: React.FC = () => {
     e.preventDefault();
     if (!donation || !user) return;
 
-    if (isCityMismatch) {
-      error(`Regional service mismatch: This donation is in ${donation.city}, but your organization operates in ${user.city}. You can only claim local surplus food.`);
+    if (isStateMismatch) {
+      error(`Regional State Mismatch: This donation is listed in ${donationState || donation.city}, while your organization is registered in ${userState || user.city}. Cross-state claiming is prohibited to maintain food freshness and cold-chain compliance.`);
       return;
     }
 
@@ -302,15 +304,15 @@ export const DonationDetailPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Regional City Mismatch Warning */}
-            {isCityMismatch && (
+            {/* Regional State Mismatch Warning */}
+            {isStateMismatch && (
               <div className="p-4 rounded-2xl bg-amber-50 border border-amber-300 text-amber-950 text-xs space-y-1.5 shadow-2xs">
                 <div className="flex items-center gap-1.5 font-bold text-amber-900">
                   <MapPin className="w-4 h-4 text-amber-600 shrink-0" />
-                  <span>Regional Service Area Mismatch</span>
+                  <span>Regional State Service Area Mismatch</span>
                 </div>
                 <p className="text-[11px] text-amber-800 leading-relaxed">
-                  This surplus food is located in <strong>{donation?.city}</strong> ({donation?.location_label}), while your organization is registered in <strong>{user?.city}</strong>. Fresh food rescue is strictly localized to ensure food freshness and viable bicycle/metro courier transport.
+                  This surplus food is listed in <strong>{donationState || donation?.city}</strong> ({donation?.location_label}), while your organization is registered in <strong>{userState || user?.city}</strong>. Fresh food rescue is strictly localized to your registered state to preserve cold-chain freshness and ensure rapid distribution.
                 </p>
               </div>
             )}

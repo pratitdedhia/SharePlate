@@ -7,32 +7,48 @@ import { DonationFilters } from '../components/donations/DonationFilters';
 import { useLiveUpdates } from '../hooks/useLiveUpdates';
 import { DonationGrid } from '../components/donations/DonationGrid';
 import { LoadingSkeleton } from '../components/common/LoadingSkeleton';
+import { MapPin, ShieldCheck } from 'lucide-react';
+import { inferStateFromCity } from '../lib/utils';
 
 export const DonationsPage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [searchParams] = useSearchParams();
   const [donations, setDonations] = useState<Donation[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [search, setSearch] = useState<string>('');
   const [category, setCategory] = useState<string>('all');
+
+  // Strict state isolation policy: non-admins are strictly locked to their registered state!
+  const userState = user?.state || inferStateFromCity(user?.city);
+  const isStateLocked = Boolean(user) && !isAdmin;
+
+  const [state, setState] = useState<string>(() => {
+    if (isStateLocked && userState) {
+      return userState;
+    }
+    return searchParams.get('state') || 'all';
+  });
+
   const [city, setCity] = useState<string>(() => {
-    return searchParams.get('city') || user?.city || 'all';
+    return searchParams.get('city') || 'all';
   });
   const [status, setStatus] = useState<string>('available');
 
-  // Align to user's registered operating city/state if set
+  // Keep state locked to user's registered state whenever user profile is active
   useEffect(() => {
-    if (user?.city && !searchParams.get('city')) {
-      setCity(user.city);
+    if (isStateLocked && userState) {
+      setState(userState);
     }
-  }, [user?.city]);
+  }, [isStateLocked, userState]);
 
   const fetchDonations = async () => {
     setLoading(true);
     try {
+      const effectiveState = isStateLocked ? userState : (state !== 'all' ? state : undefined);
       const params: DonationFilterParams = {
         search: search.trim() || undefined,
         category: category !== 'all' ? category : undefined,
+        state: effectiveState,
         city: city !== 'all' ? city : undefined,
         status: status !== 'all' ? status : undefined,
       };
@@ -48,13 +64,18 @@ export const DonationsPage: React.FC = () => {
 
   useEffect(() => {
     fetchDonations();
-  }, [search, category, city, status]);
+  }, [search, category, state, city, status, isStateLocked, userState]);
 
   useLiveUpdates(fetchDonations);
 
   const handleReset = () => {
     setSearch('');
     setCategory('all');
+    if (!isStateLocked) {
+      setState('all');
+    } else if (userState) {
+      setState(userState);
+    }
     setCity('all');
     setStatus('available');
   };
@@ -71,14 +92,45 @@ export const DonationsPage: React.FC = () => {
         </p>
       </div>
 
+      {/* State Restriction Notice Banner */}
+      {isStateLocked && userState && (
+        <div className="bg-emerald-50/90 border border-emerald-200 p-3.5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-forest-950 shadow-2xs">
+          <div className="flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-emerald-700 shrink-0" />
+            <span>
+              Showing surplus food listings strictly for your registered state:{' '}
+              <strong className="text-forest-900 font-bold">{userState}</strong>
+            </span>
+          </div>
+          <span className="text-[11px] text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded-md font-semibold border border-emerald-300/60 w-fit">
+            Strict State Policy (Cross-State access is Admin-only)
+          </span>
+        </div>
+      )}
+
+      {isAdmin && (
+        <div className="bg-purple-50 border border-purple-200 p-3.5 rounded-2xl flex items-center justify-between gap-2 text-xs text-purple-950 shadow-2xs">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-purple-700 shrink-0" />
+            <span>
+              <strong>Platform Administrator Mode:</strong> Global catalog access active. You can browse and filter donations across all Indian states.
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Interactive Filters & Search */}
       <DonationFilters
         search={search}
         category={category}
+        state={state}
         city={city}
         status={status}
+        isStateLocked={isStateLocked}
+        lockedStateName={userState}
         onSearchChange={setSearch}
         onCategoryChange={setCategory}
+        onStateChange={setState}
         onCityChange={setCity}
         onStatusChange={setStatus}
         onReset={handleReset}
@@ -88,6 +140,7 @@ export const DonationsPage: React.FC = () => {
       <div className="flex items-center justify-between text-xs text-stone-500 px-1">
         <span>
           Showing <strong className="text-stone-900">{donations.length}</strong> donation listing{donations.length === 1 ? '' : 's'}
+          {isStateLocked && userState ? ` in ${userState}` : ''}
         </span>
       </div>
 
@@ -97,7 +150,7 @@ export const DonationsPage: React.FC = () => {
       ) : (
         <DonationGrid
           donations={donations}
-          emptyMessage="No surplus food listings match your current filters. Try expanding your search or clearing category filters."
+          emptyMessage={`No surplus food listings match your current filters in ${isStateLocked && userState ? userState : 'this region'}. Try expanding your search or clearing category filters.`}
         />
       )}
     </div>

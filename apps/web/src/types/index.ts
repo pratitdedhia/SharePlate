@@ -8,6 +8,7 @@ export interface UserProfile {
   organization_name?: string | null;
   phone?: string | null;
   city?: string | null;
+  state?: string | null;
   service_area?: string | null;
   avatar_url?: string | null;
   is_active?: boolean;
@@ -60,6 +61,7 @@ export interface Donation {
   pickup_deadline: string;
   pickup_instructions?: string | null;
   city: string;
+  state?: string;
   location_label: string;
   latitude?: number | null;
   longitude?: number | null;
@@ -71,6 +73,7 @@ export interface Donation {
     full_name: string;
     organization_name?: string | null;
     city?: string | null;
+    state?: string | null;
     phone?: string | null;
     avatar_url?: string | null;
   };
@@ -297,6 +300,7 @@ export interface RegistrationData {
   role: 'donor' | 'recipient' | 'volunteer';
   phone: string;
   city: string;
+  state?: string;
   serviceArea?: string;
   organizationName?: string;
   donorType?: string;

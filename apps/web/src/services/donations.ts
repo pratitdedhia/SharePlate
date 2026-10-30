@@ -3,6 +3,7 @@ import { demoStore } from '../lib/mockData';
 import { Donation } from '../types';
 import { liveUpdatesService } from './liveUpdates';
 import { db, isFirebaseConfigured } from '../lib/firebase';
+import { areStatesCompatible, inferStateFromCity } from '../lib/utils';
 import {
   collection,
   getDocs,
@@ -15,6 +16,7 @@ import {
 export interface DonationFilterParams {
   category?: string;
   city?: string;
+  state?: string;
   search?: string;
   status?: string;
   donor_id?: string;
@@ -32,6 +34,11 @@ export const donationsService = {
           let list: Donation[] = snap.docs.map((d) => d.data() as Donation);
           if (params.donor_id) list = list.filter((d) => d.donor_id === params.donor_id);
           if (params.category && params.category !== 'all') list = list.filter((d) => d.category === params.category);
+          if (params.state && params.state !== 'all') {
+            list = list.filter((d) =>
+              areStatesCompatible(d.state || inferStateFromCity(d.city), params.state)
+            );
+          }
           if (params.city && params.city !== 'all') {
             list = list.filter((d) => (d.city || '').toLowerCase() === params.city!.toLowerCase());
           }
@@ -56,6 +63,7 @@ export const donationsService = {
       donor_id: params.donor_id,
       category: params.category,
       city: params.city,
+      state: params.state,
       status: params.status,
     });
 

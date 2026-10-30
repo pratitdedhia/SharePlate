@@ -6,11 +6,15 @@ import { useToast } from '../contexts/ToastContext';
 import { ImageUploader } from '../components/donations/ImageUploader';
 import { DonationCategory } from '../types';
 import { Utensils, Clock, MapPin, AlertCircle, ArrowLeft, ShieldCheck } from 'lucide-react';
+import { INDIAN_STATES, STATE_CITIES_MAP, inferStateFromCity } from '../lib/utils';
 
 export const CreateDonationPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { success, error } = useToast();
+
+  const initialCity = user?.city || 'Delhi NCR';
+  const initialState = user?.state || inferStateFromCity(initialCity) || 'Delhi';
 
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -20,7 +24,8 @@ export const CreateDonationPage: React.FC = () => {
     quantity_total: 30,
     quantity_unit: 'portions',
     pickup_deadline: '',
-    city: user?.city || 'Delhi NCR',
+    state: initialState,
+    city: initialCity,
     location_label: '',
     pickup_instructions: '',
     ingredients: '',
@@ -57,6 +62,16 @@ export const CreateDonationPage: React.FC = () => {
     setFormData((prev) => ({
       ...prev,
       [name]: name === 'quantity_total' ? parseInt(value, 10) || 0 : value,
+    }));
+  };
+
+  const handleStateChange = (newState: string) => {
+    const availableCities = STATE_CITIES_MAP[newState];
+    const newCity = availableCities && availableCities.length > 0 ? availableCities[0] : 'Delhi NCR';
+    setFormData((prev) => ({
+      ...prev,
+      state: newState,
+      city: newCity,
     }));
   };
 
@@ -318,6 +333,22 @@ export const CreateDonationPage: React.FC = () => {
           </div>
 
           <div>
+            <label className="block font-bold text-stone-700 mb-1">State / Territory</label>
+            <select
+              name="state"
+              value={formData.state}
+              onChange={(e) => handleStateChange(e.target.value)}
+              className="w-full px-3.5 py-2.5 rounded-xl border border-warm-200 text-stone-900 focus:border-forest-900 focus:outline-hidden font-medium"
+            >
+              {INDIAN_STATES.map((st) => (
+                <option key={st} value={st}>
+                  {st}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
             <label className="block font-bold text-stone-700 mb-1">City / Region</label>
             <select
               name="city"
@@ -325,11 +356,11 @@ export const CreateDonationPage: React.FC = () => {
               onChange={handleChange}
               className="w-full px-3.5 py-2.5 rounded-xl border border-warm-200 text-stone-900 focus:border-forest-900 focus:outline-hidden"
             >
-              <option value="Delhi NCR">Delhi NCR</option>
-              <option value="Mumbai">Mumbai</option>
-              <option value="Pune">Pune</option>
-              <option value="Noida">Noida</option>
-              <option value="Bengaluru">Bengaluru</option>
+              {(STATE_CITIES_MAP[formData.state] || ['Delhi NCR']).map((ct) => (
+                <option key={ct} value={ct}>
+                  {ct}
+                </option>
+              ))}
             </select>
           </div>
 
