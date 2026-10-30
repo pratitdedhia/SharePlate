@@ -7,6 +7,7 @@ import { claimsService } from '../../services/claims';
 import { useLiveUpdates } from '../../hooks/useLiveUpdates';
 import { Donation, Claim } from '../../types';
 import { StatusBadge } from '../../components/common/StatusBadge';
+import { areCitiesCompatible } from '../../lib/utils';
 import { DemoAccountBanner } from '../../components/common/DemoAccountBanner';
 import { CloudinaryImage } from '../../components/common/CloudinaryImage';
 import {
@@ -67,6 +68,16 @@ export const RecipientDashboard: React.FC = () => {
       loadData();
     } catch (err: any) {
       error(err.message || 'Status transition failed.');
+    }
+  };
+
+  const handleCancelClaim = async (claimId: string) => {
+    try {
+      await claimsService.cancelClaim(claimId, 'Cancelled by recipient from dashboard');
+      success('Claim reservation cancelled and portions returned to kitchen.');
+      await loadData();
+    } catch (err: any) {
+      error(err.message || 'Failed to cancel claim');
     }
   };
 
@@ -250,9 +261,24 @@ export const RecipientDashboard: React.FC = () => {
 
                     <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 self-end sm:self-center">
                       {claim.status === 'claimed' && (
-                        <span className="text-xs font-semibold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 flex items-center gap-1">
-                          <Clock className="w-3.5 h-3.5 text-amber-600" /> Reserved · Awaiting Volunteer Pickup
-                        </span>
+                        <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2">
+                          {user?.city && claim.donation?.city && !areCitiesCompatible(user.city, claim.donation.city) && (
+                            <span className="text-[10px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200" title="This claimed food is in a different city than your organization">
+                              ⚠️ Out-of-City ({claim.donation.city})
+                            </span>
+                          )}
+                          <span className="text-xs font-semibold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 flex items-center gap-1">
+                            <Clock className="w-3.5 h-3.5 text-amber-600" /> Reserved · Awaiting Volunteer Pickup
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleCancelClaim(claim.id)}
+                            className="px-2.5 py-1 text-xs font-bold text-rose-700 hover:text-rose-900 hover:bg-rose-50 rounded-lg border border-rose-200 transition cursor-pointer"
+                            title="Cancel this reservation and return portions"
+                          >
+                            Cancel
+                          </button>
+                        </div>
                       )}
                       {claim.status === 'collected' && (
                         claim.verification_status === 'delivery_pending' ? (

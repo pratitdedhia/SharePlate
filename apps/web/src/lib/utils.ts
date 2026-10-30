@@ -53,3 +53,15 @@ export function getCategoryLabel(category: string): string {
   };
   return map[category] || category;
 }
+
+export function areCitiesCompatible(userCity?: string | null, donationCity?: string | null): boolean {
+  if (!userCity || !donationCity) return true;
+  const u = userCity.toLowerCase().trim();
+  const d = donationCity.toLowerCase().trim();
+  if (u === d) return true;
+  // Regional corridor compatibility: Delhi NCR and adjacent Noida
+  if ((u.includes('delhi') || u.includes('noida')) && (d.includes('delhi') || d.includes('noida'))) {
+    return true;
+  }
+  return false;
+}

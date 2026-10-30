@@ -7,7 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { CloudinaryImage } from '../components/common/CloudinaryImage';
-import { formatDate, formatTimeRemaining, getCategoryLabel } from '../lib/utils';
+import { formatDate, formatTimeRemaining, getCategoryLabel, areCitiesCompatible } from '../lib/utils';
 import {
   Clock,
   MapPin,
@@ -62,11 +62,19 @@ export const DonationDetailPage: React.FC = () => {
     : { text: '', isUrgent: false, isExpired: false };
   const isExpired = Boolean(donation && (donation.status === 'expired' || timeInfo.isExpired));
   const isOwnDonation = Boolean(user && donation && user.id === donation.donor_id);
+  const isCityMismatch = Boolean(
+    user &&
+    user.role === 'recipient' &&
+    user.city &&
+    donation?.city &&
+    !areCitiesCompatible(user.city, donation.city)
+  );
   const canClaim = Boolean(
     donation &&
     (isRecipient || isAdmin) &&
     !isOwnDonation &&
     !isExpired &&
+    !isCityMismatch &&
     donation.status === 'available' &&
     donation.quantity_available > 0
   );
@@ -84,6 +92,11 @@ export const DonationDetailPage: React.FC = () => {
   const handleClaim = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!donation || !user) return;
+
+    if (isCityMismatch) {
+      error(`Regional service mismatch: This donation is in ${donation.city}, but your organization operates in ${user.city}. You can only claim local surplus food.`);
+      return;
+    }
 
     if (claimQuantity <= 0 || claimQuantity > donation.quantity_available) {
       error(`Please select between 1 and ${donation.quantity_available} portions.`);
@@ -288,6 +301,19 @@ export const DonationDetailPage: React.FC = () => {
                 <span>{timeInfo.text} ({formatDate(donation.pickup_deadline)})</span>
               </div>
             </div>
+
+            {/* Regional City Mismatch Warning */}
+            {isCityMismatch && (
+              <div className="p-4 rounded-2xl bg-amber-50 border border-amber-300 text-amber-950 text-xs space-y-1.5 shadow-2xs">
+                <div className="flex items-center gap-1.5 font-bold text-amber-900">
+                  <MapPin className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>Regional Service Area Mismatch</span>
+                </div>
+                <p className="text-[11px] text-amber-800 leading-relaxed">
+                  This surplus food is located in <strong>{donation?.city}</strong> ({donation?.location_label}), while your organization is registered in <strong>{user?.city}</strong>. Fresh food rescue is strictly localized to ensure food freshness and viable bicycle/metro courier transport.
+                </p>
+              </div>
+            )}
 
             {/* Action Claim Button */}
             {canClaim ? (
