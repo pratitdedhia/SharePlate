@@ -87,6 +87,19 @@ export const getCloudinaryUrl = (
 ): string => {
   if (!publicIdOrUrl) return DEFAULT_FALLBACK_IMAGE;
 
+  // For unseeded demo accounts, mock seed IDs resolve directly to high-res fallback photography
+  if (publicIdOrUrl.startsWith('shareplate/seed/')) {
+    const seedMap: Record<string, string> = {
+      'shareplate/seed/biryani-pot': 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&w=800&q=80',
+      'shareplate/seed/roti-paneer-bhurji': 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80',
+      'shareplate/seed/multigrain-bread-rolls': 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=800&q=80',
+      'shareplate/seed/idli-vada-sambar': 'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?auto=format&fit=crop&w=800&q=80',
+      'shareplate/seed/fresh-fruits-crates': 'https://images.unsplash.com/photo-1610832958506-aa56368176cf?auto=format&fit=crop&w=800&q=80',
+      'shareplate/seed/dal-makhani-combo': 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80',
+    };
+    return seedMap[publicIdOrUrl] || DEFAULT_FALLBACK_IMAGE;
+  }
+
   // If it's already a full HTTP(S) URL
   if (publicIdOrUrl.startsWith('http://') || publicIdOrUrl.startsWith('https://')) {
     // If it is a Cloudinary URL, inject transformations
@@ -153,7 +166,7 @@ export const getCloudinarySrcSet = (
   widths: number[] = [400, 800, 1200],
   options: Omit<CloudinaryTransformOptions, 'width' | 'height'> = {}
 ): string => {
-  if (!publicIdOrUrl || !isCloudinaryConfigured()) return '';
+  if (!publicIdOrUrl || !isCloudinaryConfigured() || publicIdOrUrl.startsWith('shareplate/seed/')) return '';
 
   return widths
     .map((w) => {

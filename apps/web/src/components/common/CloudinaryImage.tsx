@@ -31,32 +31,41 @@ export const CloudinaryImage: React.FC<CloudinaryImageProps> = ({
   ...rest
 }) => {
   const targetIdOrUrl = publicId || propSrc;
-  const initialUrl = getCloudinaryUrl(targetIdOrUrl, {
-    width: 800,
-    height: 600,
-    crop: 'fill',
-    gravity: 'auto',
-    quality: 'auto',
-    format: 'auto',
-    ...transformOptions,
-  });
+  const isSeedAsset = typeof targetIdOrUrl === 'string' && targetIdOrUrl.startsWith('shareplate/seed/');
+  const targetFallback = fallbackSrc || (typeof propSrc === 'string' && propSrc.startsWith('http') ? propSrc : DEFAULT_FALLBACK_IMAGE);
+
+  // For unseeded demo environments, mock seed IDs only exist via fallback Unsplash imagery
+  const initialUrl = isSeedAsset
+    ? targetFallback
+    : getCloudinaryUrl(targetIdOrUrl, {
+        width: 800,
+        height: 600,
+        crop: 'fill',
+        gravity: 'auto',
+        quality: 'auto',
+        format: 'auto',
+        ...transformOptions,
+      });
 
   const [currentSrc, setCurrentSrc] = useState<string>(initialUrl);
   const [hasError, setHasError] = useState<boolean>(false);
 
-  const srcSet = !hasError ? getCloudinarySrcSet(targetIdOrUrl, [400, 800, 1200], transformOptions) : undefined;
-  const isCdnServed = isCloudinaryUrl(currentSrc);
+  const srcSet = !hasError && !isSeedAsset
+    ? getCloudinarySrcSet(targetIdOrUrl, [400, 800, 1200], transformOptions)
+    : undefined;
+  const isCdnServed = !isSeedAsset && isCloudinaryUrl(currentSrc);
 
   const handleError = () => {
     if (!hasError) {
       setHasError(true);
-      setCurrentSrc(fallbackSrc || DEFAULT_FALLBACK_IMAGE);
+      setCurrentSrc(targetFallback);
     }
   };
 
   return (
     <div className={containerClassName}>
       <img
+        key={hasError ? 'fallback' : 'primary'}
         src={currentSrc}
         srcSet={srcSet || undefined}
         sizes="(max-width: 640px) 400px, (max-width: 1024px) 800px, 1200px"
