@@ -505,4 +505,59 @@ Use the pre-filled fields in [docs/NOTION_SUBMISSION_CHECKLIST.md](file:///c:/Us
 - Added test coverage in [apps/web/src/tests/claimFlow.test.ts](file:///c:/Users/dedhi/OneDrive/Desktop/Pratit/Hackathon/Hacktober%20HackDays/apps/web/src/tests/claimFlow.test.ts):
   - Personal route stops cannot change claim status or release points.
   - Pickup and delivery actions update claims atomically and reflect across donor, NGO, volunteer, and admin views.
-- **Full Test Suite:** 7 test files, **68 passed, 0 failed**.
+- **Full Test Suite:** 7 test files, **76 passed, 0 failed** (74 frontend + 2 backend).
+
+---
+
+### TIER 6: Persisted Donor Rewards & Two-Party Delivery Verification
+
+#### 1. Persisted Donor Rewards Ledger & Database Schema
+- **Database Table (`supabase/schema.sql`):**
+  - Created `public.donor_rewards` ledger with columns: `id`, `donor_id`, `donation_id`, `claim_id` (`UNIQUE`), `points`, `status` (`awarded`, `pending`, `forfeited`), `portions_confirmed`, `donation_title`, `recipient_name`, `reason`, `created_at`.
+  - Added indexes on `donor_id` and `claim_id`.
+  - Enforced Row-Level Security (`RLS`) ensuring donors can strictly access only their own reward records, preventing cross-account data exposure.
+- **In-Memory DemoStore (`apps/web/src/lib/mockData.ts`):**
+  - Added reactive `donorRewardRecords` ledger with realistic seeded data for demo profiles.
+  - Implemented `getDonorRewards(donorId, requestedByUserId, userRole)` with strict cross-donor authorization checks.
+
+#### 2. Transparent Donor Reward Formula & Integrity Rules
+- **Server-Side Reward Calculation:**
+  - Formula: \(\text{Points} = \min(200, 30 + (\text{portions\_confirmed} \times 2))\).
+  - **Base Award:** `30 points` per successfully completed and NGO-confirmed delivery.
+  - **Portion Bonus:** `+2 points` per confirmed portion received.
+  - **Cap per Claim:** Hard limit of `200 points` to prevent point inflation.
+- **Integrity & Zero Early Awards:**
+  - Rewards are awarded **strictly** upon recipient NGO delivery verification (`confirmDelivery` / `POST /api/claims/:id/delivery-confirm`).
+  - No rewards are awarded for creating listings, placing reservations, driver pickup handovers, trip cancellations, or disputed deliveries.
+  - Partial deliveries award points calculated strictly on the confirmed delivered portion count.
+  - Disputed deliveries forfeit any pending points and freeze awards at `0 points`.
+- **Idempotent Duplicate Protection:**
+  - The `claim_id UNIQUE` constraint and store-level existing reward check guarantee that retried or repeated delivery confirmations will never duplicate rewards or double-credit points.
+
+#### 3. Donor Dashboard Rewards UI ([`apps/web/src/pages/dashboards/DonorDashboard.tsx`](file:///c:/Users/dedhi/OneDrive/Desktop/Pratit/Hackathon/Hacktober%20HackDays/apps/web/src/pages/dashboards/DonorDashboard.tsx))
+- **5-Column Metric Row:**
+  - Added dedicated **Donor Impact Rewards** card displaying total awarded points and community tier (*"Bronze Community Kitchen"*, *"Silver Food Guardian"*, *"Gold Zero-Waste Champion"*).
+- **Navigation Tab Switcher:**
+  - Seamlessly toggles between **"Active Listings & Claims"** and **"Donor Rewards & Impact Ledger"**.
+- **Donor Rewards Tab View:**
+  - **Hero Tier Card:** Displays points balance, verified rescue count, current tier badge, and visual progress bar toward the next tier threshold.
+  - **Transparent Formula Callout:** Clearly lays out base award, portion multiplier, and 200 pt cap with honest verification explanation.
+  - **ESG Recognition & Partner Notice:** Explains CSR/ESG audit readiness and future eco-partner credits.
+  - **Points History & Audit Ledger Table:** Lists award date, linked donation title, recipient NGO name, confirmed portion count, verification status pill, points earned, and calculation breakdown.
+
+#### 4. Express API REST Endpoints ([`apps/api/src/routes/claims.ts`](file:///c:/Users/dedhi/OneDrive/Desktop/Pratit/Hackathon/Hacktober%20HackDays/apps/api/src/routes/claims.ts))
+- `GET /api/claims/donor/rewards`: Retrieves donor rewards summary and history ledger with authenticated role and cross-donor ownership checks.
+- `POST /api/claims/:id/delivery-confirm`: Server-side automatic calculation and insertion into `donor_rewards` upon recipient sign-off.
+- `POST /api/claims/:id/dispute`: Automatically updates associated donor reward status to `forfeited` (`0 points`).
+
+#### 5. Automated Regression Test Suite ([`apps/web/src/tests/claimFlow.test.ts`](file:///c:/Users/dedhi/OneDrive/Desktop/Pratit/Hackathon/Hacktober%20HackDays/apps/web/src/tests/claimFlow.test.ts))
+- Added 8 dedicated integration and security tests:
+  - No donor rewards awarded on donation creation, reservation, or pickup.
+  - Eligible NGO delivery confirms and releases points according to the formula.
+  - Partial delivery awards points strictly on confirmed portions.
+  - Cancelled claims award 0 points and have no reward ledger entry.
+  - Disputed deliveries award 0 points.
+  - Duplicate delivery confirmations are rejected and points cannot be credited twice.
+  - Donors cannot view another donor's rewards (`Unauthorized` error); admins can view any donor's rewards.
+  - Donor rewards and volunteer rewards are strictly segregated across ledger, rules, and endpoints.
+- **Total Test Suite:** 7 test files, **76 passed, 0 failed** (74 web + 2 API).

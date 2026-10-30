@@ -1,4 +1,20 @@
-import { Donation, Claim, UserProfile, ImpactMetrics, VolunteerTripPlan, TripStop, RescueTask, VolunteerRewardRecord, VolunteerRewardsSummary, calculateClaimPoints, REWARD_RULES } from '../types';
+import {
+  Donation,
+  Claim,
+  UserProfile,
+  ImpactMetrics,
+  VolunteerTripPlan,
+  TripStop,
+  RescueTask,
+  VolunteerRewardRecord,
+  VolunteerRewardsSummary,
+  DonorRewardRecord,
+  DonorRewardsSummary,
+  calculateClaimPoints,
+  REWARD_RULES,
+  calculateDonorRewardPoints,
+  DONOR_REWARD_RULES,
+} from '../types';
 import { getCloudinaryUrl } from './cloudinary';
 import { calculateImpactMetrics } from './impactMath';
 
@@ -925,6 +941,37 @@ class DemoStore {
     },
   ];
 
+  private donorRewardRecords: DonorRewardRecord[] = [
+    {
+      id: 'drew-001',
+      donor_id: 'a0000000-0000-0000-0000-000000000001',
+      donation_id: 'd0000000-0000-0000-0000-000000000006',
+      claim_id: 'f0000000-0000-0000-0000-000000000003',
+      donation_title: 'Rich Dal Makhani & Jeera Rice Combo',
+      recipient_name: 'Robin Hood Army - Delhi Chapter',
+      points: 130, // 30 base + (50 portions * 2) = 130
+      status: 'awarded',
+      portions_confirmed: 50,
+      confirmed_at: new Date(Date.now() - 42 * 3600000).toISOString(),
+      created_at: new Date(Date.now() - 42 * 3600000).toISOString(),
+      reason: 'Delivered & confirmed rescue: 50 portions delivered (30 base + 100 portion bonus = 130 pts)',
+    },
+    {
+      id: 'drew-002',
+      donor_id: 'd0000000-0000-0000-0000-000000000002',
+      donation_id: 'd0000000-0000-0000-0000-000000000004',
+      claim_id: 'f0000000-0000-0000-0000-000000000002',
+      donation_title: 'Steamed Idlis, Medu Vada & Hot Sambar',
+      recipient_name: 'Robin Hood Army - Delhi Chapter',
+      points: 110, // 30 base + (40 portions * 2) = 110
+      status: 'awarded',
+      portions_confirmed: 40,
+      confirmed_at: new Date(Date.now() - 19 * 3600000).toISOString(),
+      created_at: new Date(Date.now() - 19 * 3600000).toISOString(),
+      reason: 'Delivered & confirmed rescue: 40 portions delivered (30 base + 80 portion bonus = 110 pts)',
+    },
+  ];
+
   getRescueTasks(corridor?: string): RescueTask[] {
     if (!corridor) return [...this.rescueTasks];
     return this.rescueTasks.filter((t) => t.corridor.toLowerCase().includes(corridor.toLowerCase()));
@@ -1165,6 +1212,30 @@ class DemoStore {
       });
     }
 
+    // Record in donor rewards ledger ONLY upon verified NGO delivery
+    const donation = this.donations.find((d) => d.id === claim.donation_id) || claim.donation;
+    const donorId = donation?.donor_id;
+    if (donorId) {
+      const existingDonorReward = this.donorRewardRecords.find((r) => r.claim_id === claim.id);
+      if (!existingDonorReward) {
+        const donorPoints = calculateDonorRewardPoints(claim.portions_delivered_confirmed, false);
+        this.donorRewardRecords.unshift({
+          id: `drew-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          donor_id: donorId,
+          donation_id: claim.donation_id,
+          claim_id: claim.id,
+          donation_title: donation?.title || 'Rescued Food Batch',
+          recipient_name: claim.delivery_confirmed_by || recipientProfile.organization_name || 'Community Recipient',
+          points: donorPoints,
+          status: 'awarded',
+          portions_confirmed: claim.portions_delivered_confirmed,
+          confirmed_at: claim.delivery_confirmed_at,
+          created_at: new Date().toISOString(),
+          reason: `Delivered & confirmed rescue: ${claim.portions_delivered_confirmed} portions delivered (${DONOR_REWARD_RULES.BASE_POINTS_PER_DELIVERY} base + ${claim.portions_delivered_confirmed * DONOR_REWARD_RULES.POINTS_PER_PORTION} portion bonus, capped at ${DONOR_REWARD_RULES.MAX_POINTS_PER_DELIVERY} pts)`,
+        });
+      }
+    }
+
     this.addActivityLog('recipient_delivery_verified', {
       claim_id: claimId,
       confirmed_by: claim.delivery_confirmed_by,
@@ -1190,6 +1261,14 @@ class DemoStore {
     const forfeitedPending = claim.points_pending || 0;
     claim.points_pending = 0;
     claim.points_released = 0;
+
+    // Forfeit any donor reward for this claim
+    const donorReward = this.donorRewardRecords.find((r) => r.claim_id === claimId);
+    if (donorReward) {
+      donorReward.status = 'forfeited';
+      donorReward.points = 0;
+      donorReward.reason = `Disputed delivery: ${reason} (0 points awarded)`;
+    }
 
     if (claim.volunteer_id && forfeitedPending > 0) {
       this.rewardRecords.unshift({
@@ -1253,11 +1332,100 @@ class DemoStore {
     };
   }
 
+  getDonorRewards(donorId: string, requestedByUserId?: string, userRole?: string): DonorRewardsSummary {
+    if (requestedByUserId && userRole !== 'admin' && requestedByUserId !== donorId) {
+      throw new Error("Unauthorized: You cannot view another donor's rewards");
+    }
+
+    const records = this.donorRewardRecords.filter((r) => r.donor_id === donorId);
+    const awardedRecords = records.filter((r) => r.status === 'awarded');
+    const pointsBalance = awardedRecords.reduce((sum, r) => sum + r.points, 0);
+    const verifiedRescuesCount = awardedRecords.length;
+    const portionsDonatedCount = awardedRecords.reduce((sum, r) => sum + r.portions_confirmed, 0);
+
+    let currentTier = 'Bronze Community Kitchen';
+    let nextTierThreshold = 300;
+    if (pointsBalance >= 600) {
+      currentTier = 'Gold Zero-Waste Champion';
+      nextTierThreshold = 1000;
+    } else if (pointsBalance >= 300) {
+      currentTier = 'Silver Food Guardian';
+      nextTierThreshold = 600;
+    }
+
+    return {
+      points_balance: pointsBalance,
+      verified_rescues_count: verifiedRescuesCount,
+      portions_donated_count: portionsDonatedCount,
+      current_tier: currentTier,
+      next_tier_threshold: nextTierThreshold,
+      history: records,
+    };
+  }
+
   reset() {
     const { donations, claims } = DemoStore.seed();
     this.donations = donations;
     this.claims = claims;
     this.users = JSON.parse(JSON.stringify(Object.values(DEMO_PROFILES)));
+    this.rewardRecords = [
+      {
+        id: 'rew-001',
+        volunteer_id: 'c0000000-0000-0000-0000-000000000001',
+        claim_id: 'f0000000-0000-0000-0000-000000000003',
+        donation_title: 'Rich Dal Makhani & Jeera Rice Combo',
+        recipient_name: 'Robin Hood Army - Delhi Chapter',
+        points: 150,
+        status: 'released',
+        portions_confirmed: 50,
+        verified_at: new Date(Date.now() - 42 * 3600000).toISOString(),
+        created_at: new Date(Date.now() - 47 * 3600000).toISOString(),
+        reason: 'Two-party verified rescue: 50 portions delivered (50 base + 50x2 capped at 150 pts)',
+      },
+      {
+        id: 'rew-002',
+        volunteer_id: 'c0000000-0000-0000-0000-000000000001',
+        claim_id: 'f0000000-0000-0000-0000-000000000002',
+        donation_title: 'Steamed Idlis, Medu Vada & Hot Sambar',
+        recipient_name: 'Robin Hood Army - Delhi Chapter',
+        points: 130,
+        status: 'released',
+        portions_confirmed: 40,
+        verified_at: new Date(Date.now() - 19 * 3600000).toISOString(),
+        created_at: new Date(Date.now() - 23 * 3600000).toISOString(),
+        reason: 'Two-party verified rescue: 40 portions delivered (50 base + 40x2 = 130 pts)',
+      },
+    ];
+    this.donorRewardRecords = [
+      {
+        id: 'drew-001',
+        donor_id: 'a0000000-0000-0000-0000-000000000001',
+        donation_id: 'd0000000-0000-0000-0000-000000000006',
+        claim_id: 'f0000000-0000-0000-0000-000000000003',
+        donation_title: 'Rich Dal Makhani & Jeera Rice Combo',
+        recipient_name: 'Robin Hood Army - Delhi Chapter',
+        points: 130,
+        status: 'awarded',
+        portions_confirmed: 50,
+        confirmed_at: new Date(Date.now() - 42 * 3600000).toISOString(),
+        created_at: new Date(Date.now() - 42 * 3600000).toISOString(),
+        reason: 'Delivered & confirmed rescue: 50 portions delivered (30 base + 100 portion bonus = 130 pts)',
+      },
+      {
+        id: 'drew-002',
+        donor_id: 'd0000000-0000-0000-0000-000000000002',
+        donation_id: 'd0000000-0000-0000-0000-000000000004',
+        claim_id: 'f0000000-0000-0000-0000-000000000002',
+        donation_title: 'Steamed Idlis, Medu Vada & Hot Sambar',
+        recipient_name: 'Robin Hood Army - Delhi Chapter',
+        points: 110,
+        status: 'awarded',
+        portions_confirmed: 40,
+        confirmed_at: new Date(Date.now() - 19 * 3600000).toISOString(),
+        created_at: new Date(Date.now() - 19 * 3600000).toISOString(),
+        reason: 'Delivered & confirmed rescue: 40 portions delivered (30 base + 80 portion bonus = 110 pts)',
+      },
+    ];
   }
 }
 

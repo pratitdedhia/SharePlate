@@ -550,9 +550,50 @@ router.post(
         return;
       }
 
+      // Calculate and persist donor rewards on the server upon verified NGO delivery
+      try {
+        const { data: claimRecord } = await supabase
+          .from('claims')
+          .select('id, quantity_claimed, portions_delivered_confirmed, donation:donations (id, donor_id, title)')
+          .eq('id', claimId)
+          .single();
+
+        if (claimRecord && (claimRecord as any).donation?.donor_id) {
+          const donationInfo = (claimRecord as any).donation;
+          const portionsConfirmed =
+            claimRecord.portions_delivered_confirmed ||
+            (portions_received ? parseInt(portions_received) : claimRecord.quantity_claimed);
+
+          // Prevent duplicate awards if delivery confirmation is retried
+          const { data: existingReward } = await supabase
+            .from('donor_rewards')
+            .select('id')
+            .eq('claim_id', claimId)
+            .maybeSingle();
+
+          if (!existingReward) {
+            // Donor reward formula: 30 base + portions * 2, capped at 200 pts
+            const donorPoints = Math.min(200, 30 + Math.max(0, portionsConfirmed) * 2);
+            await supabase.from('donor_rewards').insert({
+              donor_id: donationInfo.donor_id,
+              donation_id: donationInfo.id,
+              claim_id: claimId,
+              points: donorPoints,
+              status: 'awarded',
+              portions_confirmed: portionsConfirmed,
+              donation_title: donationInfo.title || 'Rescued Meal Donation',
+              recipient_name: (user as any).fullName || (user as any).full_name || 'Recipient NGO',
+              reason: `Delivered & confirmed rescue: ${portionsConfirmed} portions delivered (30 base + ${portionsConfirmed * 2} portion bonus, capped at 200 pts)`,
+            });
+          }
+        }
+      } catch (rewardErr: any) {
+        console.warn('Could not record donor reward on server:', rewardErr?.message);
+      }
+
       res.status(200).json({
         success: true,
-        message: 'Delivery verified by recipient NGO! Volunteer reward points released.',
+        message: 'Delivery verified by recipient NGO! Volunteer and donor reward points released.',
         data,
       });
     } catch (err: any) {
@@ -586,6 +627,16 @@ router.post('/:id/dispute', authenticateToken, async (req: Request, res: Respons
     if (error) {
       res.status(400).json({ success: false, message: error.message });
       return;
+    }
+
+    // Forfeit any donor reward for this claim
+    try {
+      await supabase
+        .from('donor_rewards')
+        .update({ status: 'forfeited', points: 0, reason: `Dispute flagged: ${reason}` })
+        .eq('claim_id', claimId);
+    } catch (err: any) {
+      console.warn('Could not update donor reward on dispute:', err?.message);
     }
 
     res.status(200).json({
@@ -638,6 +689,73 @@ router.get(
       });
     } catch (err: any) {
       res.status(500).json({ success: false, message: err.message || 'Error fetching volunteer rewards' });
+    }
+  }
+);
+
+/**
+ * GET /api/claims/donor/rewards
+ * Fetches donor reward points summary and ledger history.
+ * Enforces role and cross-donor authorization: donors can only see their own rewards; admins can view any donor's rewards.
+ */
+router.get(
+  '/donor/rewards',
+  authenticateToken,
+  requireRoles(['donor', 'admin']),
+  async (req: Request, res: Response) => {
+    try {
+      const user = req.user!;
+      const requestedDonorId = (req.query.donor_id as string) || user.id;
+
+      // Cross-account isolation: Donors can only view their own rewards
+      if (user.role !== 'admin' && requestedDonorId !== user.id) {
+        res.status(403).json({
+          success: false,
+          message: "Unauthorized: You cannot view another donor's rewards",
+        });
+        return;
+      }
+
+      const supabase = getSupabaseAdmin();
+      const { data, error } = await supabase
+        .from('donor_rewards')
+        .select('*')
+        .eq('donor_id', requestedDonorId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        res.status(500).json({ success: false, message: error.message });
+        return;
+      }
+
+      const records = data || [];
+      const awardedRecords = records.filter((r) => r.status === 'awarded');
+      const pointsBalance = awardedRecords.reduce((sum, r) => sum + r.points, 0);
+      const portionsDonated = awardedRecords.reduce((sum, r) => sum + (r.portions_confirmed || 0), 0);
+
+      let currentTier = 'Bronze Community Kitchen';
+      let nextTierThreshold = 300;
+      if (pointsBalance >= 600) {
+        currentTier = 'Gold Zero-Waste Champion';
+        nextTierThreshold = 1000;
+      } else if (pointsBalance >= 300) {
+        currentTier = 'Silver Food Guardian';
+        nextTierThreshold = 600;
+      }
+
+      res.status(200).json({
+        success: true,
+        data: {
+          points_balance: pointsBalance,
+          verified_rescues_count: awardedRecords.length,
+          portions_donated_count: portionsDonated,
+          current_tier: currentTier,
+          next_tier_threshold: nextTierThreshold,
+          history: records,
+        },
+      });
+    } catch (err: any) {
+      res.status(500).json({ success: false, message: err.message || 'Error fetching donor rewards' });
     }
   }
 );

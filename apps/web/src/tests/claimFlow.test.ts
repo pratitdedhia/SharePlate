@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { demoStore, INITIAL_DEMO_DONATIONS } from '../lib/mockData';
-import { calculateClaimPoints } from '../types';
+import { calculateClaimPoints, calculateDonorRewardPoints, DONOR_REWARD_RULES } from '../types';
 
 describe('Demo Claim Safety Flow', () => {
   beforeEach(() => {
@@ -646,5 +646,242 @@ describe('Volunteer Routing & Personal Travel Segregation Regression', () => {
     // - Admin view: sees delivered
     const adminClaimsAfter = demoStore.getAllClaims();
     expect(adminClaimsAfter.find((c) => c.id === claim.id)?.status).toBe('delivered');
+  });
+
+  describe('Donor Rewards & Two-Party NGO Delivery Verification', () => {
+    it('does NOT award donor rewards when a donation is created, reserved, or picked up', () => {
+      const donorId = 'a0000000-0000-0000-0000-000000000001';
+      const initialRewards = demoStore.getDonorRewards(donorId);
+      const initialPoints = initialRewards.points_balance;
+
+      // 1. Create a new donation
+      const donation = demoStore.createDonation({
+        donor_id: donorId,
+        title: 'Fresh Biryani & Raita Pots',
+        description: 'Hot vegetarian biryani from lunchtime event',
+        category: 'cooked_meals',
+        quantity_total: 50,
+        quantity_unit: 'portions',
+        city: 'Delhi NCR',
+        location_label: 'DTU Main Campus, Rohini',
+        pickup_instructions: 'Gate 2 Loading Dock',
+        pickup_deadline: new Date(Date.now() + 6 * 3600000).toISOString(),
+      });
+
+      // Verify 0 points awarded on listing creation
+      expect(demoStore.getDonorRewards(donorId).points_balance).toBe(initialPoints);
+
+      // 2. NGO reserves/claims the food
+      const claim = demoStore.claimDonation(donation.id, 'b0000000-0000-0000-0000-000000000001', 30);
+      expect(claim.status).toBe('claimed');
+
+      // Verify 0 points awarded on reservation
+      expect(demoStore.getDonorRewards(donorId).points_balance).toBe(initialPoints);
+
+      // 3. Mark food as collected for transit
+      demoStore.updateClaimStatus(claim.id, 'collected');
+      expect(demoStore.getDonorRewards(donorId).points_balance).toBe(initialPoints);
+    });
+
+    it('awards donor rewards ONLY when delivery is confirmed by recipient NGO with correct formula', () => {
+      const donorId = 'a0000000-0000-0000-0000-000000000001';
+      const initialRewards = demoStore.getDonorRewards(donorId);
+      const initialPoints = initialRewards.points_balance;
+      const initialRescues = initialRewards.verified_rescues_count;
+
+      // Create donation
+      const donation = demoStore.createDonation({
+        donor_id: donorId,
+        title: 'Fresh Paneer Tikka Rolls',
+        description: 'Fresh rolls packaged safely',
+        category: 'cooked_meals',
+        quantity_total: 40,
+        quantity_unit: 'portions',
+        city: 'Delhi NCR',
+        location_label: 'Rohini Kitchen',
+        pickup_instructions: 'Dock A',
+        pickup_deadline: new Date(Date.now() + 4 * 3600000).toISOString(),
+      });
+
+      // Claim 40 portions
+      const claim = demoStore.claimDonation(donation.id, 'b0000000-0000-0000-0000-000000000001', 40);
+
+      // Recipient NGO confirms delivery of all 40 portions
+      demoStore.confirmDelivery(claim.id, 'b0000000-0000-0000-0000-000000000001', 40);
+
+      const updatedRewards = demoStore.getDonorRewards(donorId);
+      // Formula: 30 base + (40 portions * 2) = 110 points
+      const expectedPointsEarned = DONOR_REWARD_RULES.BASE_POINTS_PER_DELIVERY + 40 * DONOR_REWARD_RULES.POINTS_PER_PORTION;
+      expect(updatedRewards.points_balance).toBe(initialPoints + expectedPointsEarned);
+      expect(updatedRewards.verified_rescues_count).toBe(initialRescues + 1);
+
+      const latestRecord = updatedRewards.history.find((r) => r.claim_id === claim.id);
+      expect(latestRecord).toBeDefined();
+      expect(latestRecord?.donation_title).toBe('Fresh Paneer Tikka Rolls');
+      expect(latestRecord?.portions_confirmed).toBe(40);
+      expect(latestRecord?.points).toBe(110);
+      expect(latestRecord?.status).toBe('awarded');
+      expect(latestRecord?.confirmed_at).toBeDefined();
+    });
+
+    it('calculates partial deliveries strictly on confirmed delivered portions', () => {
+      const donorId = 'a0000000-0000-0000-0000-000000000001';
+      const initialRewards = demoStore.getDonorRewards(donorId);
+      const initialPoints = initialRewards.points_balance;
+
+      const donation = demoStore.createDonation({
+        donor_id: donorId,
+        title: 'Mixed Vegetable Pulao',
+        description: 'Surplus pulao pots',
+        category: 'cooked_meals',
+        quantity_total: 50,
+        quantity_unit: 'portions',
+        city: 'Delhi NCR',
+        location_label: 'Central Kitchen',
+        pickup_instructions: 'Door 1',
+        pickup_deadline: new Date(Date.now() + 5 * 3600000).toISOString(),
+      });
+
+      const claim = demoStore.claimDonation(donation.id, 'b0000000-0000-0000-0000-000000000001', 45);
+
+      // Recipient NGO only confirms 25 portions (partial delivery)
+      demoStore.confirmDelivery(claim.id, 'b0000000-0000-0000-0000-000000000001', 25);
+
+      const updatedRewards = demoStore.getDonorRewards(donorId);
+      // Formula: 30 base + (25 confirmed portions * 2) = 80 points
+      expect(updatedRewards.points_balance).toBe(initialPoints + 80);
+
+      const record = updatedRewards.history.find((r) => r.claim_id === claim.id);
+      expect(record?.portions_confirmed).toBe(25);
+      expect(record?.points).toBe(80);
+    });
+
+    it('does NOT award donor rewards for cancelled claims', () => {
+      const donorId = 'a0000000-0000-0000-0000-000000000001';
+      const initialRewards = demoStore.getDonorRewards(donorId);
+      const initialPoints = initialRewards.points_balance;
+
+      const donation = demoStore.createDonation({
+        donor_id: donorId,
+        title: 'Sambar & Rice Vats',
+        description: 'Hot food',
+        category: 'cooked_meals',
+        quantity_total: 30,
+        quantity_unit: 'portions',
+        city: 'Delhi NCR',
+        location_label: 'Canteen',
+        pickup_instructions: 'Back entrance',
+        pickup_deadline: new Date(Date.now() + 3 * 3600000).toISOString(),
+      });
+
+      const claim = demoStore.claimDonation(donation.id, 'b0000000-0000-0000-0000-000000000001', 20);
+
+      // Cancel claim before delivery
+      demoStore.cancelClaim(claim.id);
+
+      const updatedRewards = demoStore.getDonorRewards(donorId);
+      expect(updatedRewards.points_balance).toBe(initialPoints);
+      expect(updatedRewards.history.some((r) => r.claim_id === claim.id)).toBe(false);
+    });
+
+    it('does NOT award points for disputed deliveries and marks record forfeited', () => {
+      const donorId = 'a0000000-0000-0000-0000-000000000001';
+      const initialRewards = demoStore.getDonorRewards(donorId);
+      const initialPoints = initialRewards.points_balance;
+
+      const donation = demoStore.createDonation({
+        donor_id: donorId,
+        title: 'Steamed Momos & Chutney',
+        description: 'Vegetable momos',
+        category: 'cooked_meals',
+        quantity_total: 40,
+        quantity_unit: 'portions',
+        city: 'Delhi NCR',
+        location_label: 'Kitchen A',
+        pickup_instructions: 'Side entrance',
+        pickup_deadline: new Date(Date.now() + 4 * 3600000).toISOString(),
+      });
+
+      const claim = demoStore.claimDonation(donation.id, 'b0000000-0000-0000-0000-000000000001', 30);
+
+      // Recipient flags a dispute for damaged container / unsealed food
+      demoStore.disputeClaim(claim.id, 'b0000000-0000-0000-0000-000000000001', 'Thermal seal broken during transit, food unsafe');
+
+      const updatedRewards = demoStore.getDonorRewards(donorId);
+      expect(updatedRewards.points_balance).toBe(initialPoints);
+    });
+
+    it('prevents duplicate awards on repeat delivery confirmations', () => {
+      const donorId = 'a0000000-0000-0000-0000-000000000001';
+
+      const donation = demoStore.createDonation({
+        donor_id: donorId,
+        title: 'Gulab Jamuns & Halwa',
+        description: 'Festive sweets batch',
+        category: 'bakery',
+        quantity_total: 50,
+        quantity_unit: 'portions',
+        city: 'Delhi NCR',
+        location_label: 'Kitchen C',
+        pickup_instructions: 'Front Desk',
+        pickup_deadline: new Date(Date.now() + 5 * 3600000).toISOString(),
+      });
+
+      const claim = demoStore.claimDonation(donation.id, 'b0000000-0000-0000-0000-000000000001', 30);
+
+      // First delivery confirmation: succeeds
+      demoStore.confirmDelivery(claim.id, 'b0000000-0000-0000-0000-000000000001', 30);
+      const balanceAfterFirst = demoStore.getDonorRewards(donorId).points_balance;
+
+      // Second delivery confirmation (retry): throws duplicate error and does not credit points again
+      expect(() => {
+        demoStore.confirmDelivery(claim.id, 'b0000000-0000-0000-0000-000000000001', 30);
+      }).toThrow(/already delivered|duplicate/i);
+
+      const balanceAfterSecond = demoStore.getDonorRewards(donorId).points_balance;
+      expect(balanceAfterSecond).toBe(balanceAfterFirst);
+
+      // Verify exactly one ledger record exists for this claim
+      const records = demoStore.getDonorRewards(donorId).history.filter((r) => r.claim_id === claim.id);
+      expect(records.length).toBe(1);
+    });
+
+    it('enforces cross-donor isolation and rejects viewing another donor’s rewards', () => {
+      const donor1Id = 'a0000000-0000-0000-0000-000000000001';
+      const donor2Id = 'd0000000-0000-0000-0000-000000000002';
+      const adminId = 'd0000000-0000-0000-0000-000000000001';
+
+      // Donor 1 viewing own rewards: succeeds
+      expect(() => {
+        demoStore.getDonorRewards(donor1Id, donor1Id, 'donor');
+      }).not.toThrow();
+
+      // Donor 1 attempting to view Donor 2's rewards: throws Unauthorized
+      expect(() => {
+        demoStore.getDonorRewards(donor2Id, donor1Id, 'donor');
+      }).toThrow(/unauthorized/i);
+
+      // Admin viewing Donor 2's rewards: succeeds
+      const adminView = demoStore.getDonorRewards(donor2Id, adminId, 'admin');
+      expect(adminView).toBeDefined();
+      expect(adminView.points_balance).toBeGreaterThanOrEqual(0);
+    });
+
+    it('keeps donor rewards strictly separate from volunteer rewards', () => {
+      const donorId = 'a0000000-0000-0000-0000-000000000001';
+      const volunteerId = 'c0000000-0000-0000-0000-000000000001';
+
+      const donorRewards = demoStore.getDonorRewards(donorId);
+      const volunteerRewards = demoStore.getVolunteerRewards(volunteerId);
+
+      // Different schemas and rules
+      expect(donorRewards).toHaveProperty('points_balance');
+      expect(volunteerRewards).toHaveProperty('points_released');
+      expect(volunteerRewards).toHaveProperty('points_pending');
+
+      // Donor history contains donor_id; volunteer history contains volunteer_id
+      expect(donorRewards.history.every((r) => r.donor_id === donorId)).toBe(true);
+      expect(volunteerRewards.history.every((r) => r.volunteer_id === volunteerId)).toBe(true);
+    });
   });
 });

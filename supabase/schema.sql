@@ -102,6 +102,24 @@ CREATE TABLE IF NOT EXISTS public.volunteer_rewards (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- 5c. DONOR REWARDS LEDGER TABLE
+CREATE TABLE IF NOT EXISTS public.donor_rewards (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    donor_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    donation_id UUID REFERENCES public.donations(id) ON DELETE SET NULL,
+    claim_id UUID UNIQUE REFERENCES public.claims(id) ON DELETE SET NULL,
+    points INTEGER NOT NULL CHECK (points >= 0),
+    status TEXT NOT NULL DEFAULT 'awarded' CHECK (status IN ('pending', 'awarded', 'forfeited')),
+    portions_confirmed INTEGER NOT NULL DEFAULT 0,
+    donation_title TEXT NOT NULL,
+    recipient_name TEXT,
+    reason TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_donor_rewards_donor_id ON public.donor_rewards(donor_id);
+CREATE INDEX IF NOT EXISTS idx_donor_rewards_claim_id ON public.donor_rewards(claim_id);
+
 -- 5c. VOLUNTEER TRIP PLANS TABLE
 CREATE TABLE IF NOT EXISTS public.volunteer_trip_plans (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -713,6 +731,13 @@ ALTER TABLE public.volunteer_rewards ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Volunteers can view their own rewards"
     ON public.volunteer_rewards FOR SELECT
     USING (volunteer_id = auth.uid() OR public.is_admin());
+
+-- Donor rewards ledger permissions (Cross-account isolation)
+ALTER TABLE public.donor_rewards ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Donors can view their own rewards"
+    ON public.donor_rewards FOR SELECT
+    USING (donor_id = auth.uid() OR public.is_admin());
 
 -- Volunteer Trip Plans and Stops RLS
 ALTER TABLE public.volunteer_trip_plans ENABLE ROW LEVEL SECURITY;

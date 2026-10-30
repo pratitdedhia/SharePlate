@@ -59,7 +59,7 @@ To provide instant, zero-friction evaluation for hackathon judges without requir
 | **Media Cloud** | Cloudinary | Direct client upload preset, server signatures, auto-format (`f_auto`), smart crop (`g_auto`) |
 | **Production Backend** | Node.js 24 LTS, Express, TypeScript | REST API, Zod schema validation, Helmet security headers, CORS |
 | **Production Database** | PostgreSQL 15+ (Supabase) | Multi-tenant Row Level Security (RLS), atomic stored procedures (`claim_donation_atomic`) |
-| **Testing** | Vitest, Node.js Test Runner | 59 frontend tests (impact math, two-party claim flows, volunteer trip planning, rewards rules, auth, upload fallback, features suite, render verification), 2 backend tests (61 total) |
+| **Testing** | Vitest, Node.js Test Runner | 74 frontend tests (donor rewards, volunteer trip routing, two-party claim flows, impact math, auth, upload fallback, features suite, render verification), 2 backend tests (76 total) |
 | **Documentation** | Notion (Mandatory Hackathon Platform) | 12 structured markdown guides under `docs/notion/` |
 
 ---
@@ -159,7 +159,7 @@ Open **`http://localhost:5173`** in your browser.
 
 ## 🧪 Automated Testing & Verification
 
-All automated tests execute with 100% passing results across 61 tests:
+All automated tests execute with 100% passing results across 76 tests:
 
 ### Run Backend API Tests:
 ```bash
@@ -170,13 +170,13 @@ npm test --workspace=@shareplate/api
 ### Run Frontend Unit & Integration Tests:
 ```bash
 npm test --workspace=@shareplate/web
-# Result: 59 passed, 0 failed (App, Impact Math, Two-Party Claim Flow, Trip Planning, Rewards Rules, Auth, Upload Fallback, Features Suite, Render Safety)
+# Result: 74 passed, 0 failed (App, Impact Math, Donor Rewards, Volunteer Trip Routing, Rewards Rules, Two-Party Claim Flow, Auth, Upload Fallback, Features Suite, Render Safety)
 ```
 
 ### Run All Workspace Tests:
 ```bash
 npm test
-# Total: 61 passed, 0 failed
+# Total: 76 passed, 0 failed
 ```
 
 ### Verify Production Compilation:

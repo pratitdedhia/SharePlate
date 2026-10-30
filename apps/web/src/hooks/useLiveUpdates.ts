@@ -24,3 +24,4 @@ export function useLiveUpdates(onUpdate: () => void, deps: any[] = []) {
     };
   }, deps);
 }
+

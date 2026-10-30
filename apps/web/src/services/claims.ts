@@ -1,6 +1,6 @@
 import { apiRequest, isDemoMode } from './api';
 import { demoStore } from '../lib/mockData';
-import { Claim, RescueTask, VolunteerTripPlan, VolunteerRewardsSummary } from '../types';
+import { Claim, RescueTask, VolunteerTripPlan, VolunteerRewardsSummary, DonorRewardsSummary } from '../types';
 import { liveUpdatesService } from './liveUpdates';
 
 export const claimsService = {
@@ -207,6 +207,17 @@ export const claimsService = {
     }
 
     const res = await apiRequest(`/claims/volunteer/rewards?volunteer_id=${volunteerId}`);
+    return res.data;
+  },
+
+  async getDonorRewards(donorId?: string): Promise<DonorRewardsSummary> {
+    if (isDemoMode()) {
+      const effectiveDonorId = donorId || 'a0000000-0000-0000-0000-000000000001';
+      return demoStore.getDonorRewards(effectiveDonorId);
+    }
+
+    const query = donorId ? `?donor_id=${encodeURIComponent(donorId)}` : '';
+    const res = await apiRequest(`/claims/donor/rewards${query}`);
     return res.data;
   },
 

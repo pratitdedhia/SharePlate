@@ -215,6 +215,44 @@ export function calculateClaimPoints(portionsDelivered: number, isDisputed = fal
   );
 }
 
+export interface DonorRewardRecord {
+  id: string;
+  donor_id: string;
+  donation_id?: string;
+  claim_id: string;
+  donation_title: string;
+  recipient_name: string;
+  points: number;
+  status: 'awarded' | 'pending' | 'forfeited';
+  portions_confirmed: number;
+  confirmed_at: string;
+  created_at: string;
+  reason: string;
+}
+
+export interface DonorRewardsSummary {
+  points_balance: number;
+  verified_rescues_count: number;
+  portions_donated_count: number;
+  current_tier: string;
+  next_tier_threshold: number;
+  history: DonorRewardRecord[];
+}
+
+export const DONOR_REWARD_RULES = {
+  BASE_POINTS_PER_DELIVERY: 30,
+  POINTS_PER_PORTION: 2,
+  MAX_POINTS_PER_DELIVERY: 200,
+} as const;
+
+export function calculateDonorRewardPoints(portionsConfirmed: number, isDisputed = false): number {
+  if (isDisputed || portionsConfirmed <= 0) return 0;
+  return Math.min(
+    DONOR_REWARD_RULES.MAX_POINTS_PER_DELIVERY,
+    DONOR_REWARD_RULES.BASE_POINTS_PER_DELIVERY + portionsConfirmed * DONOR_REWARD_RULES.POINTS_PER_PORTION
+  );
+}
+
 export interface ImpactMetrics {
   donationsListed: number;
   portionsListed: number;
