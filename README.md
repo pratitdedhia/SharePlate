@@ -4,6 +4,7 @@
 [![Track](https://img.shields.io/badge/Track-Tech_for_Social_Good-047857?style=for-the-badge)]()
 [![Powered by](https://img.shields.io/badge/Powered_by-MLH-E11D48?style=for-the-badge)](https://mlh.io)
 [![Cloudinary](https://img.shields.io/badge/Media-Cloudinary_Real_Pipeline-3B82F6?style=for-the-badge)](https://cloudinary.com)
+[![Firebase](https://img.shields.io/badge/Realtime_DB-Firebase_Firestore-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)](https://firebase.google.com)
 [![Supabase](https://img.shields.io/badge/Database-Supabase_PostgreSQL-10B981?style=for-the-badge)](https://supabase.com)
 [![Deploy Target](https://img.shields.io/badge/Deploy-GitHub_Pages-22C55E?style=for-the-badge)](https://pratitdedhia.github.io/SharePlate/)
 
@@ -60,6 +61,7 @@ To provide instant, zero-friction evaluation for hackathon judges without requir
 | :--- | :--- | :--- |
 | **Frontend** | React 18, Vite, TypeScript, Tailwind CSS | Modular components, HashRouter for Pages compatibility, Rollup production bundle |
 | **Media Cloud** | Cloudinary | Direct client upload preset, server signatures, auto-format (`f_auto`), smart crop (`g_auto`) |
+| **Cloud & Realtime Backend** | Google Firebase | Cloud Firestore live database, multi-device `onSnapshot` real-time sync, Firebase Auth & Storage |
 | **Production Backend** | Node.js 24 LTS, Express, TypeScript | REST API, Zod schema validation, Helmet security headers, CORS |
 | **Production Database** | PostgreSQL 15+ (Supabase) | Multi-tenant Row Level Security (RLS), atomic stored procedures (`claim_donation_atomic`) |
 | **Testing** | Vitest, Node.js Test Runner | 96 frontend tests (donor rewards ledger, volunteer trip routing & waypoint limits, two-party OTP verification, cross-portal sync, profile city persistence, impact math, auth, upload fallback & error handling, features suite, render safety), 2 backend tests (98 total passed) |
