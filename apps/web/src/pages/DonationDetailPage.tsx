@@ -400,6 +400,12 @@ export const DonationDetailPage: React.FC = () => {
               </p>
             </div>
 
+            {user?.city && donation.city && !donation.city.toLowerCase().includes(user.city.toLowerCase()) && !user.city.toLowerCase().includes(donation.city.toLowerCase()) && (
+              <div className="p-3 bg-amber-50 rounded-xl border border-amber-300 text-[11px] text-amber-900 leading-relaxed">
+                <strong>Regional Notice:</strong> This surplus food is located in <strong>{donation.city}</strong>, while your organization operates in <strong>{user.city}</strong>. Ensure local volunteer logistics are coordinated in {donation.city}.
+              </div>
+            )}
+
             <form onSubmit={handleClaim} className="space-y-4 text-xs">
               <div>
                 <label className="block font-bold text-stone-700 mb-1">Portions Needed</label>

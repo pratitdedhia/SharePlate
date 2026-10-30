@@ -338,19 +338,8 @@ export const DonorDashboard: React.FC = () => {
 
               <div className="divide-y divide-warm-100">
                 {incomingClaims.length === 0 ? (
-                  <div className="p-8 text-center text-xs text-stone-500 space-y-3">
-                    <p>No pending claims on your active donations. When an NGO reserves food from your kitchen, it will appear here.</p>
-                    <div className="bg-amber-50/80 border border-amber-200 rounded-xl p-3 text-[11px] text-amber-900 max-w-lg mx-auto text-left leading-relaxed">
-                      <strong>Looking for Volunteer Pickup OTP entry?</strong>
-                      <p className="mt-1 text-stone-600">
-                        You are currently signed in as <strong>{user?.organization_name || user?.full_name || 'this donor'}</strong>. Under SharePlate's multi-account food safety rules, each donor kitchen can only verify handovers for their own listings.
-                      </p>
-                      <p className="mt-1 text-stone-600">
-                        • If your volunteer is picking up from <strong>Annapurna Grand Caterers (Mumbai)</strong>, sign in as Chef Vikram or use the <strong>Admin Portal</strong> to verify.
-                        <br />
-                        • To test OTP verification with this account, select the <strong>Delhi (Rohini → Connaught Place)</strong> corridor in the Volunteer Portal, or list new food above!
-                      </p>
-                    </div>
+                  <div className="p-8 text-center text-xs text-stone-500">
+                    No pending claims on your active donations. When an NGO reserves food, it will appear here.
                   </div>
                 ) : (
                   incomingClaims.map((claim) => (

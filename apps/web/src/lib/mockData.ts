@@ -417,20 +417,33 @@ export const INITIAL_DEMO_CLAIMS: Claim[] = [
   {
     id: 'f0000000-0000-0000-0000-000000000001',
     donation_id: 'd0000000-0000-0000-0000-000000000002',
-    recipient_id: 'b0000000-0000-0000-0000-000000000001',
-    volunteer_id: 'c0000000-0000-0000-0000-000000000001',
-    volunteer: DEMO_PROFILES.volunteer,
+    recipient_id: 'b0000000-0000-0000-0000-000000000002',
+    volunteer_id: 'c0000000-0000-0000-0000-000000000002',
+    volunteer: {
+      id: 'c0000000-0000-0000-0000-000000000002',
+      full_name: 'Rahul Varma',
+      role: 'volunteer',
+      city: 'Mumbai',
+    },
     quantity_claimed: 40,
     status: 'claimed',
     verification_status: 'pickup_pending',
     claimed_at: new Date(Date.now() - 3600000).toISOString(),
-    notes: 'Reserved for evening shelter distribution in Bandra.',
+    notes: 'Reserved for evening shelter distribution in Kurla/Bandra, Mumbai.',
     pickup_code: '4821',
     delivery_code: '7392',
     points_pending: 130, // 50 base + (40 portions * 2) = 130
     points_released: 0,
     donation: INITIAL_DEMO_DONATIONS[1],
-    recipient: DEMO_PROFILES.recipient,
+    recipient: {
+      id: 'b0000000-0000-0000-0000-000000000002',
+      full_name: 'Fr. Thomas D Souza',
+      organization_name: 'Snehalaya Community Kitchen',
+      phone: '+91 98210 11223',
+      city: 'Mumbai',
+      role: 'recipient',
+      recipient_type: 'community_kitchen',
+    },
   },
   {
     id: 'f0000000-0000-0000-0000-000000000002',
@@ -545,12 +558,12 @@ export const INITIAL_DEMO_DONOR_REWARD_RECORDS: DonorRewardRecord[] = [
 ];
 
 const DEMO_STORAGE_KEYS = {
-  DONATIONS: 'shareplate_demo_donations',
-  CLAIMS: 'shareplate_demo_claims',
-  TASKS: 'shareplate_demo_tasks',
-  TRIP_PLANS: 'shareplate_demo_trip_plans',
-  VOL_REWARDS: 'shareplate_demo_rewards_vol',
-  DONOR_REWARDS: 'shareplate_demo_rewards_donor',
+  DONATIONS: 'shareplate_demo_donations_v3',
+  CLAIMS: 'shareplate_demo_claims_v3',
+  TASKS: 'shareplate_demo_tasks_v3',
+  TRIP_PLANS: 'shareplate_demo_trip_plans_v3',
+  VOL_REWARDS: 'shareplate_demo_rewards_vol_v3',
+  DONOR_REWARDS: 'shareplate_demo_rewards_donor_v3',
 };
 
 function loadDemoStorage<T>(key: string, fallback: T): T {

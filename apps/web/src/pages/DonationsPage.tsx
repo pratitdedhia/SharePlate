@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import { donationsService, DonationFilterParams } from '../services/donations';
 import { Donation } from '../types';
 import { DonationFilters } from '../components/donations/DonationFilters';
@@ -6,12 +8,23 @@ import { DonationGrid } from '../components/donations/DonationGrid';
 import { LoadingSkeleton } from '../components/common/LoadingSkeleton';
 
 export const DonationsPage: React.FC = () => {
+  const { user } = useAuth();
+  const [searchParams] = useSearchParams();
   const [donations, setDonations] = useState<Donation[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [search, setSearch] = useState<string>('');
   const [category, setCategory] = useState<string>('all');
-  const [city, setCity] = useState<string>('all');
+  const [city, setCity] = useState<string>(() => {
+    return searchParams.get('city') || user?.city || 'all';
+  });
   const [status, setStatus] = useState<string>('available');
+
+  // Align to user's registered operating city/state if set
+  useEffect(() => {
+    if (user?.city && !searchParams.get('city') && city === 'all') {
+      setCity(user.city);
+    }
+  }, [user?.city]);
 
   const fetchDonations = async () => {
     setLoading(true);

@@ -527,11 +527,14 @@ export const RegisterPage: React.FC = () => {
                   )}
                 </div>
 
-                {/* City Selection */}
+                {/* City / State Selection */}
                 <div>
                   <label className="block text-xs font-bold text-stone-700 mb-1">
-                    City <span className="text-rose-500">*</span>
+                    City / State <span className="text-rose-500">*</span>
                   </label>
+                  <p className="text-[11px] text-stone-500 mb-1.5">
+                    Surplus food listings and courier routes are tailored exclusively to your state/city region.
+                  </p>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400">
                       <MapPin className="w-4 h-4" />

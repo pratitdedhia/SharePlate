@@ -61,6 +61,28 @@ export const VolunteerDashboard: React.FC = () => {
   const [availableTasks, setAvailableTasks] = useState<RescueTask[]>([]);
   const [activeTripPlan, setActiveTripPlan] = useState<VolunteerTripPlan | null>(null);
 
+  // Align corridor and route inputs to volunteer's registered operating city/state
+  useEffect(() => {
+    if (!user?.city) return;
+    const c = user.city.toLowerCase();
+    if (c.includes('mumbai')) {
+      setSelectedCorridor('Mumbai Central Transit Corridor');
+      setOriginInput('BKC Commercial Hub, Bandra East');
+      setDestinationInput('Ghatkopar East Transit Terminus');
+      setSelectedTaskIds(['task-mumbai-01']);
+    } else if (c.includes('pune')) {
+      setSelectedCorridor('Pune University Corridor');
+      setOriginInput('FC Road, Deccan Gymkhana');
+      setDestinationInput('Shivajinagar Bus Stand');
+      setSelectedTaskIds(['task-pune-01']);
+    } else if (c.includes('delhi') || c.includes('noida')) {
+      setSelectedCorridor('Delhi North-West Corridor');
+      setOriginInput('DTU Main Campus, Rohini Sector 17');
+      setDestinationInput('Connaught Place Metro Hub, Central Delhi');
+      setSelectedTaskIds(['task-delhi-01']);
+    }
+  }, [user?.city]);
+
   // Active delivery & Two-party verification state
   const [activeClaims, setActiveClaims] = useState<Claim[]>([]);
   const [rewardsSummary, setRewardsSummary] = useState<VolunteerRewardsSummary | null>(null);
@@ -91,11 +113,19 @@ export const VolunteerDashboard: React.FC = () => {
       const plan = await claimsService.getVolunteerTripPlan(user.id);
       setActiveTripPlan(plan);
 
-      // 3. Load active claims for this volunteer
+      // 3. Load active claims for this volunteer matching their regional corridor
       const allClaims = await claimsService.getAllClaims();
-      const volClaims = allClaims.filter(
-        (c) => c.volunteer_id === user.id || c.status === 'claimed' || c.status === 'collected'
-      );
+      const volClaims = allClaims.filter((c) => {
+        const isMine = c.volunteer_id === user.id;
+        const claimCity = (c.donation?.city || '').toLowerCase();
+        const userCity = (user.city || '').toLowerCase();
+        const matchesCity =
+          !userCity ||
+          !claimCity ||
+          claimCity.includes(userCity) ||
+          userCity.includes(claimCity);
+        return (isMine || c.status === 'claimed' || c.status === 'collected') && matchesCity;
+      });
       setActiveClaims(volClaims);
 
       // 4. Load rewards summary
@@ -1141,7 +1171,7 @@ export const VolunteerDashboard: React.FC = () => {
                                     >
                                       Donor Portal ↗
                                     </a>{' '}
-                                    (for <strong>{stop.name || 'Donor Kitchen'}</strong> under <em>Incoming Claims & Reservations</em>) and enter{' '}
+                                    (under <em>Incoming Claims & Reservations</em>) and enter{' '}
                                     <strong className="font-mono px-1 py-0.5 rounded bg-amber-100 border border-amber-300 text-stone-900">
                                       {linkedClaim?.pickup_code || '4821'}
                                     </strong>{' '}
