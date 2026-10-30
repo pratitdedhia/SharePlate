@@ -1483,4 +1483,58 @@ describe('Volunteer Routing & Personal Travel Segregation Regression', () => {
       expect(updatedClaim?.complaint?.status).toBe('resolved');
     });
   });
+
+  describe('Active Orders Dispatch Isolation for Volunteers (No Ghost Tasks)', () => {
+    it('returns 0 tasks to volunteer when donations exist but no active claims have been placed in that corridor', () => {
+      // In Delhi, donations exist (Poori Bhaji, Biryani), but initial claims are delivered
+      // So activeClaims in Delhi = 0
+      const delhiActiveTasks = demoStore.getRescueTasks('Delhi North-West Corridor', 'Delhi NCR', true);
+      expect(delhiActiveTasks).toHaveLength(0);
+    });
+
+    it('dynamically generates a rescue task with real recipient dropoff when an NGO claims food, and removes it on cancel or delivery', () => {
+      const donationId = 'd0000000-0000-0000-0000-000000000001'; // Poori Bhaji in Delhi
+      const recipientId = 'b0000000-0000-0000-0000-000000000001'; // Rajesh Kumar (Robin Hood Army)
+
+      // 1. Initial active tasks in Delhi = 0
+      expect(demoStore.getRescueTasks('Delhi North-West Corridor', 'Delhi NCR', true)).toHaveLength(0);
+
+      // 2. NGO claims 20 portions
+      const claim = demoStore.claimDonation(donationId, recipientId, 20, 'Reserved for community lunch');
+      expect(claim.status).toBe('claimed');
+
+      // 3. Volunteer now sees exactly 1 active dispatch task
+      const activeTasks = demoStore.getRescueTasks('Delhi North-West Corridor', 'Delhi NCR', true);
+      expect(activeTasks).toHaveLength(1);
+      expect(activeTasks[0].title).toBe('Fresh Vegetable Biryani & Raita (Hot)');
+      expect(activeTasks[0].portions).toBe(20);
+      expect(activeTasks[0].claim_id).toBe(claim.id);
+      expect(activeTasks[0].status).toBe('claimed');
+
+      // 4. If the NGO cancels the claim, it disappears from volunteer tasks immediately
+      demoStore.cancelClaim(claim.id);
+      const tasksAfterCancel = demoStore.getRescueTasks('Delhi North-West Corridor', 'Delhi NCR', true);
+      expect(tasksAfterCancel).toHaveLength(0);
+    });
+
+    it('removes the task from available volunteer tasks once delivered', () => {
+      const donationId = 'd0000000-0000-0000-0000-000000000001';
+      const recipientId = 'b0000000-0000-0000-0000-000000000001';
+      const volunteerId = 'c0000000-0000-0000-0000-000000000001';
+
+      const claim = demoStore.claimDonation(donationId, recipientId, 15);
+      demoStore.assignVolunteerToClaim(claim.id, volunteerId);
+      demoStore.confirmPickup(claim.id, 'a0000000-0000-0000-0000-000000000001');
+
+      // In transit -> still active
+      const inTransitTasks = demoStore.getRescueTasks('Delhi North-West Corridor', 'Delhi NCR', true);
+      expect(inTransitTasks).toHaveLength(1);
+      expect(inTransitTasks[0].status).toBe('in_transit');
+
+      // Delivered -> no longer available for dispatch
+      demoStore.confirmDelivery(claim.id, recipientId, 15);
+      const afterDeliveryTasks = demoStore.getRescueTasks('Delhi North-West Corridor', 'Delhi NCR', true);
+      expect(afterDeliveryTasks).toHaveLength(0);
+    });
+  });
 });

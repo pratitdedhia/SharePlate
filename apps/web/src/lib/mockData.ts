@@ -1362,12 +1362,88 @@ class DemoStore {
     }
   }
 
-  getRescueTasks(corridor?: string, city?: string | null): RescueTask[] {
+  getRescueTasks(corridor?: string, city?: string | null, activeOrdersOnly: boolean = false): RescueTask[] {
     this.reloadFromStorage();
     this.checkExpiredDonations();
-    this.ensureRescueTasksForDonations();
 
-    let tasks = [...this.rescueTasks];
+    let tasks: RescueTask[] = [];
+
+    if (activeOrdersOnly) {
+      // Find active claims: recipient has reserved the surplus food, awaiting volunteer pickup or in-transit
+      const activeClaims = this.claims.filter(
+        (c) => c.status === 'claimed' || c.status === 'collected'
+      );
+
+      // If no active claims/orders exist, return empty list immediately so volunteer view displays 0 tasks
+      if (activeClaims.length === 0) {
+        return [];
+      }
+
+      for (const claim of activeClaims) {
+        const donation = claim.donation || this.donations.find((d) => d.id === claim.donation_id);
+        if (!donation) continue;
+
+        const recipient = claim.recipient || this.users.find((u) => u.id === claim.recipient_id);
+        const donor = donation.donor || this.users.find((u) => u.id === donation.donor_id);
+        const corridorInfo = determineCorridor(donation.city, donation.location_label);
+
+        const donor_name =
+          donation.donor?.organization_name ||
+          donation.donor?.full_name ||
+          donor?.organization_name ||
+          donor?.full_name ||
+          'Registered Donor Kitchen';
+        const donor_phone = donation.donor?.phone || donor?.phone || '+91 98110 12345';
+
+        const recipient_name =
+          recipient?.organization_name ||
+          recipient?.full_name ||
+          corridorInfo.recipient_name ||
+          'Recipient Shelter';
+        const recipient_phone = recipient?.phone || corridorInfo.recipient_phone || '+91 98711 22334';
+
+        const dropoff_location =
+          recipient?.organization_name ||
+          corridorInfo.dropoff_location;
+        const dropoff_address =
+          recipient?.address ||
+          (recipient?.city ? `${recipient.organization_name || 'Shelter Hub'}, ${recipient.city}` : corridorInfo.dropoff_address);
+
+        const existingTask = this.rescueTasks.find(
+          (t) => t.claim_id === claim.id || t.donation_id === donation.id
+        );
+
+        const task: RescueTask = {
+          id: existingTask ? existingTask.id : `task-claim-${claim.id}`,
+          donation_id: donation.id,
+          claim_id: claim.id,
+          title: donation.title,
+          category: donation.category,
+          dietary_type: donation.dietary_type || 'veg',
+          portions: claim.quantity_claimed,
+          pickup_location: donation.location_label || donation.city || 'Pickup Location',
+          pickup_address: `${donation.location_label || ''}${donation.location_label && donation.city ? ', ' : ''}${donation.city || ''}`.trim() || 'Specified pickup location',
+          pickup_deadline: donation.pickup_deadline,
+          pickup_instructions:
+            donation.pickup_instructions ||
+            donation.storage_note ||
+            'Report to pickup coordinator with SharePlate verification code.',
+          donor_name,
+          donor_phone,
+          dropoff_location,
+          dropoff_address,
+          recipient_name,
+          recipient_phone,
+          corridor: existingTask?.corridor || corridorInfo.corridor,
+          status: claim.status === 'collected' ? 'in_transit' : 'claimed',
+        };
+
+        tasks.push(task);
+      }
+    } else {
+      this.ensureRescueTasksForDonations();
+      tasks = [...this.rescueTasks];
+    }
 
     // If city is specified, filter tasks strictly to this operating city
     if (city && city !== 'all') {
@@ -1491,49 +1567,61 @@ class DemoStore {
 
     // Assign volunteer to corresponding claims
     for (const taskId of plan.task_ids) {
+      const stop = plan.stops.find((s) => s.task_id === taskId && s.claim_id);
+      let claim: Claim | undefined;
+      if (stop?.claim_id) {
+        claim = this.claims.find((c) => c.id === stop.claim_id);
+      }
       const task = this.rescueTasks.find((t) => t.id === taskId);
       if (task) {
         task.status = 'claimed';
-        let claim = this.claims.find((c) => c.donation_id === task.donation_id);
         if (!claim) {
-          const donation = this.donations.find((d) => d.id === task.donation_id);
-          if (donation) {
-            donation.quantity_available = Math.max(0, donation.quantity_available - task.portions);
-            if (donation.quantity_available === 0) {
-              donation.status = 'reserved';
-            }
-          }
-          claim = {
-            id: `claim-${task.id}`,
-            donation_id: task.donation_id,
-            recipient_id: DEMO_PROFILES.recipient.id,
-            volunteer_id: plan.volunteer_id,
-            volunteer: DEMO_PROFILES.volunteer,
-            quantity_claimed: task.portions,
-            status: 'claimed',
-            verification_status: 'accepted',
-            claimed_at: new Date().toISOString(),
-            notes: `Claim for corridor task: ${task.title}`,
-            pickup_code: '4821',
-            delivery_code: '7392',
-            points_pending: calculateClaimPoints(task.portions),
-            points_released: 0,
-            donation: donation || INITIAL_DEMO_DONATIONS[0],
-            recipient: DEMO_PROFILES.recipient,
-          };
-          this.claims.unshift(claim);
-        } else {
-          claim.volunteer_id = plan.volunteer_id;
-          claim.verification_status = 'accepted';
-          if (!claim.pickup_code) claim.pickup_code = '4821';
-          if (!claim.delivery_code) claim.delivery_code = '7392';
-          claim.points_pending = calculateClaimPoints(claim.quantity_claimed);
+          claim = this.claims.find((c) => c.id === task.claim_id || c.donation_id === task.donation_id);
         }
+      }
+      if (!claim && task) {
+        const donation = this.donations.find((d) => d.id === task.donation_id);
+        if (donation) {
+          donation.quantity_available = Math.max(0, donation.quantity_available - task.portions);
+          if (donation.quantity_available === 0) {
+            donation.status = 'reserved';
+          }
+        }
+        claim = {
+          id: `claim-${task.id}`,
+          donation_id: task.donation_id,
+          recipient_id: DEMO_PROFILES.recipient.id,
+          volunteer_id: plan.volunteer_id,
+          volunteer: DEMO_PROFILES.volunteer,
+          quantity_claimed: task.portions,
+          status: 'claimed',
+          verification_status: 'accepted',
+          claimed_at: new Date().toISOString(),
+          notes: `Claim for corridor task: ${task.title}`,
+          pickup_code: '4821',
+          delivery_code: '7392',
+          points_pending: calculateClaimPoints(task.portions),
+          points_released: 0,
+          donation: donation || INITIAL_DEMO_DONATIONS[0],
+          recipient: DEMO_PROFILES.recipient,
+        };
+        this.claims.unshift(claim);
+      } else if (claim) {
+        claim.volunteer_id = plan.volunteer_id;
+        claim.volunteer = this.users.find((u) => u.id === plan.volunteer_id) || DEMO_PROFILES.volunteer;
+        claim.verification_status = 'accepted';
+        if (!claim.pickup_code) claim.pickup_code = '4821';
+        if (!claim.delivery_code) claim.delivery_code = '7392';
+        claim.points_pending = calculateClaimPoints(claim.quantity_claimed);
+      }
+      if (task && claim) {
         task.claim_id = claim.id;
+      }
 
-        for (const stop of plan.stops) {
-          if (stop.task_id === task.id) {
-            stop.claim_id = claim.id;
+      if (claim) {
+        for (const s of plan.stops) {
+          if (s.task_id === taskId) {
+            s.claim_id = claim.id;
           }
         }
       }

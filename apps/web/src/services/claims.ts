@@ -310,12 +310,15 @@ export const claimsService = {
     return demoStore.getDonorRewards(effectiveDonorId);
   },
 
-  async getRescueTasks(corridor?: string, city?: string | null): Promise<RescueTask[]> {
+  async getRescueTasks(corridor?: string, city?: string | null, activeOrdersOnly: boolean = false): Promise<RescueTask[]> {
     if (db && isFirebaseConfigured && !isDemoMode()) {
       try {
         const snap = await getDocs(collection(db, 'rescue_tasks'));
         if (!snap.empty) {
           let tasks = snap.docs.map((d) => d.data() as RescueTask);
+          if (activeOrdersOnly) {
+            tasks = tasks.filter((t) => t.status === 'claimed' || t.status === 'in_transit');
+          }
           if (city && city !== 'all') {
             const c = city.toLowerCase();
             tasks = tasks.filter((t) => {
@@ -323,7 +326,7 @@ export const claimsService = {
               return fullInfo.includes(c);
             });
           }
-          if (corridor) {
+          if (corridor && corridor !== 'all') {
             tasks = tasks.filter((t) => (t.corridor || '').toLowerCase().includes(corridor.toLowerCase()));
           }
           return tasks;
@@ -333,7 +336,7 @@ export const claimsService = {
       }
     }
 
-    return demoStore.getRescueTasks(corridor, city);
+    return demoStore.getRescueTasks(corridor, city, activeOrdersOnly);
   },
 
   async getVolunteerTripPlan(volunteerId: string): Promise<VolunteerTripPlan | null> {

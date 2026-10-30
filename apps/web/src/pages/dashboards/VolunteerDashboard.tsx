@@ -63,7 +63,7 @@ const CORRIDOR_PRESETS: CorridorPreset[] = [
     label: 'Mumbai: BKC → Kurla → Ghatkopar',
     origin: 'BKC Commercial Hub, Bandra East',
     destination: 'Ghatkopar East Transit Terminus',
-    defaultTaskIds: ['task-mumbai-01'],
+    defaultTaskIds: [],
   },
   {
     cityKey: 'mumbai',
@@ -71,7 +71,7 @@ const CORRIDOR_PRESETS: CorridorPreset[] = [
     label: 'Mumbai: Andheri → Sakinaka → Ghatkopar',
     origin: 'Andheri East Station Road',
     destination: 'Mission Feed Foundation, Ghatkopar',
-    defaultTaskIds: ['task-mumbai-02'],
+    defaultTaskIds: [],
   },
   // Delhi NCR Presets
   {
@@ -80,7 +80,7 @@ const CORRIDOR_PRESETS: CorridorPreset[] = [
     label: 'Delhi: Rohini → Connaught Place',
     origin: 'DTU Main Campus, Rohini Sector 17',
     destination: 'Connaught Place Metro Hub, Central Delhi',
-    defaultTaskIds: ['task-delhi-01'],
+    defaultTaskIds: [],
   },
   {
     cityKey: 'delhi',
@@ -88,7 +88,7 @@ const CORRIDOR_PRESETS: CorridorPreset[] = [
     label: 'Delhi / Noida: Sector 62 → South Delhi',
     origin: 'Sector 62 IT Hub, Noida',
     destination: 'Hauz Khas Social Center, South Delhi',
-    defaultTaskIds: ['task-delhi-02'],
+    defaultTaskIds: [],
   },
   // Pune Presets
   {
@@ -97,7 +97,7 @@ const CORRIDOR_PRESETS: CorridorPreset[] = [
     label: 'Pune: FC Road → Shivajinagar',
     origin: 'Deccan Gymkhana, FC Road',
     destination: 'Shivajinagar Bus Station Hub',
-    defaultTaskIds: ['task-pune-01'],
+    defaultTaskIds: [],
   },
 ];
 
@@ -124,7 +124,7 @@ export const VolunteerDashboard: React.FC = () => {
   const [originInput, setOriginInput] = useState(initialPreset.origin);
   const [destinationInput, setDestinationInput] = useState(initialPreset.destination);
   const [selectedCorridor, setSelectedCorridor] = useState(initialPreset.id);
-  const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>(initialPreset.defaultTaskIds);
+  const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [availableTasks, setAvailableTasks] = useState<RescueTask[]>([]);
   const [activeTripPlan, setActiveTripPlan] = useState<VolunteerTripPlan | null>(null);
 
@@ -142,7 +142,7 @@ export const VolunteerDashboard: React.FC = () => {
       setSelectedCorridor(matching[0].id);
       setOriginInput(matching[0].origin);
       setDestinationInput(matching[0].destination);
-      setSelectedTaskIds(matching[0].defaultTaskIds);
+      setSelectedTaskIds([]);
     }
   }, [user?.city]);
 
@@ -168,9 +168,10 @@ export const VolunteerDashboard: React.FC = () => {
     if (!user) return;
     setLoading(true);
     try {
-      // 1. Load tasks for corridor
-      const tasks = await claimsService.getRescueTasks(selectedCorridor, user.city);
+      // 1. Load tasks for corridor (strictly active recipient claims awaiting dispatch)
+      const tasks = await claimsService.getRescueTasks(selectedCorridor, user.city, true);
       setAvailableTasks(tasks);
+      setSelectedTaskIds((prev) => prev.filter((id) => tasks.some((t) => t.id === id)));
 
       // 2. Load active trip plan
       const plan = await claimsService.getVolunteerTripPlan(user.id);
@@ -215,13 +216,7 @@ export const VolunteerDashboard: React.FC = () => {
     setSelectedCorridor(corridor);
     setOriginInput(origin);
     setDestinationInput(destination);
-    // Auto-select tasks matching the new corridor
-    const tasks = demoStore.getRescueTasks(corridor, user?.city);
-    if (tasks.length > 0) {
-      setSelectedTaskIds([tasks[0].id]);
-    } else {
-      setSelectedTaskIds([]);
-    }
+    setSelectedTaskIds([]);
   };
 
   // Toggle task checkbox
@@ -676,8 +671,9 @@ export const VolunteerDashboard: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => {
-                    const defaultCorridor = corridorPresets[0]?.id || 'Mumbai Central Transit Corridor';
+                    const defaultCorridor = corridorPresets[0]?.id || 'Delhi North-West Corridor';
                     setSelectedCorridor(selectedCorridor === 'all' ? defaultCorridor : 'all');
+                    setSelectedTaskIds([]);
                   }}
                   className="text-xs font-semibold px-2.5 py-1 rounded-lg border border-warm-300 text-stone-600 hover:bg-stone-50 transition cursor-pointer"
                 >
@@ -690,19 +686,36 @@ export const VolunteerDashboard: React.FC = () => {
             </div>
 
             {availableTasks.length === 0 ? (
-              <div className="p-8 text-center text-stone-500 bg-stone-50 rounded-2xl border border-dashed border-stone-200 space-y-2">
-                <PackageCheck className="w-8 h-8 text-stone-400 mx-auto" />
-                <div className="font-bold text-stone-700">No rescue tasks found along this exact corridor</div>
-                <div className="text-xs">
-                  Donors in other areas or transit hubs may have surplus available right now.
+              <div className="p-8 text-center text-stone-500 bg-stone-50 rounded-2xl border border-dashed border-stone-200 space-y-3">
+                <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-800 flex items-center justify-center mx-auto">
+                  <PackageCheck className="w-6 h-6 text-emerald-700" />
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setSelectedCorridor('all')}
-                  className="text-xs font-bold text-forest-900 underline hover:text-forest-700 cursor-pointer"
-                >
-                  View all rescue tasks across all regions
-                </button>
+                <div className="font-bold text-stone-800 text-sm">
+                  No Active Orders Awaiting Courier Dispatch
+                </div>
+                <p className="text-xs text-stone-500 max-w-md mx-auto leading-relaxed">
+                  Food donations must first be reserved by a recipient NGO or community kitchen before courier rescue tasks are generated. When an active claim is reserved in this corridor, it will appear here for pickup and route bundling.
+                </p>
+                <div className="flex items-center justify-center gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedCorridor('all');
+                      setSelectedTaskIds([]);
+                    }}
+                    className="text-xs font-bold text-forest-900 hover:text-forest-700 underline cursor-pointer"
+                  >
+                    Check Active Orders in All Corridors
+                  </button>
+                  <span className="text-stone-300">|</span>
+                  <button
+                    type="button"
+                    onClick={() => loadDashboardData()}
+                    className="text-xs font-semibold text-stone-600 hover:text-stone-900 cursor-pointer"
+                  >
+                    Refresh Feed
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

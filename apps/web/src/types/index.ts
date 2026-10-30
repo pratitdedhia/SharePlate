@@ -7,6 +7,7 @@ export interface UserProfile {
   role: UserRole;
   organization_name?: string | null;
   phone?: string | null;
+  address?: string | null;
   city?: string | null;
   state?: string | null;
   service_area?: string | null;
