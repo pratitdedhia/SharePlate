@@ -48,6 +48,8 @@ To provide instant, zero-friction evaluation for hackathon judges without requir
   - Cloudinary provenance badge displayed strictly on images genuinely served from `res.cloudinary.com`.
 - **🔒 Over-Claim & Expiration Protection:** In the deployed demo, `demoStore` prevents over-claiming and claiming expired batches. In the production backend, PostgreSQL stored procedures (`claim_donation_atomic` with `SELECT ... FOR UPDATE`) guarantee ACID concurrency safety.
 - **🛡️ Privacy-Preserving Logistics:** Sensitive loading-dock access instructions and personal donor phone numbers are masked in public queries and revealed strictly to confirmed claimants.
+- **🗺️ Regional Operating Cities & Dynamic Corridor Routing:** Automated regional scoping for **Mumbai**, **Delhi NCR**, **Pune**, **Noida**, and **Bengaluru**. Volunteers are immediately matched to regional transit corridors (e.g. Mumbai BKC → Kurla → Ghatkopar; Delhi Rohini → Connaught Place; Pune FC Road → Shivajinagar), and recipients/donors see localized listings.
+- **🔄 Real-Time Cross-Role & Cross-Tab Synchronization:** Full reactive synchronization between donors, recipients, and volunteers across multiple browser tabs and devices via transactional `demoStore` reloads, BroadcastChannel, and custom window storage events. Profile & settings updates (name, organization, contact, city) instantly cascade into active headers, portal badges, and filter defaults across all dashboards.
 - **📊 Unified Impact Math:** A single pure calculation engine (`apps/web/src/lib/impactMath.ts`) derives hero statistics, impact charts, and rescue rates (`delivered / listed * 100`). The funnel never contradicts the metrics.
 
 ---
@@ -60,7 +62,7 @@ To provide instant, zero-friction evaluation for hackathon judges without requir
 | **Media Cloud** | Cloudinary | Direct client upload preset, server signatures, auto-format (`f_auto`), smart crop (`g_auto`) |
 | **Production Backend** | Node.js 24 LTS, Express, TypeScript | REST API, Zod schema validation, Helmet security headers, CORS |
 | **Production Database** | PostgreSQL 15+ (Supabase) | Multi-tenant Row Level Security (RLS), atomic stored procedures (`claim_donation_atomic`) |
-| **Testing** | Vitest, Node.js Test Runner | 89 frontend tests (donor rewards ledger, volunteer trip routing & waypoint limits, two-party OTP verification, cross-portal sync, impact math, auth, upload fallback & error handling, features suite, render safety), 2 backend tests (91 total passed) |
+| **Testing** | Vitest, Node.js Test Runner | 95 frontend tests (donor rewards ledger, volunteer trip routing & waypoint limits, two-party OTP verification, cross-portal sync, profile city persistence, impact math, auth, upload fallback & error handling, features suite, render safety), 2 backend tests (97 total passed) |
 | **Documentation** | Notion (Mandatory Hackathon Platform) | 12 structured markdown guides under `docs/notion/` |
 
 ---
@@ -187,7 +189,7 @@ Open **`http://localhost:5173`** in your browser.
 
 ## 🧪 Automated Testing & Verification
 
-All automated tests execute with 100% passing results across 91 tests:
+All automated tests execute with 100% passing results across 97 tests:
 
 ### Run Backend API Tests:
 ```bash
@@ -198,13 +200,13 @@ npm test --workspace=@shareplate/api
 ### Run Frontend Unit & Integration Tests:
 ```bash
 npm test --workspace=@shareplate/web
-# Result: 89 passed, 0 failed (App, Impact Math, Donor Rewards Ledger, Volunteer Multi-Stop Route Partitioning, Two-Party Pickup & Delivery OTP Flow, Cross-Portal Sync, Auth, Upload Fallback & Error Handling, Features Suite, Render Safety)
+# Result: 95 passed, 0 failed (App, Impact Math, Donor Rewards Ledger, Volunteer Multi-Stop Route Partitioning, Two-Party Pickup & Delivery OTP Flow, Cross-Portal Sync, Profile City Persistence, Auth, Upload Fallback & Error Handling, Features Suite, Render Safety)
 ```
 
 ### Run All Workspace Tests:
 ```bash
 npm test
-# Total: 91 passed, 0 failed
+# Total: 97 passed, 0 failed
 ```
 
 ### Verify Production Compilation:
@@ -313,7 +315,7 @@ SharePlate is a community coordination technology platform. **SharePlate does no
 - **[Team Member 3 — Full Name] (Database Engineering & Concurrency):**
   - PostgreSQL schema design (`supabase/`), Row Level Security policies, atomic reservation stored procedures (`claim_donation_atomic`).
 - **[Team Member 4 — Full Name] (QA, Documentation & Notion Journey):**
-  - Automated test authoring (91 automated tests passing across 7 suites), unified impact calculation math, complete Notion documentation portfolio (`docs/notion/`), and judge demo walkthrough.
+  - Automated test authoring (97 automated tests passing across 7 suites), unified impact calculation math, complete Notion documentation portfolio (`docs/notion/`), and judge demo walkthrough.
 
 ---
 
