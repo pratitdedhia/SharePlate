@@ -167,6 +167,27 @@ Follow these steps in the Cloudinary Console:
 > - Dropping or browsing a local photo falls back safely to labeled local object previews (`local_preview`) so testing continues uninterrupted.
 > - If credentials are configured but the upload fails (e.g., misspelled preset or unsigned mode not enabled in dashboard), the UI validates and surfaces the error with actionable troubleshooting advice instead of silently hiding failures.
 
+#### Firebase Environment & Firestore Real-Time Setup
+SharePlate includes complete integration with Google Firebase (`shareplate-57783`) for real-time Firestore database persistence, live multi-user `onSnapshot` synchronization across devices, and Firebase Authentication:
+
+```env
+VITE_FIREBASE_API_KEY=AIzaSyCcWlUFJKndQyDVUSPpLLMmaWwomHowP_k
+VITE_FIREBASE_AUTH_DOMAIN=shareplate-57783.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=shareplate-57783
+VITE_FIREBASE_STORAGE_BUCKET=shareplate-57783.firebasestorage.app
+VITE_FIREBASE_MESSAGING_SENDER_ID=1075617712212
+VITE_FIREBASE_APP_ID=1:1075617712212:web:ab667a7e6b1c3652ec45c1
+VITE_FIREBASE_MEASUREMENT_ID=G-945TEWG4F3
+```
+
+##### Provision Firestore & Seed Current Actual Data:
+1. Open the Firebase Console: https://console.firebase.google.com/project/shareplate-57783/firestore
+2. Click **Create database** -> Choose **Start in test mode** -> Select your nearest region -> Click **Create**.
+3. Run the automated seed script to populate users, donations, claims, and rescue tasks into Firestore:
+```bash
+npm run seed:firebase
+```
+
 ### 3. Launch Development Servers
 Open two terminal windows:
 

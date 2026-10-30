@@ -2,6 +2,15 @@ import { apiRequest, isDemoMode } from './api';
 import { demoStore } from '../lib/mockData';
 import { Donation } from '../types';
 import { liveUpdatesService } from './liveUpdates';
+import { db, isFirebaseConfigured } from '../lib/firebase';
+import {
+  collection,
+  getDocs,
+  getDoc,
+  doc,
+  setDoc,
+  updateDoc,
+} from 'firebase/firestore';
 
 export interface DonationFilterParams {
   category?: string;
@@ -15,80 +24,114 @@ export interface DonationFilterParams {
 
 export const donationsService = {
   async getDonations(params: DonationFilterParams = {}): Promise<{ data: Donation[]; total: number }> {
-    if (isDemoMode()) {
-      let results = demoStore.getDonations({
-        donor_id: params.donor_id,
-        category: params.category,
-        city: params.city,
-        status: params.status,
-      });
-
-      if (params.search) {
-        const q = params.search.toLowerCase();
-        results = results.filter((d) => d.title.toLowerCase().includes(q) || d.description.toLowerCase().includes(q));
+    // If Firebase Firestore is configured, query Firestore collection
+    if (db && isFirebaseConfigured && !isDemoMode()) {
+      try {
+        const snap = await getDocs(collection(db, 'donations'));
+        if (!snap.empty) {
+          let list: Donation[] = snap.docs.map((d) => d.data() as Donation);
+          if (params.donor_id) list = list.filter((d) => d.donor_id === params.donor_id);
+          if (params.category && params.category !== 'all') list = list.filter((d) => d.category === params.category);
+          if (params.city && params.city !== 'all') {
+            list = list.filter((d) => (d.city || '').toLowerCase() === params.city!.toLowerCase());
+          }
+          if (params.status && params.status !== 'all') list = list.filter((d) => d.status === params.status);
+          if (params.search) {
+            const q = params.search.toLowerCase();
+            list = list.filter(
+              (d) =>
+                (d.title || '').toLowerCase().includes(q) ||
+                (d.description || '').toLowerCase().includes(q)
+            );
+          }
+          return { data: list, total: list.length };
+        }
+      } catch (err: any) {
+        console.warn('[Firebase] Firestore read query fallback:', err.message);
       }
-      return { data: results, total: results.length };
     }
 
-    const searchParams = new URLSearchParams();
-    if (params.category) searchParams.set('category', params.category);
-    if (params.city) searchParams.set('city', params.city);
-    if (params.search) searchParams.set('search', params.search);
-    if (params.status) searchParams.set('status', params.status);
-    if (params.donor_id) searchParams.set('donor_id', params.donor_id);
-    if (params.limit) searchParams.set('limit', params.limit.toString());
-    if (params.offset) searchParams.set('offset', params.offset.toString());
+    // Local in-memory / localStorage fallback (used for tests, offline & demo mode)
+    let results = demoStore.getDonations({
+      donor_id: params.donor_id,
+      category: params.category,
+      city: params.city,
+      status: params.status,
+    });
 
-    const res = await apiRequest(`/donations?${searchParams.toString()}`);
-    return { data: res.data || [], total: res.total || 0 };
+    if (params.search) {
+      const q = params.search.toLowerCase();
+      results = results.filter((d) => d.title.toLowerCase().includes(q) || d.description.toLowerCase().includes(q));
+    }
+    return { data: results, total: results.length };
   },
 
   async getMyDonations(donorId?: string): Promise<Donation[]> {
-    if (isDemoMode()) {
-      return demoStore.getDonations({ donor_id: donorId, status: 'all' });
+    if (db && isFirebaseConfigured && !isDemoMode()) {
+      try {
+        const snap = await getDocs(collection(db, 'donations'));
+        if (!snap.empty) {
+          const list = snap.docs.map((d) => d.data() as Donation);
+          return donorId ? list.filter((d) => d.donor_id === donorId) : list;
+        }
+      } catch (err: any) {
+        console.warn('[Firebase] Firestore getMyDonations fallback:', err.message);
+      }
     }
 
-    const res = await apiRequest('/donations/mine');
-    return res.data || [];
+    return demoStore.getDonations({ donor_id: donorId, status: 'all' });
   },
 
   async getDonationById(id: string): Promise<Donation> {
-    if (isDemoMode()) {
-      const donation = demoStore.getDonationById(id);
-      if (!donation) throw new Error('Donation not found');
-      return donation;
+    if (db && isFirebaseConfigured && !isDemoMode()) {
+      try {
+        const snap = await getDoc(doc(db, 'donations', id));
+        if (snap.exists()) {
+          return snap.data() as Donation;
+        }
+      } catch (err: any) {
+        console.warn('[Firebase] Firestore getDonationById fallback:', err.message);
+      }
     }
 
-    const res = await apiRequest(`/donations/${id}`);
-    const data = res?.data || res;
-    if (data && data.id) return data;
-    throw new Error('Donation not found');
+    const donation = demoStore.getDonationById(id);
+    if (!donation) throw new Error('Donation not found');
+    return donation;
   },
 
   async createDonation(data: any): Promise<Donation> {
-    if (isDemoMode()) {
-      const created = demoStore.createDonation(data);
-      liveUpdatesService.notifyChange('donations', 'INSERT', created);
-      return created;
+    // 1. Maintain in-memory / localStorage demoStore for immediate zero-latency feedback
+    const created = demoStore.createDonation(data);
+
+    // 2. Synchronize to Firebase Firestore
+    if (db && isFirebaseConfigured) {
+      try {
+        await setDoc(doc(db, 'donations', created.id), created);
+        console.info(`[Firebase] Donation ${created.id} saved to Firestore.`);
+      } catch (err: any) {
+        console.warn('[Firebase] Firestore createDonation notice:', err.message);
+      }
     }
 
-    const res = await apiRequest('/donations', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-    liveUpdatesService.notifyChange('donations', 'INSERT', res.data);
-    return res.data;
+    liveUpdatesService.notifyChange('donations', 'INSERT', created);
+    return created;
   },
 
   async cancelDonation(id: string): Promise<void> {
-    if (isDemoMode()) {
-      const d = demoStore.getDonationById(id);
-      if (d) d.status = 'cancelled';
-      liveUpdatesService.notifyChange('donations', 'UPDATE', { id, status: 'cancelled' });
-      return;
+    const d = demoStore.getDonationById(id);
+    if (d) d.status = 'cancelled';
+
+    if (db && isFirebaseConfigured) {
+      try {
+        await updateDoc(doc(db, 'donations', id), {
+          status: 'cancelled',
+          updated_at: new Date().toISOString(),
+        });
+      } catch (err: any) {
+        console.warn('[Firebase] Firestore cancelDonation notice:', err.message);
+      }
     }
 
-    await apiRequest(`/donations/${id}/cancel`, { method: 'POST' });
     liveUpdatesService.notifyChange('donations', 'UPDATE', { id, status: 'cancelled' });
   },
 };

@@ -2,97 +2,166 @@ import { apiRequest, isDemoMode } from './api';
 import { demoStore } from '../lib/mockData';
 import { Claim, RescueTask, VolunteerTripPlan, VolunteerRewardsSummary, DonorRewardsSummary } from '../types';
 import { liveUpdatesService } from './liveUpdates';
+import { db, isFirebaseConfigured } from '../lib/firebase';
+import {
+  collection,
+  doc,
+  getDocs,
+  setDoc,
+  updateDoc,
+} from 'firebase/firestore';
 
 export const claimsService = {
   async claimDonation(donationId: string, recipientId: string, quantity: number, notes?: string): Promise<Claim> {
-    if (isDemoMode()) {
-      const claim = demoStore.claimDonation(donationId, recipientId, quantity, notes);
-      liveUpdatesService.notifyChange('claims', 'INSERT', claim);
-      liveUpdatesService.notifyChange('donations', 'UPDATE', { id: donationId });
-      return claim;
+    const claim = demoStore.claimDonation(donationId, recipientId, quantity, notes);
+
+    if (db && isFirebaseConfigured) {
+      try {
+        await setDoc(doc(db, 'claims', claim.id), claim);
+        const donation = demoStore.getDonationById(donationId);
+        if (donation) {
+          await updateDoc(doc(db, 'donations', donationId), {
+            quantity_available: donation.quantity_available,
+            status: donation.status,
+            updated_at: new Date().toISOString(),
+          });
+        }
+        console.info(`[Firebase] Claim ${claim.id} saved to Firestore.`);
+      } catch (err: any) {
+        console.warn('[Firebase] Firestore claimDonation sync notice:', err.message);
+      }
     }
 
-    const res = await apiRequest(`/donations/${donationId}/claims`, {
-      method: 'POST',
-      body: JSON.stringify({ quantity, notes }),
-    });
-    liveUpdatesService.notifyChange('claims', 'INSERT', res.data);
+    liveUpdatesService.notifyChange('claims', 'INSERT', claim);
     liveUpdatesService.notifyChange('donations', 'UPDATE', { id: donationId });
-    return res.data;
+    return claim;
   },
 
   async getMyClaims(userId: string, isDonor: boolean): Promise<Claim[]> {
-    if (isDemoMode()) {
-      return demoStore.getUserClaims(userId, isDonor);
+    if (db && isFirebaseConfigured && !isDemoMode()) {
+      try {
+        const snap = await getDocs(collection(db, 'claims'));
+        if (!snap.empty) {
+          const list = snap.docs.map((d) => d.data() as Claim);
+          if (isDonor) {
+            return list.filter((c) => c.donation?.donor_id === userId);
+          }
+          return list.filter((c) => c.recipient_id === userId || c.volunteer_id === userId);
+        }
+      } catch (err: any) {
+        console.warn('[Firebase] Firestore getMyClaims fallback:', err.message);
+      }
     }
 
-    const res = await apiRequest('/claims/mine');
-    return res.data || [];
+    return demoStore.getUserClaims(userId, isDonor);
   },
 
   async getAllClaims(params: { status?: string; donation_id?: string } = {}): Promise<Claim[]> {
-    if (isDemoMode()) {
-      let claims = demoStore.getAllClaims();
-      if (params.status && params.status !== 'all') {
-        claims = claims.filter((c) => c.status === params.status);
+    if (db && isFirebaseConfigured && !isDemoMode()) {
+      try {
+        const snap = await getDocs(collection(db, 'claims'));
+        if (!snap.empty) {
+          let list = snap.docs.map((d) => d.data() as Claim);
+          if (params.status && params.status !== 'all') {
+            list = list.filter((c) => c.status === params.status);
+          }
+          if (params.donation_id) {
+            list = list.filter((c) => c.donation_id === params.donation_id);
+          }
+          return list;
+        }
+      } catch (err: any) {
+        console.warn('[Firebase] Firestore getAllClaims fallback:', err.message);
       }
-      if (params.donation_id) {
-        claims = claims.filter((c) => c.donation_id === params.donation_id);
-      }
-      return claims;
     }
 
-    const searchParams = new URLSearchParams();
-    if (params.status && params.status !== 'all') searchParams.set('status', params.status);
-    if (params.donation_id) searchParams.set('donation_id', params.donation_id);
-
-    const res = await apiRequest(`/claims?${searchParams.toString()}`);
-    return res.data || [];
+    let claims = demoStore.getAllClaims();
+    if (params.status && params.status !== 'all') {
+      claims = claims.filter((c) => c.status === params.status);
+    }
+    if (params.donation_id) {
+      claims = claims.filter((c) => c.donation_id === params.donation_id);
+    }
+    return claims;
   },
 
   async cancelClaim(claimId: string, reason?: string): Promise<Claim> {
-    if (isDemoMode()) {
-      const claim = demoStore.cancelClaim(claimId);
-      liveUpdatesService.notifyChange('claims', 'UPDATE', claim);
-      return claim;
+    const claim = demoStore.cancelClaim(claimId);
+
+    if (db && isFirebaseConfigured) {
+      try {
+        await updateDoc(doc(db, 'claims', claimId), {
+          status: 'cancelled',
+          cancellation_reason: reason || null,
+          updated_at: new Date().toISOString(),
+        });
+        if (claim.donation_id) {
+          const donation = demoStore.getDonationById(claim.donation_id);
+          if (donation) {
+            await updateDoc(doc(db, 'donations', claim.donation_id), {
+              quantity_available: donation.quantity_available,
+              status: donation.status,
+              updated_at: new Date().toISOString(),
+            });
+          }
+        }
+      } catch (err: any) {
+        console.warn('[Firebase] Firestore cancelClaim sync notice:', err.message);
+      }
     }
 
-    const res = await apiRequest(`/claims/${claimId}/cancel`, {
-      method: 'PATCH',
-      body: JSON.stringify({ reason }),
-    });
-    liveUpdatesService.notifyChange('claims', 'UPDATE', res.data);
-    return res.data;
+    liveUpdatesService.notifyChange('claims', 'UPDATE', claim);
+    return claim;
   },
 
   async markCollected(claimId: string, notes?: string): Promise<Claim> {
-    if (isDemoMode()) {
-      const claim = demoStore.updateClaimStatus(claimId, 'collected');
-      liveUpdatesService.notifyChange('claims', 'UPDATE', claim);
-      return claim;
+    const claim = demoStore.updateClaimStatus(claimId, 'collected');
+
+    if (db && isFirebaseConfigured) {
+      try {
+        await updateDoc(doc(db, 'claims', claimId), {
+          status: 'collected',
+          pickup_notes: notes || null,
+          updated_at: new Date().toISOString(),
+        });
+        if (claim.donation_id) {
+          await updateDoc(doc(db, 'donations', claim.donation_id), {
+            status: 'collected',
+            updated_at: new Date().toISOString(),
+          });
+        }
+      } catch (err: any) {
+        console.warn('[Firebase] Firestore markCollected notice:', err.message);
+      }
     }
 
-    const res = await apiRequest(`/claims/${claimId}/collect`, {
-      method: 'POST',
-      body: JSON.stringify({ notes }),
-    });
-    liveUpdatesService.notifyChange('claims', 'UPDATE', res.data);
-    return res.data;
+    liveUpdatesService.notifyChange('claims', 'UPDATE', claim);
+    return claim;
   },
 
   async markDelivered(claimId: string, notes?: string): Promise<Claim> {
-    if (isDemoMode()) {
-      const claim = demoStore.updateClaimStatus(claimId, 'delivered');
-      liveUpdatesService.notifyChange('claims', 'UPDATE', claim);
-      return claim;
+    const claim = demoStore.updateClaimStatus(claimId, 'delivered');
+
+    if (db && isFirebaseConfigured) {
+      try {
+        await updateDoc(doc(db, 'claims', claimId), {
+          status: 'delivered',
+          delivery_notes: notes || null,
+          updated_at: new Date().toISOString(),
+        });
+        if (claim.donation_id) {
+          await updateDoc(doc(db, 'donations', claim.donation_id), {
+            status: 'delivered',
+            updated_at: new Date().toISOString(),
+          });
+        }
+      } catch (err: any) {
+        console.warn('[Firebase] Firestore markDelivered notice:', err.message);
+      }
     }
 
-    const res = await apiRequest(`/claims/${claimId}/deliver`, {
-      method: 'POST',
-      body: JSON.stringify({ notes }),
-    });
-    liveUpdatesService.notifyChange('claims', 'UPDATE', res.data);
-    return res.data;
+    liveUpdatesService.notifyChange('claims', 'UPDATE', claim);
+    return claim;
   },
 
   async updateClaimStatus(claimId: string, status: 'collected' | 'delivered', notes?: string): Promise<Claim> {
@@ -103,65 +172,70 @@ export const claimsService = {
   },
 
   async assignVolunteerToClaim(claimId: string, volunteerId: string): Promise<Claim> {
-    if (isDemoMode()) {
-      const claim = demoStore.assignVolunteerToClaim(claimId, volunteerId);
-      liveUpdatesService.notifyChange('claims', 'UPDATE', claim);
-      return claim;
+    const claim = demoStore.assignVolunteerToClaim(claimId, volunteerId);
+
+    if (db && isFirebaseConfigured) {
+      try {
+        await setDoc(doc(db, 'claims', claim.id), claim, { merge: true });
+      } catch (err: any) {
+        console.warn('[Firebase] Firestore assignVolunteer notice:', err.message);
+      }
     }
 
-    const res = await apiRequest(`/claims/${claimId}/assign-volunteer`, {
-      method: 'POST',
-      body: JSON.stringify({ volunteer_id: volunteerId }),
-    });
-    liveUpdatesService.notifyChange('claims', 'UPDATE', res.data);
-    return res.data;
+    liveUpdatesService.notifyChange('claims', 'UPDATE', claim);
+    return claim;
   },
 
   async initiatePickup(claimId: string, volunteerId: string): Promise<Claim> {
-    if (isDemoMode()) {
-      const claim = demoStore.initiatePickup(claimId, volunteerId);
-      liveUpdatesService.notifyChange('claims', 'UPDATE', claim);
-      return claim;
+    const claim = demoStore.initiatePickup(claimId, volunteerId);
+
+    if (db && isFirebaseConfigured) {
+      try {
+        await setDoc(doc(db, 'claims', claim.id), claim, { merge: true });
+      } catch (err: any) {
+        console.warn('[Firebase] Firestore initiatePickup notice:', err.message);
+      }
     }
 
-    const res = await apiRequest(`/claims/${claimId}/pickup-initiate`, {
-      method: 'POST',
-      body: JSON.stringify({ volunteer_id: volunteerId }),
-    });
-    liveUpdatesService.notifyChange('claims', 'UPDATE', res.data);
-    return res.data;
+    liveUpdatesService.notifyChange('claims', 'UPDATE', claim);
+    return claim;
   },
 
   async confirmPickup(claimId: string, confirmedByUserId: string, enteredCode?: string): Promise<Claim> {
-    if (isDemoMode()) {
-      const claim = demoStore.confirmPickup(claimId, confirmedByUserId, enteredCode);
-      liveUpdatesService.notifyChange('claims', 'UPDATE', claim);
-      liveUpdatesService.notifyChange('donations', 'UPDATE', { id: claim.donation_id, status: 'collected' });
-      return claim;
+    const claim = demoStore.confirmPickup(claimId, confirmedByUserId, enteredCode);
+
+    if (db && isFirebaseConfigured) {
+      try {
+        await setDoc(doc(db, 'claims', claim.id), claim, { merge: true });
+        if (claim.donation_id) {
+          await updateDoc(doc(db, 'donations', claim.donation_id), {
+            status: 'collected',
+            updated_at: new Date().toISOString(),
+          });
+        }
+      } catch (err: any) {
+        console.warn('[Firebase] Firestore confirmPickup notice:', err.message);
+      }
     }
 
-    const res = await apiRequest(`/claims/${claimId}/pickup-confirm`, {
-      method: 'POST',
-      body: JSON.stringify({ code: enteredCode, user_id: confirmedByUserId }),
-    });
-    liveUpdatesService.notifyChange('claims', 'UPDATE', res.data);
-    liveUpdatesService.notifyChange('donations', 'UPDATE', { id: res.data?.donation_id || claimId, status: 'collected' });
-    return res.data;
+    liveUpdatesService.notifyChange('claims', 'UPDATE', claim);
+    liveUpdatesService.notifyChange('donations', 'UPDATE', { id: claim.donation_id, status: 'collected' });
+    return claim;
   },
 
   async initiateDelivery(claimId: string, volunteerId: string): Promise<Claim> {
-    if (isDemoMode()) {
-      const claim = demoStore.initiateDelivery(claimId, volunteerId);
-      liveUpdatesService.notifyChange('claims', 'UPDATE', claim);
-      return claim;
+    const claim = demoStore.initiateDelivery(claimId, volunteerId);
+
+    if (db && isFirebaseConfigured) {
+      try {
+        await setDoc(doc(db, 'claims', claim.id), claim, { merge: true });
+      } catch (err: any) {
+        console.warn('[Firebase] Firestore initiateDelivery notice:', err.message);
+      }
     }
 
-    const res = await apiRequest(`/claims/${claimId}/delivery-initiate`, {
-      method: 'POST',
-      body: JSON.stringify({ volunteer_id: volunteerId }),
-    });
-    liveUpdatesService.notifyChange('claims', 'UPDATE', res.data);
-    return res.data;
+    liveUpdatesService.notifyChange('claims', 'UPDATE', claim);
+    return claim;
   },
 
   async confirmDelivery(
@@ -170,127 +244,96 @@ export const claimsService = {
     portionsReceived: number,
     enteredCode?: string
   ): Promise<{ claim: Claim; pointsAwarded: number }> {
-    if (isDemoMode()) {
-      const result = demoStore.confirmDelivery(claimId, confirmedByUserId, portionsReceived, enteredCode);
-      liveUpdatesService.notifyChange('claims', 'UPDATE', result.claim);
-      liveUpdatesService.notifyChange('donations', 'UPDATE', { id: result.claim.donation_id, status: 'delivered' });
-      return result;
+    const result = demoStore.confirmDelivery(claimId, confirmedByUserId, portionsReceived, enteredCode);
+
+    if (db && isFirebaseConfigured) {
+      try {
+        await setDoc(doc(db, 'claims', result.claim.id), result.claim, { merge: true });
+        if (result.claim.donation_id) {
+          await updateDoc(doc(db, 'donations', result.claim.donation_id), {
+            status: 'delivered',
+            updated_at: new Date().toISOString(),
+          });
+        }
+      } catch (err: any) {
+        console.warn('[Firebase] Firestore confirmDelivery notice:', err.message);
+      }
     }
 
-    const res = await apiRequest(`/claims/${claimId}/delivery-confirm`, {
-      method: 'POST',
-      body: JSON.stringify({
-        portions_received: portionsReceived,
-        code: enteredCode,
-        user_id: confirmedByUserId,
-      }),
-    });
-    liveUpdatesService.notifyChange('claims', 'UPDATE', res.data?.claim || res.data);
-    liveUpdatesService.notifyChange('donations', 'UPDATE', { id: res.data?.claim?.donation_id || claimId, status: 'delivered' });
-    return res.data;
+    liveUpdatesService.notifyChange('claims', 'UPDATE', result.claim);
+    liveUpdatesService.notifyChange('donations', 'UPDATE', { id: result.claim.donation_id, status: 'delivered' });
+    return result;
   },
 
   async disputeClaim(claimId: string, disputedByUserId: string, reason: string): Promise<Claim> {
-    if (isDemoMode()) {
-      const claim = demoStore.disputeClaim(claimId, disputedByUserId, reason);
-      liveUpdatesService.notifyChange('claims', 'UPDATE', claim);
-      return claim;
+    const claim = demoStore.disputeClaim(claimId, disputedByUserId, reason);
+
+    if (db && isFirebaseConfigured) {
+      try {
+        await setDoc(doc(db, 'claims', claim.id), claim, { merge: true });
+      } catch (err: any) {
+        console.warn('[Firebase] Firestore disputeClaim notice:', err.message);
+      }
     }
 
-    const res = await apiRequest(`/claims/${claimId}/dispute`, {
-      method: 'POST',
-      body: JSON.stringify({ user_id: disputedByUserId, reason }),
-    });
-    liveUpdatesService.notifyChange('claims', 'UPDATE', res.data);
-    return res.data;
+    liveUpdatesService.notifyChange('claims', 'UPDATE', claim);
+    return claim;
   },
 
   async getVolunteerRewards(volunteerId: string): Promise<VolunteerRewardsSummary> {
-    if (isDemoMode()) {
-      return demoStore.getVolunteerRewards(volunteerId);
-    }
-
-    const res = await apiRequest(`/claims/volunteer/rewards?volunteer_id=${volunteerId}`);
-    return res.data;
+    return demoStore.getVolunteerRewards(volunteerId);
   },
 
   async getDonorRewards(donorId?: string): Promise<DonorRewardsSummary> {
-    if (isDemoMode()) {
-      const effectiveDonorId = donorId || 'a0000000-0000-0000-0000-000000000001';
-      return demoStore.getDonorRewards(effectiveDonorId);
-    }
-
-    const query = donorId ? `?donor_id=${encodeURIComponent(donorId)}` : '';
-    const res = await apiRequest(`/claims/donor/rewards${query}`);
-    return res.data;
+    const effectiveDonorId = donorId || 'a0000000-0000-0000-0000-000000000001';
+    return demoStore.getDonorRewards(effectiveDonorId);
   },
 
   async getRescueTasks(corridor?: string, city?: string | null): Promise<RescueTask[]> {
-    if (isDemoMode()) {
-      return demoStore.getRescueTasks(corridor, city);
+    if (db && isFirebaseConfigured && !isDemoMode()) {
+      try {
+        const snap = await getDocs(collection(db, 'rescue_tasks'));
+        if (!snap.empty) {
+          let tasks = snap.docs.map((d) => d.data() as RescueTask);
+          if (city && city !== 'all') {
+            const c = city.toLowerCase();
+            tasks = tasks.filter((t) => {
+              const fullInfo = `${t.corridor} ${t.pickup_location} ${t.pickup_address} ${t.dropoff_location} ${t.dropoff_address}`.toLowerCase();
+              return fullInfo.includes(c);
+            });
+          }
+          if (corridor) {
+            tasks = tasks.filter((t) => (t.corridor || '').toLowerCase().includes(corridor.toLowerCase()));
+          }
+          return tasks;
+        }
+      } catch (err: any) {
+        console.warn('[Firebase] Firestore getRescueTasks fallback:', err.message);
+      }
     }
 
-    try {
-      const res = await apiRequest(`/volunteer/tasks${corridor ? `?corridor=${encodeURIComponent(corridor)}` : ''}`);
-      return res.data || [];
-    } catch {
-      return demoStore.getRescueTasks(corridor, city);
-    }
+    return demoStore.getRescueTasks(corridor, city);
   },
 
   async getVolunteerTripPlan(volunteerId: string): Promise<VolunteerTripPlan | null> {
-    if (isDemoMode()) {
-      return demoStore.getVolunteerTripPlan(volunteerId);
-    }
-
-    try {
-      const res = await apiRequest('/volunteer/trip-plan/active');
-      return res.data || null;
-    } catch {
-      return demoStore.getVolunteerTripPlan(volunteerId);
-    }
+    return demoStore.getVolunteerTripPlan(volunteerId);
   },
 
   async createTripPlan(plan: Omit<VolunteerTripPlan, 'id' | 'created_at' | 'status'>): Promise<VolunteerTripPlan> {
-    if (isDemoMode()) {
-      const created = demoStore.createTripPlan(plan);
-      liveUpdatesService.notifyChange('claims', 'INSERT', created);
-      return created;
-    }
-
-    const res = await apiRequest('/volunteer/trip-plans', {
-      method: 'POST',
-      body: JSON.stringify(plan),
-    });
-    liveUpdatesService.notifyChange('claims', 'INSERT', res.data);
-    return res.data;
+    const created = demoStore.createTripPlan(plan);
+    liveUpdatesService.notifyChange('claims', 'INSERT', created);
+    return created;
   },
 
   async acceptTripPlan(planId: string): Promise<VolunteerTripPlan> {
-    if (isDemoMode()) {
-      const accepted = demoStore.acceptTripPlan(planId);
-      liveUpdatesService.notifyChange('claims', 'UPDATE', accepted);
-      return accepted;
-    }
-
-    // In backend, creating or accepting sets active status
-    const plan = await this.getVolunteerTripPlan('');
-    liveUpdatesService.notifyChange('claims', 'UPDATE', plan);
-    return plan!;
+    const accepted = demoStore.acceptTripPlan(planId);
+    liveUpdatesService.notifyChange('claims', 'UPDATE', accepted);
+    return accepted;
   },
 
   async completeTripStop(planId: string, stopId: string): Promise<VolunteerTripPlan> {
-    if (isDemoMode()) {
-      const updated = demoStore.completeTripStop(planId, stopId);
-      liveUpdatesService.notifyChange('claims', 'UPDATE', updated);
-      return updated;
-    }
-
-    const res = await apiRequest(`/volunteer/trip-plans/${planId}/stops/${stopId}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ completed: true }),
-    });
-    liveUpdatesService.notifyChange('claims', 'UPDATE', res.data);
-    return res.data;
+    const updated = demoStore.completeTripStop(planId, stopId);
+    liveUpdatesService.notifyChange('claims', 'UPDATE', updated);
+    return updated;
   },
 };

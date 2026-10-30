@@ -1,5 +1,13 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase, isSupabaseClientConfigured } from '../lib/supabase';
+import { auth, db, isFirebaseConfigured } from '../lib/firebase';
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut as firebaseSignOut,
+  onAuthStateChanged,
+} from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { DEMO_PROFILES, demoStore } from '../lib/mockData';
 import { liveUpdatesService } from '../services/liveUpdates';
 import { UserProfile, UserRole, RegistrationData } from '../types';
@@ -47,20 +55,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState<boolean>(true);
   const [isDemoUser, setIsDemoUser] = useState<boolean>(() => {
     const token = localStorage.getItem('shareplate_token');
-    return !token || token.startsWith('demo-user-') || !isSupabaseClientConfigured;
+    return !token || token.startsWith('demo-user-') || (!isSupabaseClientConfigured && !isFirebaseConfigured);
   });
 
   useEffect(() => {
     let authSubscription: any = null;
+    let unsubFirebaseAuth: any = null;
 
     const initAuth = async () => {
+      // 1. Firebase Auth listener
+      if (isFirebaseConfigured && auth) {
+        try {
+          unsubFirebaseAuth = onAuthStateChanged(auth, async (fbUser) => {
+            if (fbUser && db) {
+              try {
+                const userDoc = await getDoc(doc(db, 'users', fbUser.uid));
+                if (userDoc.exists()) {
+                  const profile = userDoc.data() as UserProfile;
+                  setUser(profile);
+                  setIsDemoUser(false);
+                  localStorage.setItem('shareplate_current_user', JSON.stringify(profile));
+                }
+              } catch (err: any) {
+                console.warn('[Firebase Auth] Profile retrieval fallback:', err.message);
+              }
+            }
+          });
+        } catch (e) {
+          console.warn('[Firebase Auth] Init error:', e);
+        }
+      }
+
+      // 2. Supabase Auth fallback
       if (isSupabaseClientConfigured && supabase) {
         const client = supabase;
         try {
           const { data: { session } } = await client.auth.getSession();
           if (session?.user) {
             localStorage.setItem('shareplate_token', session.access_token);
-            // Authoritative profile retrieval from PostgreSQL
             const { data: profile, error } = await client
               .from('profiles')
               .select('*')
@@ -88,7 +120,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           const { data: subData } = client.auth.onAuthStateChange(async (event, session) => {
             if (event === 'SIGNED_OUT' || !session) {
-              // Only clear if not in deliberate demo session
               const currentToken = localStorage.getItem('shareplate_token');
               if (currentToken && !currentToken.startsWith('demo-user-')) {
                 setUser(null);
@@ -129,6 +160,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (authSubscription) {
         authSubscription.unsubscribe();
       }
+      if (unsubFirebaseAuth) {
+        unsubFirebaseAuth();
+      }
     };
   }, []);
 
@@ -139,6 +173,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('Please enter both email address and password.');
       }
 
+      // 1. Firebase Auth Attempt (if not a quick demo account and Firebase is configured)
+      const normalizedEmail = email.toLowerCase().trim();
+      if (isFirebaseConfigured && auth && !normalizedEmail.endsWith('@shareplate.demo')) {
+        try {
+          const cred = await signInWithEmailAndPassword(auth, email, password);
+          if (cred?.user && db) {
+            const token = await cred.user.getIdToken();
+            localStorage.setItem('shareplate_token', token);
+            const userDoc = await getDoc(doc(db, 'users', cred.user.uid));
+            if (userDoc.exists()) {
+              const profile = userDoc.data() as UserProfile;
+              setUser(profile);
+              setIsDemoUser(false);
+              localStorage.setItem('shareplate_current_user', JSON.stringify(profile));
+              return profile;
+            }
+          }
+        } catch (fbErr: any) {
+          console.warn('[Firebase Auth] Sign-in notice:', fbErr.message);
+        }
+      }
+
+      // 2. Supabase Auth Attempt
       if (isSupabaseClientConfigured && supabase) {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
@@ -151,7 +208,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             .single();
 
           if (pError || !profile) {
-            // Fallback to trusted metadata if profile record is syncing
             const meta = data.user.user_metadata || {};
             const fallbackProfile: UserProfile = {
               id: data.user.id,
@@ -181,8 +237,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
-      // Demo/Development Preview Authentication
-      const normalizedEmail = email.toLowerCase().trim();
+      // 3. Demo/Development Preview Authentication
       let matchedProfile: UserProfile | undefined;
 
       if (normalizedEmail.includes('donor')) {
@@ -194,23 +249,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else if (normalizedEmail.includes('admin')) {
         matchedProfile = DEMO_PROFILES.admin;
       } else {
-        // Check registered demo users in demoStore
         const existingUsers = demoStore.getUsers();
         matchedProfile = existingUsers.find((u) => u.email?.toLowerCase() === normalizedEmail);
       }
 
       if (!matchedProfile) {
-        // If password is too short or email not recognized in demo mode
         if (password.length < 6) {
           throw new Error('Invalid credentials: password must be at least 6 characters.');
         }
-        // Create an on-the-fly authenticated preview user
         matchedProfile = {
           id: `user-${Date.now()}`,
           full_name: email.split('@')[0],
           email,
           role: 'donor',
-          city: 'Delhi NCR',
+          city: 'Mumbai',
           is_active: true,
         };
       }
@@ -236,7 +288,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   ): Promise<UserProfile> => {
     setLoading(true);
     try {
-      // 1. Strict Server-Side & Client Constraint: NEVER allow admin via public registration
       if ((data.role as string) === 'admin') {
         throw new Error('Public registration as Administrator is strictly prohibited.');
       }
@@ -245,6 +296,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('Password must be at least 6 characters long.');
       }
 
+      // 1. Firebase Auth Registration
+      if (isFirebaseConfigured && auth) {
+        try {
+          const cred = await createUserWithEmailAndPassword(auth, email, password);
+          if (cred?.user) {
+            const token = await cred.user.getIdToken();
+            localStorage.setItem('shareplate_token', token);
+            const newProfile: UserProfile = {
+              id: cred.user.uid,
+              full_name: data.fullName,
+              email,
+              role: data.role,
+              organization_name: data.organizationName || null,
+              phone: data.phone,
+              city: data.city || 'Mumbai',
+              service_area: data.serviceArea || null,
+              donor_type: data.donorType || null,
+              recipient_type: data.recipientType || null,
+              contact_person: data.contactPerson || null,
+              availability: data.availability || null,
+              bio: data.bio || null,
+              avatar_url: data.avatarUrl || null,
+              is_active: true,
+            };
+
+            if (db) {
+              await setDoc(doc(db, 'users', cred.user.uid), {
+                ...newProfile,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              });
+            }
+
+            demoStore.addUser(newProfile);
+            setUser(newProfile);
+            setIsDemoUser(false);
+            localStorage.setItem('shareplate_current_user', JSON.stringify(newProfile));
+            return newProfile;
+          }
+        } catch (fbErr: any) {
+          console.warn('[Firebase Auth] Registration notice:', fbErr.message);
+        }
+      }
+
+      // 2. Supabase Auth Registration Fallback
       if (isSupabaseClientConfigured && supabase) {
         const { data: authData, error } = await supabase.auth.signUp({
           email,
@@ -255,14 +351,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               role: data.role,
               organization_name: data.organizationName,
               phone: data.phone,
-              city: data.city || 'Delhi NCR',
-              service_area: data.serviceArea,
-              donor_type: data.donorType,
-              recipient_type: data.recipientType,
-              contact_person: data.contactPerson,
-              availability: data.availability,
-              bio: data.bio,
-              avatar_url: data.avatarUrl,
+              city: data.city,
             },
           },
         });
@@ -277,7 +366,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             role: data.role,
             organization_name: data.organizationName || null,
             phone: data.phone,
-            city: data.city || 'Delhi NCR',
+            city: data.city,
             service_area: data.serviceArea || null,
             donor_type: data.donorType || null,
             recipient_type: data.recipientType || null,
@@ -288,19 +377,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             is_active: true,
           };
 
-          // If session is immediately established (email confirmation disabled in Supabase)
-          if (authData.session) {
-            localStorage.setItem('shareplate_token', authData.session.access_token);
-            setUser(newProfile);
-            setIsDemoUser(false);
-            localStorage.setItem('shareplate_current_user', JSON.stringify(newProfile));
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .upsert([newProfile]);
+
+          if (profileError) {
+            console.warn('Profile write notice, caching authenticated user:', profileError.message);
           }
 
+          setUser(newProfile);
+          setIsDemoUser(false);
+          if (authData.session) {
+            localStorage.setItem('shareplate_token', authData.session.access_token);
+          }
+          localStorage.setItem('shareplate_current_user', JSON.stringify(newProfile));
           return newProfile;
         }
       }
 
-      // Demo Mode Registration
+      // 3. Demo Mode Registration
       const newDemoUser: UserProfile = {
         id: `user-${Date.now()}`,
         full_name: data.fullName,
@@ -308,7 +403,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role: data.role,
         organization_name: data.organizationName || null,
         phone: data.phone,
-        city: data.city || 'Delhi NCR',
+        city: data.city || 'Mumbai',
         service_area: data.serviceArea || null,
         donor_type: data.donorType || null,
         recipient_type: data.recipientType || null,
@@ -361,7 +456,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
-    // Demo Mode Simulation
     await new Promise((resolve) => setTimeout(resolve, 600));
     console.info(`[Demo Mode] Password reset link simulated for: ${email}`);
   };
@@ -377,7 +471,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
-    // Demo Mode Simulation
     await new Promise((resolve) => setTimeout(resolve, 600));
     console.info('[Demo Mode] Password successfully updated in session.');
   };
@@ -390,6 +483,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ...updates,
     };
 
+    // 1. Sync to Firebase Firestore
+    if (db && isFirebaseConfigured) {
+      try {
+        await setDoc(doc(db, 'users', user.id), updatedUser, { merge: true });
+        console.info(`[Firebase] User profile ${user.id} updated in Firestore.`);
+      } catch (err: any) {
+        console.warn('[Firebase] Firestore updateProfile notice:', err.message);
+      }
+    }
+
+    // 2. Sync to Supabase if configured
     if (isSupabaseClientConfigured && supabase && !isDemoUser) {
       const { error: sbError } = await supabase
         .from('profiles')
@@ -409,19 +513,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
 
-    // Keep demo store updated
+    // 3. Keep demo store updated
     demoStore.updateUser(user.id, updates);
 
-    // Keep seeded demo role updated if applicable
+    // 4. Keep seeded demo role updated if applicable
     if (user.role && DEMO_PROFILES[user.role]) {
       Object.assign(DEMO_PROFILES[user.role], updates);
     }
 
-    // Persist to local state & storage
+    // 5. Persist to local state & storage
     setUser(updatedUser);
     localStorage.setItem('shareplate_current_user', JSON.stringify(updatedUser));
 
-    // Broadcast live change across components and tabs
+    // 6. Broadcast live change across components and tabs
     liveUpdatesService.notifyChange('profiles', 'UPDATE', updatedUser);
 
     return updatedUser;
@@ -460,6 +564,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async (): Promise<void> => {
     setLoading(true);
     try {
+      if (isFirebaseConfigured && auth) {
+        try {
+          await firebaseSignOut(auth);
+        } catch {}
+      }
       if (isSupabaseClientConfigured && supabase) {
         await supabase.auth.signOut();
       }

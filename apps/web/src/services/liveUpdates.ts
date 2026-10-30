@@ -1,4 +1,6 @@
 import { supabase, isSupabaseClientConfigured } from '../lib/supabase';
+import { db, isFirebaseConfigured } from '../lib/firebase';
+import { collection, onSnapshot, Unsubscribe } from 'firebase/firestore';
 
 export type LiveEventType =
   | 'claim_created'
@@ -19,6 +21,8 @@ class LiveUpdatesService {
   private listeners: Set<ChangeListener> = new Set();
   private broadcastChannel: BroadcastChannel | null = null;
   private supabaseChannel: any = null;
+  private unsubFbDonations: Unsubscribe | null = null;
+  private unsubFbClaims: Unsubscribe | null = null;
   private pollingTimer: any = null;
   private debounceTimer: any = null;
   private isSubscribedToSupabase = false;
@@ -27,6 +31,7 @@ class LiveUpdatesService {
     this.initBroadcastChannel();
     this.initWindowEventListener();
     this.initStorageEventListener();
+    this.initFirebaseRealtime();
   }
 
   private initStorageEventListener() {
@@ -61,6 +66,55 @@ class LiveUpdatesService {
           this.notifyListeners(e.detail.type, e.detail.payload);
         }
       }) as EventListener);
+    }
+  }
+
+  /**
+   * Initializes Firebase Firestore onSnapshot listeners for live multi-user sync.
+   */
+  public initFirebaseRealtime() {
+    if (!db || !isFirebaseConfigured || typeof window === 'undefined' || this.unsubFbDonations) {
+      return;
+    }
+
+    try {
+      this.unsubFbDonations = onSnapshot(
+        collection(db, 'donations'),
+        (snapshot) => {
+          snapshot.docChanges().forEach((change) => {
+            if (change.type === 'added') {
+              this.notifyListeners('donation_created', change.doc.data());
+            } else if (change.type === 'modified') {
+              this.notifyListeners('donation_updated', change.doc.data());
+            } else if (change.type === 'removed') {
+              this.notifyListeners('donation_cancelled', change.doc.data());
+            }
+          });
+        },
+        (err) => {
+          console.warn('[LiveUpdates] Firebase donations stream notice:', err.message);
+        }
+      );
+
+      this.unsubFbClaims = onSnapshot(
+        collection(db, 'claims'),
+        (snapshot) => {
+          snapshot.docChanges().forEach((change) => {
+            if (change.type === 'added') {
+              this.notifyListeners('claim_created', change.doc.data());
+            } else if (change.type === 'modified') {
+              this.notifyListeners('claim_updated', change.doc.data());
+            } else if (change.type === 'removed') {
+              this.notifyListeners('claim_cancelled', change.doc.data());
+            }
+          });
+        },
+        (err) => {
+          console.warn('[LiveUpdates] Firebase claims stream notice:', err.message);
+        }
+      );
+    } catch (err) {
+      console.warn('[LiveUpdates] Firebase real-time attach notice:', err);
     }
   }
 
@@ -140,34 +194,42 @@ class LiveUpdatesService {
       window.dispatchEvent(new CustomEvent('shareplate:state_changed', { detail: { type: eventName, payload } }));
     }
 
-    // 3. Notify local listeners with debouncing to prevent UI thrashing
-    this.notifyListeners(eventName, payload);
+    // 3. Notify intra-process subscribers with light debouncing for batch stability
+    this.debounceNotify(eventName, payload);
   }
 
-  private notifyListeners(type: string, payload?: any) {
+  private debounceNotify(type: string, payload?: any) {
     if (this.debounceTimer) {
       clearTimeout(this.debounceTimer);
     }
+
     this.debounceTimer = setTimeout(() => {
-      this.listeners.forEach((listener) => {
-        try {
-          listener(type, payload);
-        } catch (err) {
-          console.error('[LiveUpdates] Error in listener callback:', err);
-        }
-      });
-    }, 150);
+      this.notifyListeners(type, payload);
+      this.debounceTimer = null;
+    }, 30);
+  }
+
+  private notifyListeners(type: string, payload?: any) {
+    this.listeners.forEach((listener) => {
+      try {
+        listener(type, payload);
+      } catch (err) {
+        console.error('[LiveUpdates] Error in event listener callback:', err);
+      }
+    });
   }
 
   /**
-   * Subscribes a callback to live updates and returns an unsubscribe function.
+   * Subscribes a React component callback to real-time events.
    */
   public subscribe(listener: ChangeListener): () => void {
     this.listeners.add(listener);
-    if (!this.isSubscribedToSupabase) {
+
+    if (this.listeners.size === 1) {
+      this.startPolling();
+      this.initFirebaseRealtime();
       this.initSupabaseRealtime();
     }
-    this.startPolling();
 
     return () => {
       this.listeners.delete(listener);
@@ -177,18 +239,8 @@ class LiveUpdatesService {
     };
   }
 
-  public cleanup() {
-    this.stopPolling();
-    this.listeners.clear();
-    if (this.broadcastChannel) {
-      this.broadcastChannel.close();
-      this.broadcastChannel = null;
-    }
-    if (this.supabaseChannel && supabase) {
-      supabase.removeChannel(this.supabaseChannel);
-      this.supabaseChannel = null;
-      this.isSubscribedToSupabase = false;
-    }
+  public getSubscriberCount(): number {
+    return this.listeners.size;
   }
 }
 

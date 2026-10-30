@@ -19,7 +19,8 @@
     "build:api": "npm run build --workspace=@shareplate/api",
     "test": "npm run test --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
-    "db:reset-demo": "node scripts/reset-demo-data.js"
+    "db:reset-demo": "node scripts/reset-demo-data.js",
+    "seed:firebase": "node scripts/seed-firebase.js"
   },
   "keywords": [
     "food-rescue",
