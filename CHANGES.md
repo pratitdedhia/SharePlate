@@ -474,4 +474,35 @@ Use the pre-filled fields in [docs/NOTION_SUBMISSION_CHECKLIST.md](file:///c:/Us
   - Partial deliveries award points proportional to confirmed delivered portions.
   - Disputes freeze points at 0 and block point release.
   - Trip planning assigns sequential stops along corridors.
-- Total automated tests passing: **61 passed, 0 failed** (59 frontend + 2 backend).
+- Total automated tests passing: **68 passed, 0 failed** (66 frontend + 2 backend).
+
+---
+
+### TIER 5: Volunteer Routing, Personal Commute Segregation & Brand Polish
+
+#### 1. Header Brand Polish ("HACKDAYS '26" Tag Removal)
+- **Removal of Event Badge from Header:**
+  - Removed the `HACKDAYS '26` uppercase green badge that was positioned directly next to the `SharePlate` logo in [apps/web/src/components/common/Navbar.tsx](file:///c:/Users/dedhi/OneDrive/Desktop/Pratit/Hackathon/Hacktober%20HackDays/apps/web/src/components/common/Navbar.tsx#L84-L98).
+  - The brand block now cleanly displays the SharePlate icon, title, and tagline (*"Rescue Food · Feed Communities"*) without cluttering badge elements.
+
+#### 2. Volunteer Routing & Map-Based Stop Sequence
+- **TaskRouteMap Component ([apps/web/src/components/volunteer/TaskRouteMap.tsx](file:///c:/Users/dedhi/OneDrive/Desktop/Pratit/Hackathon/Hacktober%20HackDays/apps/web/src/components/volunteer/TaskRouteMap.tsx)):**
+  - Implemented an interactive route map visualizing sequential stops: volunteer origin, donor pickup points, recipient shelters, and final destination.
+  - Interactive leg-by-leg transit directions with turn steps.
+  - External navigation integration: one-click **"Open in Google Maps"** fallback (`https://www.google.com/maps/dir/?api=1&...`) providing actual turn-by-turn mobile navigation without fabricating fake GPS telemetry or unverified route optimization.
+
+#### 3. Strict Personal Commute Segregation
+- **Personal Travel Isolation:**
+  - Separated volunteer origin/destination stops from SharePlate donation actions.
+  - Acknowledging personal departure or arrival simply updates the volunteer's travel checklist (`handleCompletePersonalStop`) and **never** creates, advances, or completes a donation claim.
+  - Points released on personal stops are strictly **0**.
+- **Context-Sensitive Stop Actions:**
+  - **Pickup Stops:** Display "Mark Picked Up" and donor handover verification. Delivery actions are completely disabled.
+  - **Delivery Stops:** Display "Confirm Delivery" with portion count input and recipient NGO receipt sign-off. Pickup actions are completely disabled.
+  - Each action is bound to its specific backing claim record via `stop.claim_id`.
+
+#### 4. Automated Regression Tests
+- Added test coverage in [apps/web/src/tests/claimFlow.test.ts](file:///c:/Users/dedhi/OneDrive/Desktop/Pratit/Hackathon/Hacktober%20HackDays/apps/web/src/tests/claimFlow.test.ts):
+  - Personal route stops cannot change claim status or release points.
+  - Pickup and delivery actions update claims atomically and reflect across donor, NGO, volunteer, and admin views.
+- **Full Test Suite:** 7 test files, **68 passed, 0 failed**.
