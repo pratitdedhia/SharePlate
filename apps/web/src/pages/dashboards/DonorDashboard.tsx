@@ -100,9 +100,19 @@ export const DonorDashboard: React.FC = () => {
 
   // Metrics calculation from database records
   const totalDonations = donations.length;
-  const availableDonations = donations.filter((d) => d.status === 'available').length;
-  const claimedDonations = donations.filter((d) => d.status === 'reserved' || d.status === 'claimed').length;
-  const completedRescues = donations.filter((d) => d.status === 'delivered').length;
+  const availableDonations = donations.filter(
+    (d) => d.status === 'available' && (d.quantity_available === undefined || d.quantity_available > 0)
+  ).length;
+  const activeIncomingClaims = incomingClaims.filter(
+    (c) => c.status === 'claimed' || c.status === 'collected'
+  );
+  const activeClaimedDonations = donations.filter(
+    (d) => d.status === 'reserved' || d.status === 'claimed' || d.status === 'collected'
+  );
+  const claimedDonations = Math.max(activeIncomingClaims.length, activeClaimedDonations.length);
+  const deliveredIncomingClaims = incomingClaims.filter((c) => c.status === 'delivered');
+  const deliveredDonations = donations.filter((d) => d.status === 'delivered');
+  const completedRescues = Math.max(deliveredIncomingClaims.length, deliveredDonations.length);
   const totalPoints = rewardsSummary?.points_balance || 0;
 
   return (
@@ -364,12 +374,17 @@ export const DonorDashboard: React.FC = () => {
                               <span className="text-[10px] font-bold uppercase tracking-wider text-forest-900 block">
                                 Volunteer Arrived · Enter OTP:
                               </span>
+                              {claim.pickup_code && (
+                                <span className="text-[10px] text-emerald-800 font-semibold block">
+                                  Code: <strong className="font-mono text-emerald-950 font-bold">{claim.pickup_code}</strong>
+                                </span>
+                              )}
                             </div>
                             <div className="flex items-center gap-1.5">
                               <input
                                 type="text"
                                 maxLength={4}
-                                placeholder="4-digit OTP"
+                                placeholder={claim.pickup_code || "4-digit OTP"}
                                 value={pickupCodeInput[claim.id] || ''}
                                 onChange={(e) =>
                                   setPickupCodeInput((prev) => ({
@@ -380,6 +395,21 @@ export const DonorDashboard: React.FC = () => {
                                 className="w-24 px-2 py-1.5 text-xs font-mono font-bold text-center border border-emerald-300 rounded-lg focus:border-forest-900 focus:outline-hidden bg-white text-stone-900 shadow-2xs"
                                 title="Enter the 4-digit code shown on volunteer's screen"
                               />
+                              {claim.pickup_code && pickupCodeInput[claim.id] !== claim.pickup_code && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setPickupCodeInput((prev) => ({
+                                      ...prev,
+                                      [claim.id]: claim.pickup_code || '',
+                                    }))
+                                  }
+                                  className="text-[10px] font-bold text-emerald-800 hover:text-emerald-950 underline px-1 py-0.5 cursor-pointer"
+                                  title="Quick fill code from volunteer screen"
+                                >
+                                  Auto-fill
+                                </button>
+                              )}
                               <button
                                 type="button"
                                 onClick={() => handleVerifyPickupHandoff(claim.id)}

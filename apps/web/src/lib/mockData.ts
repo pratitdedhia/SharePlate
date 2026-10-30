@@ -1485,7 +1485,11 @@ class DemoStore {
     if (claim.volunteer_id && confirmedByUserId === claim.volunteer_id) {
       throw new Error('Unauthorized: Volunteer cannot confirm pickup on behalf of donor');
     }
-    const confirmingUser = this.users.find((u) => u.id === confirmedByUserId);
+    const confirmingUser =
+      this.users.find((u) => u.id === confirmedByUserId) ||
+      (typeof localStorage !== 'undefined' && localStorage.getItem('shareplate_current_user')
+        ? JSON.parse(localStorage.getItem('shareplate_current_user')!)
+        : null);
     const donation = this.donations.find((d) => d.id === claim.donation_id) || claim.donation;
     const isOwner = donation && donation.donor_id === confirmedByUserId;
     const isDemoDonorOrAdmin = confirmingUser && (confirmingUser.role === 'donor' || confirmingUser.role === 'admin');
@@ -1520,12 +1524,20 @@ class DemoStore {
       }
     }
 
-    const donorProfile = this.users.find((u) => u.id === confirmedByUserId) || DEMO_PROFILES.donor;
+    const donorProfile =
+      this.users.find((u) => u.id === confirmedByUserId) ||
+      confirmingUser ||
+      DEMO_PROFILES.donor;
     claim.pickup_confirmed_by = donorProfile.full_name + (donorProfile.organization_name ? ` (${donorProfile.organization_name})` : '');
     claim.pickup_confirmed_at = new Date().toISOString();
     claim.collected_at = claim.pickup_confirmed_at;
     claim.status = 'collected';
     claim.verification_status = 'in_transit';
+
+    // Synchronize underlying donation status
+    if (donation && (donation.quantity_available === 0 || donation.status === 'reserved')) {
+      donation.status = 'collected';
+    }
 
     this.addActivityLog('donor_pickup_confirmed', {
       claim_id: claimId,
@@ -1576,7 +1588,11 @@ class DemoStore {
     if (claim.volunteer_id && confirmedByUserId === claim.volunteer_id) {
       throw new Error('Unauthorized: Volunteer cannot confirm delivery on behalf of recipient');
     }
-    const confirmingUser = this.users.find((u) => u.id === confirmedByUserId);
+    const confirmingUser =
+      this.users.find((u) => u.id === confirmedByUserId) ||
+      (typeof localStorage !== 'undefined' && localStorage.getItem('shareplate_current_user')
+        ? JSON.parse(localStorage.getItem('shareplate_current_user')!)
+        : null);
     const isRecipientOwner = claim.recipient_id === confirmedByUserId;
     const isDemoRecipientOrAdmin = confirmingUser && (confirmingUser.role === 'recipient' || confirmingUser.role === 'admin');
     if (!isRecipientOwner && !isDemoRecipientOrAdmin) {
@@ -1666,6 +1682,9 @@ class DemoStore {
           created_at: new Date().toISOString(),
           reason: `Delivered & confirmed rescue: ${claim.portions_delivered_confirmed} portions delivered (${DONOR_REWARD_RULES.BASE_POINTS_PER_DELIVERY} base + ${claim.portions_delivered_confirmed * DONOR_REWARD_RULES.POINTS_PER_PORTION} portion bonus, capped at ${DONOR_REWARD_RULES.MAX_POINTS_PER_DELIVERY} pts)`,
         });
+      }
+      if (donation && (donation.quantity_available === 0 || donation.status === 'collected')) {
+        donation.status = 'delivered';
       }
     }
 

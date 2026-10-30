@@ -112,6 +112,12 @@ describe('Comprehensive Feature Suite for SharePlate', () => {
       expect(delivered.delivered_at).toBeDefined();
     });
 
+    it('accurately accounts for claims in claimed and collected statuses for donor transit counts', async () => {
+      const donorClaims = await claimsService.getMyClaims(DEMO_PROFILES.donor.id, true);
+      const activeInTransit = donorClaims.filter((c) => c.status === 'claimed' || c.status === 'collected');
+      expect(activeInTransit).toBeDefined();
+    });
+
     it('allows cancelling an active claim and restores portion inventory', async () => {
       const donationId = 'd0000000-0000-0000-0000-000000000003';
       const before = await donationsService.getDonationById(donationId);

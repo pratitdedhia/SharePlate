@@ -136,6 +136,7 @@ export const claimsService = {
     if (isDemoMode()) {
       const claim = demoStore.confirmPickup(claimId, confirmedByUserId, enteredCode);
       liveUpdatesService.notifyChange('claims', 'UPDATE', claim);
+      liveUpdatesService.notifyChange('donations', 'UPDATE', { id: claim.donation_id, status: 'collected' });
       return claim;
     }
 
@@ -144,6 +145,7 @@ export const claimsService = {
       body: JSON.stringify({ code: enteredCode, user_id: confirmedByUserId }),
     });
     liveUpdatesService.notifyChange('claims', 'UPDATE', res.data);
+    liveUpdatesService.notifyChange('donations', 'UPDATE', { id: res.data?.donation_id || claimId, status: 'collected' });
     return res.data;
   },
 
@@ -171,6 +173,7 @@ export const claimsService = {
     if (isDemoMode()) {
       const result = demoStore.confirmDelivery(claimId, confirmedByUserId, portionsReceived, enteredCode);
       liveUpdatesService.notifyChange('claims', 'UPDATE', result.claim);
+      liveUpdatesService.notifyChange('donations', 'UPDATE', { id: result.claim.donation_id, status: 'delivered' });
       return result;
     }
 
@@ -183,6 +186,7 @@ export const claimsService = {
       }),
     });
     liveUpdatesService.notifyChange('claims', 'UPDATE', res.data?.claim || res.data);
+    liveUpdatesService.notifyChange('donations', 'UPDATE', { id: res.data?.claim?.donation_id || claimId, status: 'delivered' });
     return res.data;
   },
 
