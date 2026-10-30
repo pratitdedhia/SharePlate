@@ -110,3 +110,11 @@ CLOUDINARY_API_SECRET=your_api_secret
 CLOUDINARY_FOLDER=shareplate/donations
 CLOUDINARY_MAX_FILE_SIZE_MB=5
 ```
+
+---
+
+## 7. Verified Live Configuration & Error Surfacing
+
+1. **Unsigned Upload Preset:** Direct browser uploads are executed via `uploadToCloudinaryUnsigned` using Cloudinary's unsigned upload presets (tested live with preset `Hacktober Hackathon` on cloud `lhdfjjdh`), avoiding the need to expose API secrets.
+2. **Defensive Error Surfacing:** If an unsigned upload preset is configured but fails (e.g., preset typo, signing mode mismatch, or network disconnection), the upload service catches the error and surfaces explicit troubleshooting feedback to the user and caller rather than masking failures behind a local demo preview.
+3. **Zero-Config Evaluation Fallback:** If neither signed backend nor unsigned preset is configured, the uploader displays an informative setup guide banner and provides pre-seeded Cloudinary evaluation assets (`Fresh Biryani`, `Roti & Sabzi`, `Bakery Loaves`) alongside labeled local object previews (`local_preview`).

@@ -30,12 +30,13 @@ To provide instant, zero-friction evaluation for hackathon judges without requir
 - **🔐 Role-Based Food Rescue Access:** Professional authentication flows with session persistence, inline error handling, and role-based redirects.
 - **⚡ 1-Click Quick Demo Access:** Instant evaluation buttons for Judges on `/login` to continue immediately as Donor, Recipient, Volunteer, or Admin with seeded personas.
 - **🛡️ Strict Role-Based Dashboards & Dynamic RBAC Navigation:** Purpose-built workflows with tailored navigation for all personas:
-  - **Donor:** Dashboard & My Listings (`/my-donations`); Browse Food, Impact, and About links are strictly hidden.
+  - **Donor:** Dashboard, My Listings (`/my-donations`), and **Donor Rewards Ledger**; Browse Food, Impact, and About links are strictly hidden.
   - **Recipient:** Dashboard, Browse Food (`/donations`), and My Claims (`/my-claims`); Impact and About links are hidden.
   - **Volunteer:** Dedicated 3-Tab *Last-Mile Food Rescue & Rewards Hub*:
-    - **1. "On-My-Way" Commute Trip Planner:** Enter origin and destination, browse nearby rescue tasks along transit corridors (Delhi NCR, Mumbai, Pune presets), select tasks with checkboxes, review sequential stop orders, and accept planned routes.
-    - **2. Stop-by-Stop Checklist & Two-Party Verification:** Step-by-step navigation checklist with unlocked contact/dock notes. Enforces a strict two-party verification state machine (`Available → Accepted → Pickup awaiting confirmation → In transit → Delivery awaiting confirmation → Verified / Disputed`). Separate attributable confirmations for donor pickup and recipient NGO delivery using one-time verification codes. Points are never released on volunteer self-claim.
+    - **1. "On-My-Way" Commute Trip Planner:** Enter origin and destination, browse nearby rescue tasks along transit corridors (Delhi NCR, Mumbai, Pune presets), select tasks with checkboxes, review sequential stop orders, generate multi-stop Google Maps directions with waypoint partitioning (<= 9 waypoints per leg), and accept planned routes.
+    - **2. Stop-by-Stop Checklist & Two-Party OTP Verification:** Step-by-step navigation checklist with unlocked dock instructions. Enforces strict two-party verification (`Available → Accepted → Pickup awaiting confirmation → In transit → Delivery awaiting confirmation → Delivered / Disputed`). 4-digit one-time codes generated upon arrival with 15-minute expiration and 3-attempt lockout. The donor restaurant verifies handover at pickup, and the recipient NGO confirms portions at delivery. Volunteer self-confirmation is strictly rejected.
     - **3. Volunteer Rewards & Points Ledger:** Transparent capped rewards formula (\(\min(150, 50 + 2 \times \text{portions})\)), pending vs. released points counters, milestone progression (Bronze Courier → Silver → Gold Champion), immutable audit history, and clear disclosure of future corporate sponsor voucher concepts.
+  - **Donor Rewards System:** Persisted rewards ledger for food donors, awarded strictly upon verified NGO delivery confirmation (\(\min(200, 20 + 2 \times \text{portions})\)). Zero rewards for listings, reservations, pickups, cancellations, or disputes. Donors view points balance and verifiable delivery history.
   - **Admin:** Comprehensive 5-tab Command Center: real-time analytics graphs, user account CRUD & activation controls, "Who Donated" surplus ledger with detail inspection, "Who Received" distribution ledger with status filters, and safety/allergen moderation queue.
 - **🔍 Interactive Click-to-Inspect Food Cards:** Seamless navigation to listing details from card images, titles, and action buttons, presenting Cloudinary meal banners, ingredient disclosures, allergen tags, and real-time pickup countdown timers.
 - **📋 Food Safety & Expiration Controls:** Prepared-at timestamps, consume-within hours, storage instructions, and veg/non-veg tags. Donations past pickup deadlines are automatically greyed out and protected against claims.
@@ -59,7 +60,7 @@ To provide instant, zero-friction evaluation for hackathon judges without requir
 | **Media Cloud** | Cloudinary | Direct client upload preset, server signatures, auto-format (`f_auto`), smart crop (`g_auto`) |
 | **Production Backend** | Node.js 24 LTS, Express, TypeScript | REST API, Zod schema validation, Helmet security headers, CORS |
 | **Production Database** | PostgreSQL 15+ (Supabase) | Multi-tenant Row Level Security (RLS), atomic stored procedures (`claim_donation_atomic`) |
-| **Testing** | Vitest, Node.js Test Runner | 74 frontend tests (donor rewards, volunteer trip routing, two-party claim flows, impact math, auth, upload fallback, features suite, render verification), 2 backend tests (76 total) |
+| **Testing** | Vitest, Node.js Test Runner | 89 frontend tests (donor rewards ledger, volunteer trip routing & waypoint limits, two-party OTP verification, cross-portal sync, impact math, auth, upload fallback & error handling, features suite, render safety), 2 backend tests (91 total passed) |
 | **Documentation** | Notion (Mandatory Hackathon Platform) | 12 structured markdown guides under `docs/notion/` |
 
 ---
@@ -186,7 +187,7 @@ Open **`http://localhost:5173`** in your browser.
 
 ## 🧪 Automated Testing & Verification
 
-All automated tests execute with 100% passing results across 76 tests:
+All automated tests execute with 100% passing results across 91 tests:
 
 ### Run Backend API Tests:
 ```bash
@@ -217,10 +218,15 @@ npm run build:web
 ## 🎬 Recommended 2–3 Minute Evaluation Demo Script
 
 1. **Homepage & Mission Context:** Open `https://pratitdedhia.github.io/SharePlate/`. Review the mission statement, demonstration trust metrics (derived via single calculation engine), and food safety guidance.
-2. **List Surplus Food (Donor):** Switch to the **Canteen / Donor** persona using the top navigation role switcher. Click **+ Donate Food** (`#/donations/new`). Upload a photo via Cloudinary or select a preloaded sample. Observe the smart auto-crop preview (`g_auto` across 4:3, 16:9, and 1:1) and real measured bandwidth savings on live upload. Enter 45 portions of *Vegetable Pulao*, set dietary tag *Veg*, allergen tags, and a 4-hour pickup deadline.
+2. **List Surplus Food (Donor):** Switch to the **Canteen / Donor** persona using the top navigation role switcher. Click **+ Donate Food** (`#/donations/new`). Upload a photo via Cloudinary (or select an evaluation preset). Observe the smart content-aware auto-crop preview (`g_auto` across 4:3, 16:9, and 1:1) and real measured bandwidth savings. Enter 45 portions of *Vegetable Pulao*, set dietary tag *Veg*, allergen tags, and a 4-hour pickup deadline.
 3. **Reserve Portions (NGO):** Switch persona to **NGO / Recipient** (Robin Hood Army). Browse `#/donations`. Claim 20 portions. Observe the available count drop from 45 to 25 immediately.
-4. **Protected Logistics & Delivery:** Open **My Claims** (`#/my-claims`). View the revealed private pickup instructions and donor contact. Advance status: **Mark Picked Up** (`collected`), then **Confirm Delivery** (`delivered`).
-5. **Impact Dashboard:** Open `#/impact`. Show the real-time portion funnel updating and the CO₂e avoided metric recalculating dynamically based on FAO/UNEP factors.
+4. **Commute Trip Planning & Multi-Stop Route (Volunteer):** Switch to **Volunteer Courier** (Youth For Food Relief). Open **Trip Planner** tab (`#/dashboard/volunteer`), enter commute origin and destination, select the rescue task, inspect the sequential stop order, and click **Open Route in Google Maps** (handles waypoint partitioning for legs $>9$ stops).
+5. **Two-Party OTP Handover & Verification:**
+   - At pickup, volunteer initiates handover (generating 4-digit OTP). Switch to **Donor** to verify the code and release food.
+   - At delivery, volunteer initiates handoff. Switch to **Recipient** to confirm received portions and verify the OTP.
+6. **Donor Rewards & Impact Dashboards:**
+   - Switch back to **Donor** and review the **Donor Rewards Ledger** (`#/dashboard/donor`) to see points awarded strictly upon recipient delivery confirmation.
+   - Open `#/impact`. Show the real-time portion funnel updating and the CO₂e avoided metric recalculating dynamically based on FAO/UNEP factors.
 
 ---
 
@@ -281,7 +287,7 @@ While SharePlate provides an end-to-end interactive experience in demo mode and 
 
 1. **Transactional OTP & SMS Gateway:** Integrate Twilio or Fast2SMS so volunteer couriers and canteen managers receive instant SMS/WhatsApp alerts for pickups without requiring an open web browser.
 2. **Official NGO Verification:** In the demo, NGOs register with self-reported 80G/FCRA IDs. Production requires integrating with government registry APIs (NGO Darpan) for KYC verification.
-3. **Dynamic Route Optimization:** Volunteers currently coordinate individual pickups manually. Future releases will integrate Mapbox/Google Maps Matrix API to bundle nearby pick-up stops into optimized multi-batch courier routes.
+3. **Dynamic Traffic Matrix Optimization:** SharePlate generates sequential multi-stop Google Maps routes with automatic waypoint partitioning (handling Google Maps limits). Future releases will integrate real-time traffic matrix APIs to dynamically re-order waypoints based on live traffic congestion.
 4. **Production Cloud Deployment of Express + Supabase:** Host `apps/api` on Render/Fly.io and connect with a production Supabase PostgreSQL instance with automated backups and read-replicas.
 5. **Multilingual Localization (i18n):** Expand UI and donor submission forms into Hindi, Marathi, Tamil, and Bengali to support diverse regional canteen staff and grassroot volunteers.
 
@@ -307,7 +313,7 @@ SharePlate is a community coordination technology platform. **SharePlate does no
 - **[Team Member 3 — Full Name] (Database Engineering & Concurrency):**
   - PostgreSQL schema design (`supabase/`), Row Level Security policies, atomic reservation stored procedures (`claim_donation_atomic`).
 - **[Team Member 4 — Full Name] (QA, Documentation & Notion Journey):**
-  - Automated test authoring (55 automated tests), unified impact calculation math, complete Notion documentation portfolio (`docs/notion/`), and judge demo walkthrough.
+  - Automated test authoring (91 automated tests passing across 7 suites), unified impact calculation math, complete Notion documentation portfolio (`docs/notion/`), and judge demo walkthrough.
 
 ---
 

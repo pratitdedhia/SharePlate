@@ -26,10 +26,12 @@ SharePlate is a community-driven food rescue web platform engineered for **Hackt
 - **Concurrency & Double-Booking Safety:** PostgreSQL stored procedures (`claim_donation_atomic`) using `SELECT ... FOR UPDATE` row-level locks guarantee race-condition-free reservations.
 - **Privacy & Protected Logistics:** Sensitive kitchen loading dock instructions and donor phone numbers are masked in public feeds and revealed exclusively to verified claimants upon reservation.
 - **Tailored Role Experience:**
-  - `Donor`: Clean dashboard, my listings, + Donate Food.
-  - `Recipient`: Clean dashboard, browse surplus food, my claims.
-  - `Volunteer`: Dedicated Last-Mile Runner courier portal with 3-step route loop (Accept Route $\rightarrow$ Dock Pickup with PIN unlock $\rightarrow$ Deliver to Shelter).
+  - `Donor`: Clean dashboard, my listings, + Donate Food, and **Donor Rewards Ledger** (points balance and delivery verification history).
+  - `Recipient`: Clean dashboard, browse surplus food, my claims, and interactive delivery OTP verification with portion counts.
+  - `Volunteer`: Dedicated Last-Mile Runner courier portal with "On-My-Way" Commute Trip Planner, multi-stop Google Maps route links with automatic waypoint partitioning (<= 9 waypoints per leg), and two-party OTP handoffs at donor pickup and recipient delivery.
   - `Admin`: Comprehensive governance with 5 tabs (Full Insights & Portion Funnel, Who Donated ledger, Who Received distribution ledger, User Account lifecycle with Add/Edit/Delete modals, and Safety Reports queue).
+- **Two-Party OTP Verification Engine:** Prevents volunteer self-claims. 4-digit codes expire after 15 minutes with a 3-attempt lockout. Donors verify at pickup; recipient NGOs confirm receipt and portion counts at delivery to release reward points.
+- **Persisted Donor Rewards System:** Awards points strictly upon verified recipient delivery confirmation ($\min(200, 20 + 2 \times \text{portions})$). Zero rewards for listings, reservations, pickups, cancellations, or disputes.
 - **Portability:** Zero-dependency static deployment on GitHub Pages, and self-contained root `index.html` capable of offline double-click execution under `file:///` in any browser.
 
 ---
@@ -70,25 +72,25 @@ SharePlate is a community-driven food rescue web platform engineered for **Hackt
 3. Click **Details & Claim** (`#/donations/:id`).
 4. Reserve 20 portions via the claim modal. Confirm reservation: the available portion count drops immediately, atomically locking the claim!
 
-### Step 4: Volunteer Courier Last-Mile Delivery (1:45 – 2:15)
-1. Switch to **Volunteer Runner** persona.
-2. View the **Volunteer Dashboard** showing the clear 3-step food runner loop:
-   - Accept route for the surplus batch.
-   - Present digital gate clearance PIN at the kitchen dock and click **Confirm Pickup**.
-   - Deliver thermal container to shelter and click **Confirm Delivery**.
-3. Notice the live impact metrics update dynamically—crediting carbon savings only upon verified physical delivery!
+### Step 4: Volunteer Commute Route & Two-Party OTP Handover (1:45 – 2:15)
+1. Switch to **Volunteer Courier** persona.
+2. Open the **Trip Planner** tab: enter origin and destination, check surplus tasks along the commute, view the sequential route stop list, and click **Open Route in Google Maps** (handles waypoint partitioning for legs $>9$ stops).
+3. Demonstrate **Two-Party Verification**:
+   - Volunteer initiates pickup handover (generating 4-digit code). Switch to Donor to verify and release the food into transit.
+   - Volunteer arrives at recipient shelter and initiates delivery. Switch to Recipient NGO to verify the OTP and confirm received portions.
+4. Check **Points & Rewards**: volunteer points are released immediately upon verified receipt; donor rewards points are credited to the donor's ledger!
 
 ### Step 5: Admin Governance & Traceability Ledgers (2:15 – 2:45)
 1. Switch to **Admin** persona and navigate to the **Admin Dashboard** (`#/admin`):
    - **Full Insights Tab:** Interactive portion conversion funnel (Listed $\rightarrow$ Claimed $\rightarrow$ Picked Up $\rightarrow$ Delivered), city breakdown, and $CO_2e$ avoided.
-   - **Who Donated Tab:** Full historical ledger of all donor contributions.
+   - **Who Donated Tab:** Full historical ledger of all donor contributions and donor reward point status.
    - **Who Received Tab:** Full distribution ledger of all recipient NGO claims.
    - **User Accounts Tab:** Interactive table of all registered logins with functional modals to **Add User**, **Edit User**, **Toggle Active/Deactivate**, or **Delete User**.
    - **Safety Reports Tab:** Moderation queue for reviewing reported listings.
 
 ### Step 6: Cloudinary Evidence & Documentation Portfolio (2:45 – 3:00)
 1. Open the **About Page** (`#/about`) and review the 13 Notion engineering guides under `docs/notion/`.
-2. Emphasize that all 55 automated tests pass cleanly and the root `index.html` runs natively without setup.
+2. Emphasize that all 91 automated tests pass cleanly and the root `index.html` runs natively without setup.
 
 ---
 

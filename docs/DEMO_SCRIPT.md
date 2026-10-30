@@ -81,19 +81,21 @@ This path demonstrates the complete food rescue loop across Donor, Recipient, an
 3. Browse rescue tasks along the commute:
    - Tasks display pickup dock, drop-off shelter, portions, deadline, and handling rules.
    - Check the box to bundle tasks into the trip.
-4. Review the **Interactive Stop Order**:
+4. Review the **Interactive Stop Order & Navigation Route**:
    - `[Origin] -> [Stop 1: DTU Canteen Pickup] -> [Stop 2: Robin Hood Army Shelter Drop-off] -> [Destination]`
-   - Point out the **Demo Route Preview** disclosure: explains what is required for live GPS routing (Mapbox or Google Maps Directions API key).
+   - Point out **"Open Route in Google Maps"**: SharePlate generates a single Google Maps directions URL with sequential waypoints and automatic waypoint partitioning (handling Google Maps limits of $\le 9$ intermediate waypoints per leg).
+   - Point out that personal commute origin and destination are kept strictly separate from donation tasks.
 5. Click **"Accept Route & Open Checklist"**.
 
-### Step 6: Two-Party Verification & Transparent Rewards (3:00 – 3:35)
+### Step 6: Two-Party Verification Across Portals & Donor Rewards (3:00 – 3:35)
 1. In Tab 2: **"2. Route Checklist & Verification"**:
    - Stop-by-stop checklist with unlocked dock instructions and contact numbers.
-2. Demonstrate **Strict Two-Party Points Rule**:
-   - Point out: *Points are NOT released merely because a volunteer accepts a route or clicks complete.*
-   - **Step 1: Pickup Handover:** Shows One-Time Pickup Code (`4821`). Click *"Simulate Donor Handover Sign-off"* (or donor confirms). State transitions to *IN TRANSIT*. Points remain 0!
-   - **Step 2: Delivery Verification:** Shows One-Time Delivery Code (`7392`). Enter portions received (e.g., 40 portions). Click *"Simulate NGO Delivery Confirmation"*.
-   - Points are released: `50 base + 40x2 = 130 points`!
+2. Demonstrate **Strict Two-Party Verification Engine**:
+   - Point out: *Points are NEVER released merely because a volunteer accepts a route or clicks complete.*
+   - **Step 1: Pickup Handover:** Volunteer initiates handover at the donor dock, generating a secure 4-digit code (e.g. `4821` with 15-minute expiration and 3-attempt lockout). The volunteer cannot self-confirm. Switch to **Donor** persona, enter the OTP, and click *"Verify & Release Food"*. Claim moves to *IN TRANSIT*. Points remain 0!
+   - **Step 2: Delivery Verification:** Volunteer arrives at the recipient shelter and initiates delivery handoff. Switch to **Recipient** persona, enter the OTP with confirmed portion count, and click *"Verify Receipt & Release Rewards"*.
+   - **Points Release:** Volunteer rewards points are released into their ledger (`50 base + 40x2 = 130 points`).
+   - **Donor Rewards:** Switch to **Donor Dashboard** (`#/dashboard/donor`) &rarr; open **Donor Rewards Ledger** to show the donor also received points ($\min(200, 20 + 2 \times \text{portions})$) strictly upon verified physical delivery!
    - Show dispute capability: clicking *"Flag Delivery Dispute"* marks the task disputed and holds points at 0.
 3. In Tab 3: **"3. Points & Rewards"**:
    - Review pending vs. released points counters.
@@ -158,17 +160,17 @@ If anything unexpected occurs during a live presentation, use these instant fall
 > **Honest Answer:**  
 > *"We built the volunteer workflow around commute trip planning ('on-my-way food rescue'): volunteers enter their origin and destination, browse rescue tasks along that corridor, and view a sequential stop order.*  
 >  
-> *We are honest about our map integration: our demo provides a structured schematic sequence along corridors (Delhi NCR, Mumbai, Pune). We do not fake live GPS navigation, turn-by-turn guidance, or traffic calculations. Production turn-by-turn routing and real traffic optimization requires configuring a Mapbox or Google Maps Directions API key."*
+> *For real navigation, SharePlate generates a single Google Maps directions link that strings together all donor pickup and recipient delivery stops as sequential waypoints, ending at the volunteer's selected commute destination. If a trip exceeds Google Maps' URL parameter limit of 9 intermediate stops, our routing engine automatically partitions the trip into ordered route segments without dropping any stops. Personal origin and destination are kept strictly separate from donation tasks so personal travel can never advance claim status."*
 
 ### Q5: How do you prevent volunteers from gaming points? Why two-party verification?
 > **Honest Answer:**  
 > *"In many volunteer apps, runners can simply click 'Accepted' and 'Delivered' to farm reward points. In SharePlate, **points cannot be released by the volunteer alone**.*  
 >  
-> *We enforce a strict two-party verification state machine:*  
-> *1. At pickup, the donor kitchen verifies food packaging and confirms handover using an attributable sign-off and 4-digit code.*  
-> *2. At delivery, the recipient NGO coordinator inspects the food, inputs the confirmed portions received, and confirms receipt.*  
-> *3. Points release ONLY after both parties have confirmed. If portions are missing or food is damaged, the task is marked disputed and awards 0 points.*  
-> *4. The formula is transparent and capped: \(\min(150, 50 + (\text{portions} \times 2))\), which prevents gaming through micro-batch splitting.*  
+> *We enforce a strict two-party verification state machine across separate authenticated accounts:*  
+> *1. At pickup, the volunteer arrives and generates a 4-digit code (with 15-minute expiration and 3-attempt lockout). The donor kitchen verifies the food handover and enters the code from their own portal.*  
+> *2. At delivery, the recipient NGO coordinator inspects the food, inputs the confirmed portions received, and enters the delivery code from their own portal.*  
+> *3. Points release ONLY after both authenticated parties confirm. If portions are missing or food is damaged, the task is marked disputed and awards 0 points.*  
+> *4. In addition to volunteer points (\(\min(150, 50 + 2 \times \text{portions})\)), verified deliveries also credit the **Donor Rewards Ledger** (\(\min(200, 20 + 2 \times \text{portions})\)), motivating commercial kitchens to donate reliably.*  
 >  
 > *In production, this is enforced by PostgreSQL stored procedures in `supabase/schema.sql`, not just frontend checks."*
 

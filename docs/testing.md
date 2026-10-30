@@ -12,13 +12,16 @@ Our test strategy covers frontend unit tests, core domain math validation, state
 | :--- | :--- | :--- | :--- |
 | **Frontend Unit & Logic** | Vitest (`apps/web`) | `App.test.tsx` (baseline app rendering) | ✅ Passed (2/2) |
 | **Impact Calculation Engine** | Vitest (`apps/web`) | `tests/impactMath.test.ts` (funnel conservation & rescue rate) | ✅ Passed (4/4) |
-| **Claim Lifecycle & Expiration** | Vitest (`apps/web`) | `tests/claimFlow.test.ts` (over-claim guard, expiration, self-claim block) | ✅ Passed (6/6) |
-| **Cloudinary Upload Fallback Order** | Vitest (`apps/web`) | `tests/uploadsFallback.test.ts` (signed -> unsigned -> demo preview) | ✅ Passed (5/5) |
-| **Frontend Subtotal** | Vitest (`apps/web`) | All 4 test files | ✅ Passed (36/36) |
+| **Authentication & RBAC** | Vitest (`apps/web`) | `tests/auth.test.ts` (role guards, multi-role sessions) | ✅ Passed (19/19) |
+| **Claim Lifecycle & Concurrency** | Vitest (`apps/web`) | `tests/claimFlow.test.ts` (over-claim, expiration, isolation, donor rewards, volunteer routing, 2-party OTP) | ✅ Passed (45/45) |
+| **Features & Safety Integration** | Vitest (`apps/web`) | `tests/features.test.ts` (food safety disclaimers, dietary tags) | ✅ Passed (14/14) |
+| **Cloudinary Upload & Error Validation** | Vitest (`apps/web`) | `tests/uploadsFallback.test.ts` (signed, unsigned, local fallback, error surfacing) | ✅ Passed (6/6) |
+| **Page Render Safety** | Vitest (`apps/web`) | `tests/renderPage.test.tsx` (SSR hydration & render integrity) | ✅ Passed (1/1) |
+| **Frontend Subtotal** | Vitest (`apps/web`) | All 7 test suites | ✅ Passed (89/89) |
 | **Backend API Health** | Node.js Test Runner (`apps/api`) | Health route, express bootstrap | ✅ Passed (2/2) |
-| **Total Test Suite** | Node & Vitest | Full workspace suite | ✅ Passed (38/38) |
+| **Total Test Suite** | Node & Vitest | Full workspace suite | ✅ Passed (91/91) |
 | **TypeScript Type Checks** | `tsc --noEmit` | Strict compilation on web & API | ✅ Passed (0 errors) |
-| **Production Build** | `vite build` | Asset bundling, CSS/JS generation | ✅ Passed (clean exit 0) |
+| **Production Build** | `npm run build:web` | Asset bundling, root index.html mirroring | ✅ Passed (clean exit 0) |
 
 ---
 
@@ -66,6 +69,31 @@ Our test strategy covers frontend unit tests, core domain math validation, state
   3. Clear demo preview strictly labeled as not uploaded if cloud name is absent.
 - **Expected:** Strict fallback sequence followed without misleading user.
 - **Result:** Verified with mock fetch/XHR in Vitest.
+
+### Scenario 9: Multi-Account Isolation & Donor Claim Visibility
+- **Action:** NGO reserves portions from Donor A. Querying claims from Donor A, Donor B, and NGO accounts.
+- **Expected:** Donor A receives only claims on donations they own, with recipient profile included. Donor B receives zero claims.
+- **Result:** Verified in Vitest integration test suite.
+
+### Scenario 10: Volunteer Multi-Stop Route Sequencing & Waypoint Partitioning
+- **Action:** Volunteer bundles multiple pickup and drop-off tasks along their personal commute corridor. Generating Google Maps directions URLs.
+- **Expected:** Waypoints sequenced in proper pickup-before-delivery order. Trips exceeding Google Maps' 9-intermediate-waypoint limit are automatically partitioned into ordered legs without dropping stops.
+- **Result:** Verified in Vitest integration test suite.
+
+### Scenario 11: Two-Party Verification Engine (Pickup & Delivery OTP)
+- **Action:** Volunteer arrives at donor dock and initiates handover. Generates 4-digit OTP with 15-minute expiration. Donor kitchen enters the code. Later, recipient shelter enters delivery OTP and confirms portion count.
+- **Expected:** Volunteer cannot self-confirm. Cross-account users (unrelated donors or recipients) are rejected. Wrong codes increment attempt counters and lock out after 3 failures. Expired codes are rejected. Successful verification atomically updates claim lifecycle and releases rewards.
+- **Result:** Verified across 14 dedicated Vitest tests.
+
+### Scenario 12: Persisted Donor Rewards Ledger
+- **Action:** Testing reward points issuance upon donation creation, reservation, pickup, cancellation, dispute, and delivery confirmation.
+- **Expected:** Zero points awarded for listings, reservations, pickups, cancellations, or disputes. Points awarded strictly upon recipient NGO delivery verification ($\min(200, 20 + 2 \times \text{portions})$). Duplicate delivery confirmations cannot credit points twice. Donors cannot inspect other donors' reward ledgers.
+- **Result:** Verified in Vitest integration test suite.
+
+### Scenario 13: Cloudinary Upload Error Surfacing
+- **Action:** Attempting browser upload when unsigned preset is configured but Cloudinary API returns error (e.g., misspelled preset or unsigned mode not enabled in dashboard).
+- **Expected:** Service throws descriptive error with actionable troubleshooting advice instead of silently swallowing into a demo preview.
+- **Result:** Verified in Vitest upload service test suite.
 
 ---
 
