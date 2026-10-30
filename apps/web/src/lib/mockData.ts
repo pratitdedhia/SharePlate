@@ -484,10 +484,187 @@ export const INITIAL_DEMO_CLAIMS: Claim[] = [
   },
 ];
 
+export const INITIAL_DEMO_REWARD_RECORDS: VolunteerRewardRecord[] = [
+  {
+    id: 'rew-001',
+    volunteer_id: 'c0000000-0000-0000-0000-000000000001',
+    claim_id: 'f0000000-0000-0000-0000-000000000003',
+    donation_title: 'Rich Dal Makhani & Jeera Rice Combo',
+    recipient_name: 'Robin Hood Army - Delhi Chapter',
+    points: 150,
+    status: 'released',
+    portions_confirmed: 50,
+    verified_at: new Date(Date.now() - 42 * 3600000).toISOString(),
+    created_at: new Date(Date.now() - 47 * 3600000).toISOString(),
+    reason: 'Two-party verified rescue: 50 portions delivered (50 base + 50x2 capped at 150 pts)',
+  },
+  {
+    id: 'rew-002',
+    volunteer_id: 'c0000000-0000-0000-0000-000000000001',
+    claim_id: 'f0000000-0000-0000-0000-000000000002',
+    donation_title: 'Steamed Idlis, Medu Vada & Hot Sambar',
+    recipient_name: 'Robin Hood Army - Delhi Chapter',
+    points: 130,
+    status: 'released',
+    portions_confirmed: 40,
+    verified_at: new Date(Date.now() - 19 * 3600000).toISOString(),
+    created_at: new Date(Date.now() - 23 * 3600000).toISOString(),
+    reason: 'Two-party verified rescue: 40 portions delivered (50 base + 40x2 = 130 pts)',
+  },
+];
+
+export const INITIAL_DEMO_DONOR_REWARD_RECORDS: DonorRewardRecord[] = [
+  {
+    id: 'drew-001',
+    donor_id: 'a0000000-0000-0000-0000-000000000001',
+    donation_id: 'd0000000-0000-0000-0000-000000000006',
+    claim_id: 'f0000000-0000-0000-0000-000000000003',
+    donation_title: 'Rich Dal Makhani & Jeera Rice Combo',
+    recipient_name: 'Robin Hood Army - Delhi Chapter',
+    points: 130, // 30 base + (50 portions * 2) = 130
+    status: 'awarded',
+    portions_confirmed: 50,
+    confirmed_at: new Date(Date.now() - 42 * 3600000).toISOString(),
+    created_at: new Date(Date.now() - 42 * 3600000).toISOString(),
+    reason: 'Delivered & confirmed rescue: 50 portions delivered (30 base + 100 portion bonus = 130 pts)',
+  },
+  {
+    id: 'drew-002',
+    donor_id: 'd0000000-0000-0000-0000-000000000002',
+    donation_id: 'd0000000-0000-0000-0000-000000000004',
+    claim_id: 'f0000000-0000-0000-0000-000000000002',
+    donation_title: 'Steamed Idlis, Medu Vada & Hot Sambar',
+    recipient_name: 'Robin Hood Army - Delhi Chapter',
+    points: 110, // 30 base + (40 portions * 2) = 110
+    status: 'awarded',
+    portions_confirmed: 40,
+    confirmed_at: new Date(Date.now() - 19 * 3600000).toISOString(),
+    created_at: new Date(Date.now() - 19 * 3600000).toISOString(),
+    reason: 'Delivered & confirmed rescue: 40 portions delivered (30 base + 80 portion bonus = 110 pts)',
+  },
+];
+
+const DEMO_STORAGE_KEYS = {
+  DONATIONS: 'shareplate_demo_donations',
+  CLAIMS: 'shareplate_demo_claims',
+  TASKS: 'shareplate_demo_tasks',
+  TRIP_PLANS: 'shareplate_demo_trip_plans',
+  VOL_REWARDS: 'shareplate_demo_rewards_vol',
+  DONOR_REWARDS: 'shareplate_demo_rewards_donor',
+};
+
+function loadDemoStorage<T>(key: string, fallback: T): T {
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+    return fallback;
+  }
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw);
+    return parsed ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function saveDemoStorage<T>(key: string, value: T): void {
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+    return;
+  }
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // ignore quota or private browsing errors
+  }
+}
+
 /**
- * In-Memory Demo Storage Engine
+ * Intelligent regional transit corridor and drop-off shelter resolver.
+ * Handles common Indian metropolitan cities, neighborhoods, and common spelling typos (e.g. Andheir -> Andheri).
+ */
+export function determineCorridor(city?: string, location?: string): {
+  corridor: string;
+  dropoff_location: string;
+  dropoff_address: string;
+  recipient_name: string;
+  recipient_phone: string;
+} {
+  const combined = `${city || ''} ${location || ''}`.toLowerCase();
+
+  // Mumbai transit corridor (includes common typo "andheir" and western suburbs)
+  if (
+    combined.includes('mumbai') ||
+    combined.includes('bombay') ||
+    combined.includes('andheri') ||
+    combined.includes('andheir') ||
+    combined.includes('bkc') ||
+    combined.includes('kurla') ||
+    combined.includes('bandra') ||
+    combined.includes('ghatkopar') ||
+    combined.includes('sakinaka') ||
+    combined.includes('powai') ||
+    combined.includes('dadar') ||
+    combined.includes('thane') ||
+    combined.includes('borivali') ||
+    combined.includes('malad') ||
+    combined.includes('kandivali') ||
+    combined.includes('goregaon') ||
+    combined.includes('vile parle') ||
+    combined.includes('santacruz') ||
+    combined.includes('worli') ||
+    combined.includes('colaba') ||
+    combined.includes('chembur') ||
+    combined.includes('juhu')
+  ) {
+    return {
+      corridor: 'Mumbai Central Transit Corridor',
+      dropoff_location: 'Snehalaya Community Kitchen (Kurla West)',
+      dropoff_address: 'Near Kurla Railway Station West, LBS Marg, Mumbai 400070',
+      recipient_name: 'Fr. Thomas D Souza',
+      recipient_phone: '+91 98210 11223',
+    };
+  }
+
+  // Pune transit corridor
+  if (
+    combined.includes('pune') ||
+    combined.includes('shivajinagar') ||
+    combined.includes('fc road') ||
+    combined.includes('deccan') ||
+    combined.includes('kothrud') ||
+    combined.includes('hinjewadi') ||
+    combined.includes('viman nagar') ||
+    combined.includes('wakad') ||
+    combined.includes('hadapsar') ||
+    combined.includes('magarpatta') ||
+    combined.includes('baner') ||
+    combined.includes('aundh') ||
+    combined.includes('swargate')
+  ) {
+    return {
+      corridor: 'Pune University Corridor',
+      dropoff_location: 'Aasra Seva Ashram (Shivajinagar)',
+      dropoff_address: 'Near Shivajinagar Bus Stand, Pune 411005',
+      recipient_name: 'Shankar Patil',
+      recipient_phone: '+91 98905 88990',
+    };
+  }
+
+  // Delhi NCR transit corridor
+  return {
+    corridor: 'Delhi North-West Corridor',
+    dropoff_location: 'Bal Sahyog Children Shelter (Connaught Place)',
+    dropoff_address: 'Opposite Shivaji Stadium Bus Terminal, Connaught Place, New Delhi 110001',
+    recipient_name: 'Anita Roy (Shelter Administrator)',
+    recipient_phone: '+91 98112 66554',
+  };
+}
+
+/**
+ * In-Memory & LocalStorage Demo Storage Engine
  * Keeps state reactive during user interactions in browser demo mode.
  * Enforces atomic quantity safety and expired deadline rejection client-side.
+ * Persists changes across browser tabs and role switches.
  */
 class DemoStore {
   private static seed(): { donations: Donation[]; claims: Claim[] } {
@@ -505,8 +682,39 @@ class DemoStore {
   }
 
   private initialSeed = DemoStore.seed();
-  private donations: Donation[] = this.initialSeed.donations;
-  private claims: Claim[] = this.initialSeed.claims;
+  private donations: Donation[] = loadDemoStorage(DEMO_STORAGE_KEYS.DONATIONS, this.initialSeed.donations);
+  private claims: Claim[] = loadDemoStorage(DEMO_STORAGE_KEYS.CLAIMS, this.initialSeed.claims);
+  private rescueTasks: RescueTask[] = loadDemoStorage(
+    DEMO_STORAGE_KEYS.TASKS,
+    JSON.parse(JSON.stringify(SAMPLE_RESCUE_TASKS))
+  );
+  private tripPlans: VolunteerTripPlan[] = loadDemoStorage(DEMO_STORAGE_KEYS.TRIP_PLANS, []);
+  private rewardRecords: VolunteerRewardRecord[] = loadDemoStorage(
+    DEMO_STORAGE_KEYS.VOL_REWARDS,
+    JSON.parse(JSON.stringify(INITIAL_DEMO_REWARD_RECORDS))
+  );
+  private donorRewardRecords: DonorRewardRecord[] = loadDemoStorage(
+    DEMO_STORAGE_KEYS.DONOR_REWARDS,
+    JSON.parse(JSON.stringify(INITIAL_DEMO_DONOR_REWARD_RECORDS))
+  );
+
+  private persist() {
+    saveDemoStorage(DEMO_STORAGE_KEYS.DONATIONS, this.donations);
+    saveDemoStorage(DEMO_STORAGE_KEYS.CLAIMS, this.claims);
+    saveDemoStorage(DEMO_STORAGE_KEYS.TASKS, this.rescueTasks);
+    saveDemoStorage(DEMO_STORAGE_KEYS.TRIP_PLANS, this.tripPlans);
+    saveDemoStorage(DEMO_STORAGE_KEYS.VOL_REWARDS, this.rewardRecords);
+    saveDemoStorage(DEMO_STORAGE_KEYS.DONOR_REWARDS, this.donorRewardRecords);
+  }
+
+  private reloadFromStorage() {
+    this.donations = loadDemoStorage(DEMO_STORAGE_KEYS.DONATIONS, this.donations);
+    this.claims = loadDemoStorage(DEMO_STORAGE_KEYS.CLAIMS, this.claims);
+    this.rescueTasks = loadDemoStorage(DEMO_STORAGE_KEYS.TASKS, this.rescueTasks);
+    this.tripPlans = loadDemoStorage(DEMO_STORAGE_KEYS.TRIP_PLANS, this.tripPlans);
+    this.rewardRecords = loadDemoStorage(DEMO_STORAGE_KEYS.VOL_REWARDS, this.rewardRecords);
+    this.donorRewardRecords = loadDemoStorage(DEMO_STORAGE_KEYS.DONOR_REWARDS, this.donorRewardRecords);
+  }
 
   /**
    * Helper that evaluates and updates status for expired pickup deadlines.
@@ -553,6 +761,7 @@ class DemoStore {
   }
 
   createDonation(donation: Omit<Donation, 'id' | 'created_at' | 'quantity_available' | 'status'>): Donation {
+    this.reloadFromStorage();
     const newDonation: Donation = {
       ...donation,
       id: `demo-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -561,10 +770,49 @@ class DemoStore {
       status: 'available',
     };
     this.donations.unshift(newDonation);
+
+    // Automatically create a corresponding RescueTask for the volunteer route planner
+    const corridorInfo = determineCorridor(newDonation.city, newDonation.location_label);
+    const donorUser = this.users.find((u) => u.id === newDonation.donor_id) || DEMO_PROFILES.donor;
+    const donor_name =
+      newDonation.donor?.organization_name ||
+      newDonation.donor?.full_name ||
+      donorUser?.organization_name ||
+      donorUser?.full_name ||
+      'Registered Donor Kitchen';
+    const donor_phone = newDonation.donor?.phone || donorUser?.phone || '+91 98110 12345';
+
+    const rescueTask: RescueTask = {
+      id: `task-${newDonation.id}`,
+      donation_id: newDonation.id,
+      title: newDonation.title,
+      category: newDonation.category,
+      dietary_type: newDonation.dietary_type || 'veg',
+      portions: newDonation.quantity_total,
+      pickup_location: newDonation.location_label || newDonation.city || 'Pickup Location',
+      pickup_address: `${newDonation.location_label || ''}${newDonation.location_label && newDonation.city ? ', ' : ''}${newDonation.city || ''}`.trim() || 'Specified pickup location',
+      pickup_deadline: newDonation.pickup_deadline,
+      pickup_instructions:
+        newDonation.pickup_instructions ||
+        newDonation.storage_note ||
+        'Report to pickup coordinator with SharePlate verification code.',
+      donor_name,
+      donor_phone,
+      dropoff_location: corridorInfo.dropoff_location,
+      dropoff_address: corridorInfo.dropoff_address,
+      recipient_name: corridorInfo.recipient_name,
+      recipient_phone: corridorInfo.recipient_phone,
+      corridor: corridorInfo.corridor,
+      status: 'available',
+    };
+
+    this.rescueTasks.unshift(rescueTask);
+    this.persist();
     return newDonation;
   }
 
   claimDonation(donationId: string, recipientId: string, quantity: number, notes?: string): Claim {
+    this.reloadFromStorage();
     this.checkExpiredDonations();
     const donation = this.donations.find((d) => d.id === donationId);
     if (!donation) throw new Error('Donation not found');
@@ -617,10 +865,21 @@ class DemoStore {
     };
 
     this.claims.unshift(newClaim);
+
+    const matchingTask = this.rescueTasks.find((t) => t.donation_id === donationId);
+    if (matchingTask) {
+      matchingTask.claim_id = newClaim.id;
+      if (donation.quantity_available === 0) {
+        matchingTask.status = 'claimed';
+      }
+    }
+
+    this.persist();
     return newClaim;
   }
 
   cancelClaim(claimId: string): Claim {
+    this.reloadFromStorage();
     const claim = this.claims.find((c) => c.id === claimId);
     if (!claim) throw new Error('Claim not found');
     if (claim.status !== 'claimed') throw new Error('Only active claims can be cancelled');
@@ -636,10 +895,18 @@ class DemoStore {
       }
     }
 
+    const matchingTask = this.rescueTasks.find((t) => t.claim_id === claimId);
+    if (matchingTask) {
+      matchingTask.status = 'available';
+      matchingTask.claim_id = undefined;
+    }
+
+    this.persist();
     return claim;
   }
 
   updateClaimStatus(claimId: string, newStatus: 'collected' | 'delivered'): Claim {
+    this.reloadFromStorage();
     const claim = this.claims.find((c) => c.id === claimId);
     if (!claim) throw new Error('Claim not found');
 
@@ -667,6 +934,16 @@ class DemoStore {
       }
     }
 
+    const matchingTask = this.rescueTasks.find((t) => t.claim_id === claimId);
+    if (matchingTask) {
+      if (newStatus === 'collected') {
+        matchingTask.status = 'in_transit';
+      } else if (newStatus === 'delivered') {
+        matchingTask.status = 'verified';
+      }
+    }
+
+    this.persist();
     return claim;
   }
 
@@ -842,142 +1119,120 @@ class DemoStore {
 
 
   // --- TRIP PLANNING & RESCUE TASKS ---
-  private rescueTasks: RescueTask[] = JSON.parse(JSON.stringify(SAMPLE_RESCUE_TASKS));
-  private tripPlans: VolunteerTripPlan[] = [
-    {
-      id: 'trip-seed-01',
-      volunteer_id: 'c0000000-0000-0000-0000-000000000001',
-      origin: 'DTU Main Campus, Rohini Sector 17',
-      destination: 'Connaught Place Metro Hub, Central Delhi',
-      corridor_label: 'Delhi North-West Corridor',
-      task_ids: ['task-delhi-01'],
-      status: 'accepted',
-      created_at: new Date(Date.now() - 40 * 60000).toISOString(),
-      accepted_at: new Date(Date.now() - 35 * 60000).toISOString(),
-      is_demo_preview: true,
-      routing_provider_note: 'Demo route preview using corridor stops. Live turn-by-turn routing requires Mapbox/Google Maps Directions API key.',
-      stops: [
-        {
-          id: 'stop-0',
-          type: 'start',
-          name: 'Origin Departure',
-          address: 'DTU Main Campus, Rohini Sector 17',
-          city: 'Delhi NCR',
-          sequence: 1,
-          completed: true,
-          completed_at: new Date(Date.now() - 30 * 60000).toISOString(),
-        },
-        {
-          id: 'stop-1',
-          type: 'pickup',
-          name: 'DTU Campus Canteen (Rohini)',
-          address: 'Gate 2 Loading Bay, DTU, Rohini Sector 17',
-          city: 'Delhi NCR',
-          contact_person: 'Priya Sharma (Canteen Lead)',
-          phone: '+91 98110 12345',
-          instructions: 'Thermal containers ready on loading pallet. Verify temperature seal.',
-          task_id: 'task-delhi-01',
-          portions: 45,
-          food_title: 'Fresh Vegetable Biryani & Raita (Hot)',
-          dietary_type: 'veg',
-          sequence: 2,
-          completed: false,
-        },
-        {
-          id: 'stop-2',
-          type: 'delivery',
-          name: 'Robin Hood Army Food Hub (Shalimar Bagh)',
-          address: 'Community Center, Block BF, Shalimar Bagh, Delhi',
-          city: 'Delhi NCR',
-          contact_person: 'Rajesh Kumar (Distribution Coordinator)',
-          phone: '+91 98711 22334',
-          instructions: 'Hand over insulated containers to distribution volunteer on site.',
-          task_id: 'task-delhi-01',
-          portions: 45,
-          food_title: 'Fresh Vegetable Biryani & Raita (Hot)',
-          dietary_type: 'veg',
-          sequence: 3,
-          completed: false,
-        },
-        {
-          id: 'stop-3',
-          type: 'destination',
-          name: 'Final Destination Arrival',
-          address: 'Connaught Place Metro Hub, Central Delhi',
-          city: 'Delhi NCR',
-          sequence: 4,
-          completed: false,
-        },
-      ],
-    },
-  ];
 
-  private rewardRecords: VolunteerRewardRecord[] = [
-    {
-      id: 'rew-001',
-      volunteer_id: 'c0000000-0000-0000-0000-000000000001',
-      claim_id: 'f0000000-0000-0000-0000-000000000003',
-      donation_title: 'Rich Dal Makhani & Jeera Rice Combo',
-      recipient_name: 'Robin Hood Army - Delhi Chapter',
-      points: 150,
-      status: 'released',
-      portions_confirmed: 50,
-      verified_at: new Date(Date.now() - 42 * 3600000).toISOString(),
-      created_at: new Date(Date.now() - 47 * 3600000).toISOString(),
-      reason: 'Two-party verified rescue: 50 portions delivered (50 base + 50x2 capped at 150 pts)',
-    },
-    {
-      id: 'rew-002',
-      volunteer_id: 'c0000000-0000-0000-0000-000000000001',
-      claim_id: 'f0000000-0000-0000-0000-000000000002',
-      donation_title: 'Steamed Idlis, Medu Vada & Hot Sambar',
-      recipient_name: 'Robin Hood Army - Delhi Chapter',
-      points: 130,
-      status: 'released',
-      portions_confirmed: 40,
-      verified_at: new Date(Date.now() - 19 * 3600000).toISOString(),
-      created_at: new Date(Date.now() - 23 * 3600000).toISOString(),
-      reason: 'Two-party verified rescue: 40 portions delivered (50 base + 40x2 = 130 pts)',
-    },
-  ];
-
-  private donorRewardRecords: DonorRewardRecord[] = [
-    {
-      id: 'drew-001',
-      donor_id: 'a0000000-0000-0000-0000-000000000001',
-      donation_id: 'd0000000-0000-0000-0000-000000000006',
-      claim_id: 'f0000000-0000-0000-0000-000000000003',
-      donation_title: 'Rich Dal Makhani & Jeera Rice Combo',
-      recipient_name: 'Robin Hood Army - Delhi Chapter',
-      points: 130, // 30 base + (50 portions * 2) = 130
-      status: 'awarded',
-      portions_confirmed: 50,
-      confirmed_at: new Date(Date.now() - 42 * 3600000).toISOString(),
-      created_at: new Date(Date.now() - 42 * 3600000).toISOString(),
-      reason: 'Delivered & confirmed rescue: 50 portions delivered (30 base + 100 portion bonus = 130 pts)',
-    },
-    {
-      id: 'drew-002',
-      donor_id: 'd0000000-0000-0000-0000-000000000002',
-      donation_id: 'd0000000-0000-0000-0000-000000000004',
-      claim_id: 'f0000000-0000-0000-0000-000000000002',
-      donation_title: 'Steamed Idlis, Medu Vada & Hot Sambar',
-      recipient_name: 'Robin Hood Army - Delhi Chapter',
-      points: 110, // 30 base + (40 portions * 2) = 110
-      status: 'awarded',
-      portions_confirmed: 40,
-      confirmed_at: new Date(Date.now() - 19 * 3600000).toISOString(),
-      created_at: new Date(Date.now() - 19 * 3600000).toISOString(),
-      reason: 'Delivered & confirmed rescue: 40 portions delivered (30 base + 80 portion bonus = 110 pts)',
-    },
-  ];
+  private ensureRescueTasksForDonations(): void {
+    for (const d of this.donations) {
+      if (d.status === 'available' || d.status === 'reserved' || d.status === 'claimed') {
+        const existingTask = this.rescueTasks.find((t) => t.donation_id === d.id);
+        if (!existingTask) {
+          const corridorInfo = determineCorridor(d.city, d.location_label);
+          const donorUser = this.users.find((u) => u.id === d.donor_id) || DEMO_PROFILES.donor;
+          const donor_name =
+            d.donor?.organization_name ||
+            d.donor?.full_name ||
+            donorUser?.organization_name ||
+            donorUser?.full_name ||
+            'Registered Donor Kitchen';
+          const donor_phone = d.donor?.phone || donorUser?.phone || '+91 98110 12345';
+          const rescueTask: RescueTask = {
+            id: `task-${d.id}`,
+            donation_id: d.id,
+            title: d.title,
+            category: d.category,
+            dietary_type: d.dietary_type || 'veg',
+            portions: d.quantity_total,
+            pickup_location: d.location_label || d.city || 'Pickup Location',
+            pickup_address: `${d.location_label || ''}${d.location_label && d.city ? ', ' : ''}${d.city || ''}`.trim() || 'Specified pickup location',
+            pickup_deadline: d.pickup_deadline,
+            pickup_instructions:
+              d.pickup_instructions ||
+              d.storage_note ||
+              'Report to pickup coordinator with SharePlate verification code.',
+            donor_name,
+            donor_phone,
+            dropoff_location: corridorInfo.dropoff_location,
+            dropoff_address: corridorInfo.dropoff_address,
+            recipient_name: corridorInfo.recipient_name,
+            recipient_phone: corridorInfo.recipient_phone,
+            corridor: corridorInfo.corridor,
+            status: d.status === 'claimed' ? 'claimed' : 'available',
+          };
+          this.rescueTasks.unshift(rescueTask);
+        }
+      }
+    }
+  }
 
   getRescueTasks(corridor?: string): RescueTask[] {
-    if (!corridor) return [...this.rescueTasks];
-    return this.rescueTasks.filter((t) => t.corridor.toLowerCase().includes(corridor.toLowerCase()));
+    this.reloadFromStorage();
+    this.checkExpiredDonations();
+    this.ensureRescueTasksForDonations();
+
+    if (!corridor || corridor === 'all') {
+      return [...this.rescueTasks];
+    }
+    const q = corridor.toLowerCase().trim();
+
+    return this.rescueTasks.filter((t) => {
+      // 1. Direct corridor substring match
+      if (t.corridor.toLowerCase().includes(q)) return true;
+
+      // 2. City / Transit corridor cross matching
+      const isMumbaiQuery =
+        q.includes('mumbai') ||
+        q.includes('bkc') ||
+        q.includes('kurla') ||
+        q.includes('andheri') ||
+        q.includes('andheir') ||
+        q.includes('ghatkopar');
+      const isMumbaiTask =
+        t.corridor.toLowerCase().includes('mumbai') ||
+        t.pickup_location.toLowerCase().includes('andheir') ||
+        t.pickup_location.toLowerCase().includes('andheri') ||
+        t.pickup_location.toLowerCase().includes('mumbai') ||
+        t.pickup_address.toLowerCase().includes('mumbai') ||
+        t.pickup_address.toLowerCase().includes('andheri') ||
+        t.pickup_address.toLowerCase().includes('andheir');
+
+      if (isMumbaiQuery && isMumbaiTask) return true;
+
+      const isPuneQuery =
+        q.includes('pune') ||
+        q.includes('shivajinagar') ||
+        q.includes('fc road') ||
+        q.includes('deccan');
+      const isPuneTask =
+        t.corridor.toLowerCase().includes('pune') ||
+        t.pickup_location.toLowerCase().includes('pune') ||
+        t.pickup_address.toLowerCase().includes('pune');
+
+      if (isPuneQuery && isPuneTask) return true;
+
+      const isDelhiQuery =
+        q.includes('delhi') ||
+        q.includes('rohini') ||
+        q.includes('connaught') ||
+        q.includes('pitampura') ||
+        q.includes('noida');
+      const isDelhiTask =
+        t.corridor.toLowerCase().includes('delhi') ||
+        t.pickup_location.toLowerCase().includes('delhi') ||
+        t.pickup_address.toLowerCase().includes('delhi');
+
+      if (isDelhiQuery && isDelhiTask) return true;
+
+      // 3. Fallback to location, address, dropoff, or title matches
+      return (
+        t.pickup_location.toLowerCase().includes(q) ||
+        t.pickup_address.toLowerCase().includes(q) ||
+        t.dropoff_location.toLowerCase().includes(q) ||
+        t.title.toLowerCase().includes(q)
+      );
+    });
   }
 
   getVolunteerTripPlan(volunteerId: string): VolunteerTripPlan | null {
+    this.reloadFromStorage();
     const plan = this.tripPlans.find(
       (p) => p.volunteer_id === volunteerId && (p.status === 'accepted' || p.status === 'in_progress')
     );
@@ -985,6 +1240,7 @@ class DemoStore {
   }
 
   createTripPlan(plan: Omit<VolunteerTripPlan, 'id' | 'created_at' | 'status'>): VolunteerTripPlan {
+    this.reloadFromStorage();
     const newPlan: VolunteerTripPlan = {
       ...plan,
       id: `trip-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -996,10 +1252,12 @@ class DemoStore {
         'Demo route preview using corridor sequence. Live turn-by-turn routing requires Mapbox/Google Maps Directions API credentials.',
     };
     this.tripPlans.unshift(newPlan);
+    this.persist();
     return newPlan;
   }
 
   acceptTripPlan(planId: string): VolunteerTripPlan {
+    this.reloadFromStorage();
     const plan = this.tripPlans.find((p) => p.id === planId);
     if (!plan) throw new Error('Trip plan not found');
     plan.status = 'accepted';
@@ -1013,6 +1271,12 @@ class DemoStore {
         let claim = this.claims.find((c) => c.donation_id === task.donation_id);
         if (!claim) {
           const donation = this.donations.find((d) => d.id === task.donation_id);
+          if (donation) {
+            donation.quantity_available = Math.max(0, donation.quantity_available - task.portions);
+            if (donation.quantity_available === 0) {
+              donation.status = 'reserved';
+            }
+          }
           claim = {
             id: `claim-${task.id}`,
             donation_id: task.donation_id,
@@ -1056,10 +1320,12 @@ class DemoStore {
       corridor: plan.corridor_label,
     });
 
+    this.persist();
     return plan;
   }
 
   completeTripStop(planId: string, stopId: string): VolunteerTripPlan {
+    this.reloadFromStorage();
     const plan = this.tripPlans.find((p) => p.id === planId);
     if (!plan) throw new Error('Trip plan not found');
     const stop = plan.stops.find((s) => s.id === stopId);
@@ -1075,6 +1341,7 @@ class DemoStore {
       plan.status = 'in_progress';
     }
 
+    this.persist();
     return plan;
   }
 
@@ -1095,6 +1362,7 @@ class DemoStore {
       points_pending: claim.points_pending,
     });
 
+    this.persist();
     return claim;
   }
 
@@ -1115,6 +1383,7 @@ class DemoStore {
       status: 'awaiting_donor_confirmation',
     });
 
+    this.persist();
     return claim;
   }
 
@@ -1174,6 +1443,7 @@ class DemoStore {
       pickup_time: claim.pickup_confirmed_at,
     });
 
+    this.persist();
     return claim;
   }
 
@@ -1197,6 +1467,7 @@ class DemoStore {
       status: 'awaiting_recipient_confirmation',
     });
 
+    this.persist();
     return claim;
   }
 
@@ -1313,6 +1584,7 @@ class DemoStore {
       points_released: pointsAwarded,
     });
 
+    this.persist();
     return { claim, pointsAwarded };
   }
 
@@ -1362,6 +1634,7 @@ class DemoStore {
       points_forfeited: forfeitedPending,
     });
 
+    this.persist();
     return claim;
   }
 
@@ -1496,6 +1769,9 @@ class DemoStore {
         reason: 'Delivered & confirmed rescue: 40 portions delivered (30 base + 80 portion bonus = 110 pts)',
       },
     ];
+    this.rescueTasks = JSON.parse(JSON.stringify(SAMPLE_RESCUE_TASKS));
+    this.tripPlans = [];
+    this.persist();
   }
 }
 

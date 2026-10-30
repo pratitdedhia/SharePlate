@@ -26,6 +26,17 @@ class LiveUpdatesService {
   constructor() {
     this.initBroadcastChannel();
     this.initWindowEventListener();
+    this.initStorageEventListener();
+  }
+
+  private initStorageEventListener() {
+    if (typeof window !== 'undefined') {
+      window.addEventListener('storage', (event) => {
+        if (event.key && event.key.startsWith('shareplate_')) {
+          this.notifyListeners('storage_sync', { key: event.key });
+        }
+      });
+    }
   }
 
   private initBroadcastChannel() {

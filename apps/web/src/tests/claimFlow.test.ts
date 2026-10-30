@@ -1254,4 +1254,144 @@ describe('Volunteer Routing & Personal Travel Segregation Regression', () => {
       expect(segments[1].url).toContain(encodeURIComponent(destination));
     });
   });
+
+  describe('Dynamic Donor Listing to Volunteer Corridor Task Synchronization', () => {
+    it('automatically generates a volunteer rescue task when a donor registers surplus food in Mumbai', () => {
+      const created = demoStore.createDonation({
+        donor_id: 'a0000000-0000-0000-0000-000000000001',
+        title: 'Puri Bhaji',
+        description: 'non jain',
+        category: 'cooked_meals',
+        quantity_total: 30,
+        quantity_unit: 'portions',
+        pickup_deadline: new Date(Date.now() + 4 * 3600000).toISOString(),
+        city: 'Mumbai',
+        location_label: 'Andheir east station',
+        dietary_type: 'veg',
+      });
+
+      expect(created).toBeDefined();
+      expect(created.title).toBe('Puri Bhaji');
+
+      // Check that the task is immediately available in the volunteer planner
+      const mumbaiTasks = demoStore.getRescueTasks('Mumbai Central Transit Corridor');
+      const puriBhajiTask = mumbaiTasks.find((t) => t.donation_id === created.id);
+
+      expect(puriBhajiTask).toBeDefined();
+      expect(puriBhajiTask?.title).toBe('Puri Bhaji');
+      expect(puriBhajiTask?.portions).toBe(30);
+      expect(puriBhajiTask?.pickup_location).toContain('Andheir east station');
+      expect(puriBhajiTask?.corridor).toBe('Mumbai Central Transit Corridor');
+      expect(puriBhajiTask?.dropoff_location).toBe('Snehalaya Community Kitchen (Kurla West)');
+      expect(puriBhajiTask?.status).toBe('available');
+    });
+
+    it('matches corridor flexibly even when volunteer queries with regional presets or keywords', () => {
+      const created = demoStore.createDonation({
+        donor_id: 'a0000000-0000-0000-0000-000000000001',
+        title: 'Pav Bhaji & Masala Pao',
+        description: 'Fresh dinner surplus',
+        category: 'cooked_meals',
+        quantity_total: 25,
+        quantity_unit: 'portions',
+        pickup_deadline: new Date(Date.now() + 4 * 3600000).toISOString(),
+        city: 'Mumbai',
+        location_label: 'BKC Ground, Bandra East',
+        dietary_type: 'veg',
+      });
+
+      const tasksByPreset = demoStore.getRescueTasks('Mumbai: BKC → Kurla → Ghatkopar');
+      const found = tasksByPreset.find((t) => t.donation_id === created.id);
+      expect(found).toBeDefined();
+
+      const allTasks = demoStore.getRescueTasks('all');
+      expect(allTasks.some((t) => t.donation_id === created.id)).toBe(true);
+    });
+
+    it('allows volunteer to accept a planned route for a dynamic donor donation', () => {
+      const created = demoStore.createDonation({
+        donor_id: 'a0000000-0000-0000-0000-000000000001',
+        title: 'Puri Bhaji Express',
+        description: '30 portions ready for immediate rescue',
+        category: 'cooked_meals',
+        quantity_total: 30,
+        quantity_unit: 'portions',
+        pickup_deadline: new Date(Date.now() + 4 * 3600000).toISOString(),
+        city: 'Mumbai',
+        location_label: 'Andheri east station',
+        dietary_type: 'veg',
+      });
+
+      const tasks = demoStore.getRescueTasks('Mumbai Central Transit Corridor');
+      const task = tasks.find((t) => t.donation_id === created.id)!;
+      expect(task).toBeDefined();
+
+      const plan = demoStore.createTripPlan({
+        volunteer_id: 'c0000000-0000-0000-0000-000000000001',
+        origin: 'BKC Commercial Hub',
+        destination: 'Ghatkopar East Terminus',
+        corridor_label: 'Mumbai Central Transit Corridor',
+        task_ids: [task.id],
+        is_demo_preview: true,
+        stops: [
+          {
+            id: 'stop-start',
+            type: 'start',
+            name: 'BKC Origin',
+            address: 'BKC Commercial Hub',
+            city: 'Mumbai',
+            sequence: 1,
+            completed: true,
+          },
+          {
+            id: 'stop-pickup',
+            type: 'pickup',
+            name: task.pickup_location,
+            address: task.pickup_address,
+            city: 'Mumbai',
+            task_id: task.id,
+            portions: task.portions,
+            food_title: task.title,
+            sequence: 2,
+            completed: false,
+          },
+          {
+            id: 'stop-delivery',
+            type: 'delivery',
+            name: task.dropoff_location,
+            address: task.dropoff_address,
+            city: 'Mumbai',
+            task_id: task.id,
+            portions: task.portions,
+            food_title: task.title,
+            sequence: 3,
+            completed: false,
+          },
+          {
+            id: 'stop-dest',
+            type: 'destination',
+            name: 'Ghatkopar Arrival',
+            address: 'Ghatkopar East Terminus',
+            city: 'Mumbai',
+            sequence: 4,
+            completed: false,
+          },
+        ],
+      });
+
+      const accepted = demoStore.acceptTripPlan(plan.id);
+      expect(accepted.status).toBe('accepted');
+
+      // The task must be marked claimed
+      const updatedTask = demoStore.getRescueTasks().find((t) => t.id === task.id);
+      expect(updatedTask?.status).toBe('claimed');
+
+      // A corresponding claim must be created for the donation
+      const claims = demoStore.getAllClaims();
+      const linkedClaim = claims.find((c) => c.donation_id === created.id);
+      expect(linkedClaim).toBeDefined();
+      expect(linkedClaim?.volunteer_id).toBe('c0000000-0000-0000-0000-000000000001');
+      expect(linkedClaim?.quantity_claimed).toBe(30);
+    });
+  });
 });

@@ -138,6 +138,34 @@ export const VolunteerDashboard: React.FC = () => {
     );
   };
 
+  const handleOriginChange = (val: string) => {
+    setOriginInput(val);
+    const low = val.toLowerCase();
+    if (low.includes('mumbai') || low.includes('andheri') || low.includes('andheir') || low.includes('bkc') || low.includes('kurla')) {
+      if (selectedCorridor !== 'Mumbai Central Transit Corridor' && selectedCorridor !== 'all') {
+        setSelectedCorridor('Mumbai Central Transit Corridor');
+      }
+    } else if (low.includes('pune') || low.includes('shivajinagar') || low.includes('fc road')) {
+      if (selectedCorridor !== 'Pune University Corridor' && selectedCorridor !== 'all') {
+        setSelectedCorridor('Pune University Corridor');
+      }
+    }
+  };
+
+  const handleDestinationChange = (val: string) => {
+    setDestinationInput(val);
+    const low = val.toLowerCase();
+    if (low.includes('mumbai') || low.includes('andheri') || low.includes('andheir') || low.includes('bkc') || low.includes('kurla') || low.includes('ghatkopar')) {
+      if (selectedCorridor !== 'Mumbai Central Transit Corridor' && selectedCorridor !== 'all') {
+        setSelectedCorridor('Mumbai Central Transit Corridor');
+      }
+    } else if (low.includes('pune') || low.includes('shivajinagar') || low.includes('fc road')) {
+      if (selectedCorridor !== 'Pune University Corridor' && selectedCorridor !== 'all') {
+        setSelectedCorridor('Pune University Corridor');
+      }
+    }
+  };
+
   // Create & accept planned route
   const handleAcceptRoute = async () => {
     if (!user) return;
@@ -548,7 +576,7 @@ export const VolunteerDashboard: React.FC = () => {
                   <input
                     type="text"
                     value={originInput}
-                    onChange={(e) => setOriginInput(e.target.value)}
+                    onChange={(e) => handleOriginChange(e.target.value)}
                     placeholder="e.g. Home or Workplace Address"
                     className="w-full px-4 py-2.5 rounded-xl border border-stone-200 text-xs sm:text-sm font-medium focus:border-forest-900 focus:outline-hidden"
                   />
@@ -564,7 +592,7 @@ export const VolunteerDashboard: React.FC = () => {
                   <input
                     type="text"
                     value={destinationInput}
-                    onChange={(e) => setDestinationInput(e.target.value)}
+                    onChange={(e) => handleDestinationChange(e.target.value)}
                     placeholder="e.g. College, Metro Station, or Central Hub"
                     className="w-full px-4 py-2.5 rounded-xl border border-stone-200 text-xs sm:text-sm font-medium focus:border-forest-900 focus:outline-hidden"
                   />
@@ -588,87 +616,113 @@ export const VolunteerDashboard: React.FC = () => {
                   Select one or more tasks along your corridor to bundle into your trip.
                 </p>
               </div>
-              <span className="text-xs font-bold px-3 py-1 rounded-full bg-emerald-100 text-forest-900">
-                {selectedTaskIds.length} of {availableTasks.length} tasks selected
-              </span>
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setSelectedCorridor(selectedCorridor === 'all' ? 'Mumbai Central Transit Corridor' : 'all')}
+                  className="text-xs font-semibold px-2.5 py-1 rounded-lg border border-warm-300 text-stone-600 hover:bg-stone-50 transition cursor-pointer"
+                >
+                  {selectedCorridor === 'all' ? 'Filter by Corridor' : 'Show All Regions'}
+                </button>
+                <span className="text-xs font-bold px-3 py-1 rounded-full bg-emerald-100 text-forest-900">
+                  {selectedTaskIds.length} of {availableTasks.length} tasks selected
+                </span>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {availableTasks.map((task) => {
-                const isSelected = selectedTaskIds.includes(task.id);
-                return (
-                  <div
-                    key={task.id}
-                    onClick={() => toggleTaskSelection(task.id)}
-                    className={`p-5 rounded-2xl border-2 transition cursor-pointer space-y-3 ${
-                      isSelected
-                        ? 'border-forest-900 bg-emerald-50/40 shadow-xs'
-                        : 'border-warm-200 hover:border-warm-300 bg-white'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-start gap-2.5">
-                        <div className="mt-0.5 text-forest-900">
-                          {isSelected ? (
-                            <CheckSquare className="w-5 h-5 text-forest-900" />
-                          ) : (
-                            <Square className="w-5 h-5 text-stone-400" />
-                          )}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md bg-stone-100 text-stone-700">
-                              {task.category.replace('_', ' ')}
-                            </span>
-                            <span className="text-[11px] font-bold text-forest-900 bg-emerald-100 px-2 py-0.5 rounded-md">
-                              {task.portions} portions
-                            </span>
+            {availableTasks.length === 0 ? (
+              <div className="p-8 text-center text-stone-500 bg-stone-50 rounded-2xl border border-dashed border-stone-200 space-y-2">
+                <PackageCheck className="w-8 h-8 text-stone-400 mx-auto" />
+                <div className="font-bold text-stone-700">No rescue tasks found along this exact corridor</div>
+                <div className="text-xs">
+                  Donors in other areas or transit hubs may have surplus available right now.
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedCorridor('all')}
+                  className="text-xs font-bold text-forest-900 underline hover:text-forest-700 cursor-pointer"
+                >
+                  View all rescue tasks across all regions
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {availableTasks.map((task) => {
+                  const isSelected = selectedTaskIds.includes(task.id);
+                  return (
+                    <div
+                      key={task.id}
+                      onClick={() => toggleTaskSelection(task.id)}
+                      className={`p-5 rounded-2xl border-2 transition cursor-pointer space-y-3 ${
+                        isSelected
+                          ? 'border-forest-900 bg-emerald-50/40 shadow-xs'
+                          : 'border-warm-200 hover:border-warm-300 bg-white'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-2.5">
+                          <div className="mt-0.5 text-forest-900">
+                            {isSelected ? (
+                              <CheckSquare className="w-5 h-5 text-forest-900" />
+                            ) : (
+                              <Square className="w-5 h-5 text-stone-400" />
+                            )}
                           </div>
-                          <h4 className="text-sm font-black text-stone-900 mt-1">{task.title}</h4>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md bg-stone-100 text-stone-700">
+                                {task.category.replace('_', ' ')}
+                              </span>
+                              <span className="text-[11px] font-bold text-forest-900 bg-emerald-100 px-2 py-0.5 rounded-md">
+                                {task.portions} portions
+                              </span>
+                            </div>
+                            <h4 className="text-sm font-black text-stone-900 mt-1">{task.title}</h4>
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="space-y-1.5 text-xs text-stone-600 bg-white p-3 rounded-xl border border-warm-200">
-                      <div className="flex items-start gap-1.5">
-                        <Building2 className="w-3.5 h-3.5 text-emerald-700 shrink-0 mt-0.5" />
-                        <div>
-                          <strong className="text-stone-800">Pickup:</strong> {task.pickup_location}
-                          <div className="text-[11px] text-stone-500">{task.pickup_address}</div>
+                      <div className="space-y-1.5 text-xs text-stone-600 bg-white p-3 rounded-xl border border-warm-200">
+                        <div className="flex items-start gap-1.5">
+                          <Building2 className="w-3.5 h-3.5 text-emerald-700 shrink-0 mt-0.5" />
+                          <div>
+                            <strong className="text-stone-800">Pickup:</strong> {task.pickup_location}
+                            <div className="text-[11px] text-stone-500">{task.pickup_address}</div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-start gap-1.5 pt-1 border-t border-warm-100">
+                          <MapPin className="w-3.5 h-3.5 text-blue-700 shrink-0 mt-0.5" />
+                          <div>
+                            <strong className="text-stone-800">Drop-off:</strong> {task.dropoff_location}
+                            <div className="text-[11px] text-stone-500">{task.dropoff_address}</div>
+                          </div>
                         </div>
                       </div>
 
-                      <div className="flex items-start gap-1.5 pt-1 border-t border-warm-100">
-                        <MapPin className="w-3.5 h-3.5 text-blue-700 shrink-0 mt-0.5" />
-                        <div>
-                          <strong className="text-stone-800">Drop-off:</strong> {task.dropoff_location}
-                          <div className="text-[11px] text-stone-500">{task.dropoff_address}</div>
+                      <div className="flex items-center justify-between text-[11px] text-stone-500 pt-1">
+                        <span className="flex items-center gap-1 text-amber-800 font-semibold">
+                          <Clock className="w-3 h-3" /> Pickup by{' '}
+                          {new Date(task.pickup_deadline).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                        <span className="font-bold text-forest-900">
+                          +{calculateClaimPoints(task.portions, false)} pts potential
+                        </span>
+                      </div>
+
+                      {task.pickup_instructions && (
+                        <div className="text-[11px] text-stone-600 italic bg-warm-50 p-2 rounded-lg border border-warm-200">
+                          "{task.pickup_instructions}"
                         </div>
-                      </div>
+                      )}
                     </div>
-
-                    <div className="flex items-center justify-between text-[11px] text-stone-500 pt-1">
-                      <span className="flex items-center gap-1 text-amber-800 font-semibold">
-                        <Clock className="w-3 h-3" /> Pickup by{' '}
-                        {new Date(task.pickup_deadline).toLocaleTimeString([], {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </span>
-                      <span className="font-bold text-forest-900">
-                        +{calculateClaimPoints(task.portions, false)} pts potential
-                      </span>
-                    </div>
-
-                    {task.pickup_instructions && (
-                      <div className="text-[11px] text-stone-600 italic bg-warm-50 p-2 rounded-lg border border-warm-200">
-                        "{task.pickup_instructions}"
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Interactive Route Stop Sequence & Map Schematic */}
