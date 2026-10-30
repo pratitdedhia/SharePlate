@@ -7,7 +7,6 @@ import {
   ShieldCheck,
   Building2,
   Users,
-  Sparkles,
   ChevronRight,
   Leaf,
   Clock,
@@ -63,11 +62,6 @@ export const HomePage: React.FC = () => {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-emerald-200/20 rounded-full blur-3xl pointer-events-none -z-10" />
 
         <div className="max-w-5xl mx-auto text-center px-4 space-y-6">
-          {/* Hackathon Pill */}
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-100 text-forest-900 border border-emerald-300 shadow-2xs">
-            <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Hacktober HackDays 2026 · SheBuilds Delhi Chapter · Powered by MLH</span>
-          </div>
 
           <h1 className="text-4xl sm:text-6xl font-black text-stone-900 tracking-tight leading-[1.1]">
             Rescue Food. <span className="text-forest-900 underline decoration-emerald-400 decoration-wavy">Reduce Waste.</span>

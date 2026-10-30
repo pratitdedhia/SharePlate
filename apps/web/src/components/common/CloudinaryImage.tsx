@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   getCloudinaryUrl,
   getCloudinarySrcSet,
@@ -32,12 +32,21 @@ export const CloudinaryImage: React.FC<CloudinaryImageProps> = ({
 }) => {
   const targetIdOrUrl = publicId || propSrc;
   const isSeedAsset = typeof targetIdOrUrl === 'string' && targetIdOrUrl.startsWith('shareplate/seed/');
-  const targetFallback = fallbackSrc || (typeof propSrc === 'string' && propSrc.startsWith('http') ? propSrc : DEFAULT_FALLBACK_IMAGE);
+  const targetFallback =
+    fallbackSrc ||
+    (typeof propSrc === 'string' && propSrc.startsWith('http')
+      ? propSrc
+      : typeof targetIdOrUrl === 'string'
+      ? getCloudinaryUrl(targetIdOrUrl)
+      : DEFAULT_FALLBACK_IMAGE);
 
   // For unseeded demo environments, mock seed IDs only exist via fallback Unsplash imagery
-  const initialUrl = isSeedAsset
-    ? targetFallback
-    : getCloudinaryUrl(targetIdOrUrl, {
+  const resolveInitialUrl = () => {
+    if (isSeedAsset) {
+      return targetFallback || DEFAULT_FALLBACK_IMAGE;
+    }
+    return (
+      getCloudinaryUrl(targetIdOrUrl, {
         width: 800,
         height: 600,
         crop: 'fill',
@@ -45,10 +54,17 @@ export const CloudinaryImage: React.FC<CloudinaryImageProps> = ({
         quality: 'auto',
         format: 'auto',
         ...transformOptions,
-      });
+      }) || DEFAULT_FALLBACK_IMAGE
+    );
+  };
 
-  const [currentSrc, setCurrentSrc] = useState<string>(initialUrl);
+  const [currentSrc, setCurrentSrc] = useState<string>(resolveInitialUrl);
   const [hasError, setHasError] = useState<boolean>(false);
+
+  useEffect(() => {
+    setCurrentSrc(resolveInitialUrl());
+    setHasError(false);
+  }, [targetIdOrUrl, propSrc, fallbackSrc]);
 
   const srcSet = !hasError && !isSeedAsset
     ? getCloudinarySrcSet(targetIdOrUrl, [400, 800, 1200], transformOptions)
@@ -58,7 +74,9 @@ export const CloudinaryImage: React.FC<CloudinaryImageProps> = ({
   const handleError = () => {
     if (!hasError) {
       setHasError(true);
-      setCurrentSrc(targetFallback);
+      setCurrentSrc(targetFallback || DEFAULT_FALLBACK_IMAGE);
+    } else if (currentSrc !== DEFAULT_FALLBACK_IMAGE) {
+      setCurrentSrc(DEFAULT_FALLBACK_IMAGE);
     }
   };
 
