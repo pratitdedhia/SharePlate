@@ -9,7 +9,7 @@
 [![Deploy Target](https://img.shields.io/badge/Deploy-GitHub_Pages-22C55E?style=for-the-badge)](https://pratitdedhia.github.io/SharePlate/)
 
 > 🌐 **Live Deployed Demo:** [https://pratitdedhia.github.io/SharePlate/](https://pratitdedhia.github.io/SharePlate/)  
-> 📖 **Project Journey & Hackathon Submission:** [Notion Documentation Workspace *(Pre-built in docs/notion/)*](docs/notion/00_index.md) *(Action Item: Replace with your public Notion URL before final submission)*  
+> 📖 **Project Journey & Hackathon Report (Notion):** [SharePlate — Hacktober HackDays 2026 Report](https://app.notion.com/p/SharePlate-Hacktober-HackDays-2026-Report-40471fac0e5c813cb0d3de560f29a8aa) · Markdown source mirrored in [`docs/notion/`](docs/notion/00_index.md)  
 > 📂 **GitHub Repository:** [https://github.com/pratitdedhia/SharePlate](https://github.com/pratitdedhia/SharePlate)
 
 **SharePlate** is a full-stack, community-driven food rescue web application built for **Hacktober HackDays 2026** (organized by the SheBuilds Delhi Chapter and powered by Major League Hacking) under the **Tech for Social Good** track.
@@ -22,6 +22,7 @@ SharePlate bridges the critical communication gap between high-volume commercial
 
 To provide instant, zero-friction evaluation for hackathon judges without requiring cloud credentials or infrastructure deployment:
 - **Live Deployed Web App (`apps/web` on GitHub Pages):** Operates with `VITE_DEMO_MODE=true` using an in-browser transactional store (`demoStore`). It features a real, direct-to-Cloudinary image upload pipeline using unsigned upload presets, responsive image delivery (`srcset` at 400w/800w/1200w), food safety controls, and real measured bandwidth savings.
+- **Firebase (Auth + Firestore):** Google Sign-In, Email/Password and live `onSnapshot` sync across devices run on the Firebase project configured in `apps/web/.env`.
 - **In-Repo Production Architecture (`apps/api` + `supabase/`):** A complete Node.js/Express REST API and PostgreSQL database schema with Row Level Security (RLS) policies, cryptographic SHA-based upload signature endpoints (`/api/uploads/signature`), and concurrency-safe atomic stored procedures (`claim_donation_atomic`).
 
 ---
@@ -38,7 +39,7 @@ To provide instant, zero-friction evaluation for hackathon judges without requir
     - **1. "On-My-Way" Commute Trip Planner:** Enter origin and destination, browse nearby rescue tasks along transit corridors (Delhi NCR, Mumbai, Pune presets), select tasks with checkboxes, review sequential stop orders, generate multi-stop Google Maps directions with waypoint partitioning (<= 9 waypoints per leg), and accept planned routes.
     - **2. Stop-by-Stop Checklist & Two-Party OTP Verification:** Step-by-step navigation checklist with unlocked dock instructions. Enforces strict two-party verification (`Available → Accepted → Pickup awaiting confirmation → In transit → Delivery awaiting confirmation → Delivered / Disputed`). 4-digit one-time codes generated upon arrival with 15-minute expiration and 3-attempt lockout. The donor restaurant verifies handover at pickup, and the recipient NGO confirms portions at delivery. Volunteer self-confirmation is strictly rejected.
     - **3. Volunteer Rewards & Points Ledger:** Transparent capped rewards formula (\(\min(150, 50 + 2 \times \text{portions})\)), pending vs. released points counters, milestone progression (Bronze Courier → Silver → Gold Champion), immutable audit history, and clear disclosure of future corporate sponsor voucher concepts.
-  - **Donor Rewards System:** Persisted rewards ledger for food donors, awarded strictly upon verified NGO delivery confirmation (\(\min(200, 20 + 2 \times \text{portions})\)). Zero rewards for listings, reservations, pickups, cancellations, or disputes. Donors view points balance and verifiable delivery history.
+  - **Donor Rewards System:** Persisted rewards ledger for food donors, awarded strictly upon verified NGO delivery confirmation (\(\min(200, 30 + 2 \times \text{portions})\)). Zero rewards for listings, reservations, pickups, cancellations, or disputes. Donors view points balance and verifiable delivery history.
   - **Admin:** Comprehensive 5-tab Command Center: real-time analytics graphs, user account CRUD & activation controls, "Who Donated" surplus ledger with detail inspection, "Who Received" distribution ledger with status filters, and safety/allergen moderation queue.
 - **🚩 Restaurant Grievance & Issue Reporting with Admin Escalation:** Recipients and volunteers can file complaints directly from claim cards (covering food freshness/spoilage, portion mismatch, refused handover, unsanitary hygiene, or staff misconduct). Submitting immediately flags the claim and restaurant to platform administrators, displaying a prominent alert banner on the claim card and pushing an incident record into the Admin Safety Moderation Queue for investigation and formal warning issuance.
 - **🔍 Interactive Click-to-Inspect Food Cards:** Seamless navigation to listing details from card images, titles, and action buttons, presenting Cloudinary meal banners, ingredient disclosures, allergen tags, and real-time pickup countdown timers.
@@ -332,24 +333,26 @@ Follow these steps in the Cloudinary Console:
 > - If credentials are configured but the upload fails (e.g., misspelled preset or unsigned mode not enabled in dashboard), the UI validates and surfaces the error with actionable troubleshooting advice instead of silently hiding failures.
 
 #### Firebase Environment & Firestore Real-Time Setup
-SharePlate includes complete integration with Google Firebase (`shareplate-57783`) for real-time Firestore database persistence, live multi-user `onSnapshot` synchronization across devices, and Firebase Authentication:
+SharePlate includes complete integration with Google Firebase for real-time Firestore database persistence, live multi-user `onSnapshot` synchronization across devices, and Firebase Authentication:
 
 ```env
-VITE_FIREBASE_API_KEY=AIzaSyCcWlUFJKndQyDVUSPpLLMmaWwomHowP_k
-VITE_FIREBASE_AUTH_DOMAIN=shareplate-57783.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=shareplate-57783
-VITE_FIREBASE_STORAGE_BUCKET=shareplate-57783.firebasestorage.app
-VITE_FIREBASE_MESSAGING_SENDER_ID=1075617712212
-VITE_FIREBASE_APP_ID=1:1075617712212:web:ab667a7e6b1c3652ec45c1
-VITE_FIREBASE_MEASUREMENT_ID=G-945TEWG4F3
+VITE_FIREBASE_API_KEY=<your-firebase-web-api-key>
+VITE_FIREBASE_AUTH_DOMAIN=<project-id>.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=<project-id>
+VITE_FIREBASE_STORAGE_BUCKET=<project-id>.firebasestorage.app
+VITE_FIREBASE_MESSAGING_SENDER_ID=<sender-id>
+VITE_FIREBASE_APP_ID=<app-id>
+VITE_FIREBASE_MEASUREMENT_ID=<measurement-id>
 ```
+
+> Firebase web config values identify your project and are not secrets, but access is controlled entirely by **Firestore Security Rules** and Auth. Copy the real values from *Firebase Console → Project settings → Your apps*. Test-mode Firestore rules are open and expire after 30 days, so tighten them before any real use.
 
 ##### Enabled Firebase Authentication Providers:
 - **Google Sign-In:** 1-click authentication with official Google popup, integrated role selector (`Donor`, `Recipient`, `Volunteer`), and automatic Firestore user profile creation/synchronization.
 - **Email & Password:** Secure credential-based sign-in and registration with role governance for Donors, Recipients, and Volunteers.
 
 ##### Provision Firestore & Seed Current Actual Data:
-1. Open the Firebase Console: https://console.firebase.google.com/project/shareplate-57783/firestore
+1. Open the [Firebase Console](https://console.firebase.google.com/) → your project → **Firestore Database**
 2. Click **Create database** -> Choose **Start in test mode** -> Select your nearest region -> Click **Create**.
 3. Run the automated seed script to populate users, donations, claims, and rescue tasks into Firestore:
 ```bash
@@ -378,7 +381,7 @@ Open **`http://localhost:5173`** in your browser.
 
 ## 🧪 Automated Testing & Verification
 
-All automated tests execute with 100% passing results across 104 tests:
+All 104 automated tests pass (102 frontend across 7 Vitest suites + 2 backend), verified on the latest `main`:
 
 ### Run Backend API Tests:
 ```bash
@@ -434,10 +437,10 @@ SharePlate/
 │   │   │   ├── components/     # UI components (CloudinaryImage, ImageUploader, DemoModeBanner, etc.)
 │   │   │   ├── contexts/       # AuthContext, ToastContext
 │   │   │   ├── lib/            # cloudinary.ts, impactMath.ts, mockData.ts, utils.ts
-│   │   │   ├── pages/          # 13 complete pages (Home, Browse, Detail, Create, Claims, Impact, etc.)
+│   │   │   ├── pages/          # Pages: Home, Browse, Detail, Create, Claims, Impact, Admin, Profile, auth, dashboards
 │   │   │   ├── routes/         # ProtectedRoute, RoleGuard, AppRoutes
 │   │   │   ├── services/       # donations, claims, impact, uploads API services
-│   │   │   └── tests/          # Vitest test suites (claimFlow, impactMath, uploadsFallback, features, renderPage)
+│   │   │   └── tests/          # Vitest suites (auth, claimFlow, features, impactMath, renderPage, uploadsFallback) + App.test.tsx
 │   │   ├── .env.example
 │   │   └── package.json
 │   └── api/                    # Node.js, Express, TypeScript, Zod REST API
@@ -446,7 +449,7 @@ SharePlate/
 │       │   ├── middleware/     # auth.ts, rbac.ts, validate.ts, errorHandler.ts
 │       │   ├── routes/         # health, uploads, donations, claims, impact, profile, reports
 │       │   └── validators/     # Zod request validation schemas
-│       ├── tests/              # Node.js test runner suite
+│       ├── tests/              # Node.js test runner suite (api.test.js)
 │       ├── .env.example
 │       └── package.json
 ├── legacy/
@@ -456,13 +459,14 @@ SharePlate/
 │   ├── seed.sql                # Realistic Indian demo dataset (Mumbai, Delhi, Pune, Noida)
 │   └── migrations/             # Timestamped migration mirror
 ├── docs/
-│   ├── DEMO_SCRIPT.md          # 3-minute demo script & 6 judge Q&As
+│   ├── DEMO_SCRIPT.md          # 3-minute demo script & judge Q&As
 │   ├── NOTION_SUBMISSION_CHECKLIST.md # Notion import & submission instructions
+│   ├── api.md, architecture.md, authentication.md, database.md
 │   ├── cloudinary.md           # Mandatory Cloudinary integration evidence
-│   ├── architecture.md         # System architecture & deployment targets
-│   ├── deployment.md           # Production deployment & GitHub Pages guide
+│   ├── deployment.md, security.md, testing.md
+│   ├── demo-accounts.md, registration.md, role-based-access.md
 │   ├── team-contributions.md   # Team task breakdown with verifiable contributions
-│   └── notion/                 # 12 complete Notion-ready documentation subpages
+│   └── notion/                 # Notion-ready report pages (00–12)
 ├── CHANGES.md                  # Comprehensive record of all changes, test logs & manual steps
 ├── .env.example
 ├── .gitignore
@@ -480,7 +484,8 @@ While SharePlate provides an end-to-end interactive experience in demo mode and 
 2. **Official NGO Verification:** In the demo, NGOs register with self-reported 80G/FCRA IDs. Production requires integrating with government registry APIs (NGO Darpan) for KYC verification.
 3. **Dynamic Traffic Matrix Optimization:** SharePlate generates sequential multi-stop Google Maps routes with automatic waypoint partitioning (handling Google Maps limits). Future releases will integrate real-time traffic matrix APIs to dynamically re-order waypoints based on live traffic congestion.
 4. **Production Cloud Deployment of Express + Supabase:** Host `apps/api` on Render/Fly.io and connect with a production Supabase PostgreSQL instance with automated backups and read-replicas.
-5. **Multilingual Localization (i18n):** Expand UI and donor submission forms into Hindi, Marathi, Tamil, and Bengali to support diverse regional canteen staff and grassroot volunteers.
+5. **Firestore Security Rules Hardening:** Replace test-mode rules with role-scoped rules before onboarding real users.
+6. **Multilingual Localization (i18n):** Expand UI and donor submission forms into Hindi, Marathi, Tamil, and Bengali to support diverse regional canteen staff and grassroot volunteers.
 
 ---
 
@@ -492,19 +497,18 @@ SharePlate is a community coordination technology platform. **SharePlate does no
 
 ---
 
-## 👥 Team Task Allocation
+## 👥 Team
 
-> ⚠️ **Action Item for Submitter:** Replace the bracketed role placeholders below with your team's real full names prior to final form submission. (See [docs/team-contributions.md](docs/team-contributions.md) for full task breakdown.)
+**Pratit Dedhia** ([@pratitdedhia](https://github.com/pratitdedhia)) — repository owner and lead developer.
 
-- **[Team Member 1 — Full Name] (Frontend Engineering & Cloudinary Integration):**
-  - Architecture of React 18 + Vite frontend, responsive layouts, and Tailwind design system.
-  - Integration of Cloudinary upload component, unsigned preset support, dynamic transformations, and real bandwidth savings computation.
-- **[Team Member 2 — Full Name] (Backend Architecture & Security):**
-  - Node.js/Express REST API (`apps/api`), Zod request validation, role-based access control (RBAC), and cryptographic signature endpoint.
-- **[Team Member 3 — Full Name] (Database Engineering & Concurrency):**
-  - PostgreSQL schema design (`supabase/`), Row Level Security policies, atomic reservation stored procedures (`claim_donation_atomic`).
-- **[Team Member 4 — Full Name] (QA, Documentation & Notion Journey):**
-  - Automated test authoring (98 automated tests passing across 7 suites), unified impact calculation math, complete Notion documentation portfolio (`docs/notion/`), and judge demo walkthrough.
+| Area | Owner | Key files |
+| :--- | :--- | :--- |
+| Frontend engineering & Cloudinary integration | _add name_ | `apps/web/src/`, `lib/cloudinary.ts` |
+| Backend architecture & security | _add name_ | `apps/api/src/` |
+| Database engineering & concurrency | _add name_ | `supabase/` |
+| QA, documentation & Notion report | _add name_ | `apps/web/src/tests/`, `docs/` |
+
+Full task breakdown: [docs/team-contributions.md](docs/team-contributions.md).
 
 ---
 
