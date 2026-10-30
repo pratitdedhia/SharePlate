@@ -393,11 +393,17 @@ router.post(
         return;
       }
 
+      const pickupCode = claim.pickup_code || Math.floor(1000 + Math.random() * 9000).toString();
+      const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+
       const { data, error } = await supabase
         .from('claims')
         .update({
           volunteer_id: user.role === 'volunteer' ? user.id : (claim.volunteer_id || user.id),
           verification_status: 'pickup_pending',
+          pickup_code: pickupCode,
+          pickup_expires_at: expiresAt,
+          pickup_attempts: 0,
           updated_at: new Date().toISOString(),
         })
         .eq('id', claimId)
@@ -460,10 +466,16 @@ router.post(
         return;
       }
 
+      const deliveryCode = claim.delivery_code || Math.floor(1000 + Math.random() * 9000).toString();
+      const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+
       const { data, error } = await supabase
         .from('claims')
         .update({
           verification_status: 'delivery_pending',
+          delivery_code: deliveryCode,
+          delivery_expires_at: expiresAt,
+          delivery_attempts: 0,
           updated_at: new Date().toISOString(),
         })
         .eq('id', claimId)
@@ -498,14 +510,95 @@ router.post(
     try {
       const user = req.user!;
       const claimId = req.params.id;
-      const { notes } = req.body || {};
+      const { code, notes } = req.body || {};
       const supabase = getSupabaseAdmin();
 
-      const { data, error } = await supabase.rpc('confirm_pickup_two_party', {
-        p_claim_id: claimId,
-        p_donor_user_id: user.id,
-        p_notes: notes || null,
-      });
+      const { data: claim, error: fetchErr } = await supabase
+        .from('claims')
+        .select('*, donation:donations (donor_id, title)')
+        .eq('id', claimId)
+        .single();
+
+      if (fetchErr || !claim) {
+        res.status(404).json({ success: false, message: 'Claim not found' });
+        return;
+      }
+
+      // Idempotency check: if already collected or delivered, return success
+      if (claim.status === 'collected' || claim.status === 'delivered') {
+        res.status(200).json({
+          success: true,
+          message: 'Pickup already confirmed.',
+          data: claim,
+        });
+        return;
+      }
+
+      // Disputed check
+      if (claim.is_disputed) {
+        res.status(400).json({ success: false, message: 'Disputed claim cannot be confirmed for pickup' });
+        return;
+      }
+
+      // Role & ownership check: volunteer cannot confirm pickup
+      if (claim.volunteer_id && claim.volunteer_id === user.id) {
+        res.status(403).json({ success: false, message: 'Unauthorized: Volunteer cannot confirm pickup on behalf of donor' });
+        return;
+      }
+
+      // Only listing donor or admin can confirm
+      const donationDonorId = (claim as any).donation?.donor_id;
+      if (user.role !== 'admin' && donationDonorId && donationDonorId !== user.id) {
+        res.status(403).json({ success: false, message: 'Unauthorized: Only the listing donor or an admin can confirm pickup' });
+        return;
+      }
+
+      // Expiration check
+      if (claim.pickup_expires_at && new Date() > new Date(claim.pickup_expires_at)) {
+        res.status(400).json({ success: false, message: 'Pickup verification code has expired. Volunteer must re-initiate handover.' });
+        return;
+      }
+
+      // Attempt limit check
+      const currentAttempts = claim.pickup_attempts || 0;
+      if (currentAttempts >= 3) {
+        res.status(400).json({ success: false, message: 'Maximum pickup verification attempts exceeded. Volunteer must re-initiate handover.' });
+        return;
+      }
+
+      // Code verification
+      if (claim.pickup_code) {
+        if (!code || code.trim() !== claim.pickup_code.trim()) {
+          const nextAttempts = currentAttempts + 1;
+          await supabase.from('claims').update({ pickup_attempts: nextAttempts }).eq('id', claimId);
+          const rem = 3 - nextAttempts;
+          res.status(400).json({
+            success: false,
+            message:
+              rem > 0
+                ? `Invalid pickup verification code. ${rem} attempt(s) remaining.`
+                : 'Maximum pickup verification attempts exceeded. Volunteer must re-initiate handover.',
+          });
+          return;
+        }
+      }
+
+      const now = new Date().toISOString();
+
+      const { data, error } = await supabase
+        .from('claims')
+        .update({
+          status: 'collected',
+          verification_status: 'in_transit',
+          pickup_confirmed_by: user.id,
+          pickup_confirmed_at: now,
+          collected_at: now,
+          notes: notes || claim.notes,
+          updated_at: now,
+        })
+        .eq('id', claimId)
+        .select()
+        .single();
 
       if (error) {
         res.status(400).json({ success: false, message: error.message });
@@ -535,36 +628,138 @@ router.post(
     try {
       const user = req.user!;
       const claimId = req.params.id;
-      const { portions_received, notes } = req.body || {};
+      const { portions_received, code, notes } = req.body || {};
       const supabase = getSupabaseAdmin();
 
-      const { data, error } = await supabase.rpc('confirm_delivery_two_party', {
-        p_claim_id: claimId,
-        p_recipient_user_id: user.id,
-        p_portions_confirmed: portions_received ? parseInt(portions_received) : null,
-        p_notes: notes || null,
-      });
+      const { data: claim, error: fetchErr } = await supabase
+        .from('claims')
+        .select('*, donation:donations (id, donor_id, title)')
+        .eq('id', claimId)
+        .single();
+
+      if (fetchErr || !claim) {
+        res.status(404).json({ success: false, message: 'Claim not found' });
+        return;
+      }
+
+      // Idempotency check: if already delivered, return success without duplicate rewards
+      if (claim.status === 'delivered' || claim.verification_status === 'verified') {
+        res.status(200).json({
+          success: true,
+          message: 'Delivery already confirmed.',
+          data: claim,
+        });
+        return;
+      }
+
+      // Disputed check
+      if (claim.is_disputed) {
+        res.status(400).json({ success: false, message: 'Disputed claim cannot release points' });
+        return;
+      }
+
+      // Role & ownership check: volunteer cannot confirm delivery
+      if (claim.volunteer_id && claim.volunteer_id === user.id) {
+        res.status(403).json({ success: false, message: 'Unauthorized: Volunteer cannot confirm delivery on behalf of recipient' });
+        return;
+      }
+
+      // Only claiming recipient NGO or admin can confirm
+      if (user.role !== 'admin' && claim.recipient_id !== user.id) {
+        res.status(403).json({ success: false, message: 'Unauthorized: Only the claiming recipient NGO or an admin can confirm delivery' });
+        return;
+      }
+
+      // Expiration check
+      if (claim.delivery_expires_at && new Date() > new Date(claim.delivery_expires_at)) {
+        res.status(400).json({ success: false, message: 'Delivery verification code has expired. Volunteer must re-initiate handoff.' });
+        return;
+      }
+
+      // Attempt limit check
+      const currentAttempts = claim.delivery_attempts || 0;
+      if (currentAttempts >= 3) {
+        res.status(400).json({ success: false, message: 'Maximum delivery verification attempts exceeded. Volunteer must re-initiate handoff.' });
+        return;
+      }
+
+      // Code verification
+      if (claim.delivery_code) {
+        if (!code || code.trim() !== claim.delivery_code.trim()) {
+          const nextAttempts = currentAttempts + 1;
+          await supabase.from('claims').update({ delivery_attempts: nextAttempts }).eq('id', claimId);
+          const rem = 3 - nextAttempts;
+          res.status(400).json({
+            success: false,
+            message:
+              rem > 0
+                ? `Invalid delivery verification code. ${rem} attempt(s) remaining.`
+                : 'Maximum delivery verification attempts exceeded. Volunteer must re-initiate handoff.',
+          });
+          return;
+        }
+      }
+
+      const confirmedPortions = portions_received
+        ? Math.min(parseInt(portions_received), claim.quantity_claimed)
+        : claim.quantity_claimed;
+
+      if (!confirmedPortions || confirmedPortions <= 0) {
+        res.status(400).json({ success: false, message: 'Confirmed portions must be at least 1 portion' });
+        return;
+      }
+
+      const now = new Date().toISOString();
+
+      // Volunteer reward points calculation (50 base + 2 per portion, cap 150)
+      const volunteerPoints = Math.min(150, 50 + confirmedPortions * 2);
+
+      const { data, error } = await supabase
+        .from('claims')
+        .update({
+          status: 'delivered',
+          verification_status: 'verified',
+          delivery_confirmed_by: user.id,
+          delivery_confirmed_at: now,
+          delivered_at: now,
+          portions_delivered_confirmed: confirmedPortions,
+          points_awarded: volunteerPoints,
+          notes: notes || claim.notes,
+          updated_at: now,
+        })
+        .eq('id', claimId)
+        .select()
+        .single();
 
       if (error) {
         res.status(400).json({ success: false, message: error.message });
         return;
       }
 
+      // Record in volunteer rewards ledger
+      if (claim.volunteer_id) {
+        const { data: existingVolunteerReward } = await supabase
+          .from('volunteer_rewards')
+          .select('id')
+          .eq('claim_id', claimId)
+          .maybeSingle();
+
+        if (!existingVolunteerReward) {
+          await supabase.from('volunteer_rewards').insert({
+            volunteer_id: claim.volunteer_id,
+            claim_id: claimId,
+            points: volunteerPoints,
+            status: 'released',
+            portions_confirmed: confirmedPortions,
+            reason: `Two-party verified rescue: ${confirmedPortions} portions delivered (50 base + ${confirmedPortions * 2} pts, capped at 150)`,
+          });
+        }
+      }
+
       // Calculate and persist donor rewards on the server upon verified NGO delivery
       try {
-        const { data: claimRecord } = await supabase
-          .from('claims')
-          .select('id, quantity_claimed, portions_delivered_confirmed, donation:donations (id, donor_id, title)')
-          .eq('id', claimId)
-          .single();
-
-        if (claimRecord && (claimRecord as any).donation?.donor_id) {
-          const donationInfo = (claimRecord as any).donation;
-          const portionsConfirmed =
-            claimRecord.portions_delivered_confirmed ||
-            (portions_received ? parseInt(portions_received) : claimRecord.quantity_claimed);
-
-          // Prevent duplicate awards if delivery confirmation is retried
+        if ((claim as any).donation?.donor_id) {
+          const donationInfo = (claim as any).donation;
           const { data: existingReward } = await supabase
             .from('donor_rewards')
             .select('id')
@@ -573,17 +768,17 @@ router.post(
 
           if (!existingReward) {
             // Donor reward formula: 30 base + portions * 2, capped at 200 pts
-            const donorPoints = Math.min(200, 30 + Math.max(0, portionsConfirmed) * 2);
+            const donorPoints = Math.min(200, 30 + Math.max(0, confirmedPortions) * 2);
             await supabase.from('donor_rewards').insert({
               donor_id: donationInfo.donor_id,
               donation_id: donationInfo.id,
               claim_id: claimId,
               points: donorPoints,
               status: 'awarded',
-              portions_confirmed: portionsConfirmed,
+              portions_confirmed: confirmedPortions,
               donation_title: donationInfo.title || 'Rescued Meal Donation',
               recipient_name: (user as any).fullName || (user as any).full_name || 'Recipient NGO',
-              reason: `Delivered & confirmed rescue: ${portionsConfirmed} portions delivered (30 base + ${portionsConfirmed * 2} portion bonus, capped at 200 pts)`,
+              reason: `Delivered & confirmed rescue: ${confirmedPortions} portions delivered (30 base + ${confirmedPortions * 2} portion bonus, capped at 200 pts)`,
             });
           }
         }

@@ -105,9 +105,13 @@ export interface Claim {
   volunteer?: UserProfile | null;
   // Two-party verification fields
   pickup_code?: string;
+  pickup_expires_at?: string | null;
+  pickup_attempts?: number;
   pickup_confirmed_by?: string | null;
   pickup_confirmed_at?: string | null;
   delivery_code?: string;
+  delivery_expires_at?: string | null;
+  delivery_attempts?: number;
   delivery_confirmed_by?: string | null;
   delivery_confirmed_at?: string | null;
   portions_delivered_confirmed?: number | null;

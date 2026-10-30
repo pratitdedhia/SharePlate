@@ -170,13 +170,13 @@ npm test --workspace=@shareplate/api
 ### Run Frontend Unit & Integration Tests:
 ```bash
 npm test --workspace=@shareplate/web
-# Result: 74 passed, 0 failed (App, Impact Math, Donor Rewards, Volunteer Trip Routing, Rewards Rules, Two-Party Claim Flow, Auth, Upload Fallback, Features Suite, Render Safety)
+# Result: 88 passed, 0 failed (App, Impact Math, Donor Rewards Ledger, Volunteer Multi-Stop Route Partitioning, Two-Party Pickup & Delivery OTP Flow, Cross-Portal Sync, Auth, Upload Fallback, Features Suite, Render Safety)
 ```
 
 ### Run All Workspace Tests:
 ```bash
 npm test
-# Total: 76 passed, 0 failed
+# Total: 90 passed, 0 failed
 ```
 
 ### Verify Production Compilation:

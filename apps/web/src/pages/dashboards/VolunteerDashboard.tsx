@@ -257,34 +257,6 @@ export const VolunteerDashboard: React.FC = () => {
     }
   };
 
-  // Two-party: Mark picked up on an assigned donor pickup stop
-  const handleStopPickup = async (stopId: string, claimId: string, code?: string) => {
-    try {
-      await claimsService.confirmPickup(claimId, DEMO_PROFILES.donor.id, code);
-      if (activeTripPlan) {
-        await claimsService.completeTripStop(activeTripPlan.id, stopId);
-      }
-      success('Donor handover confirmed! Food is now IN TRANSIT.');
-      await loadDashboardData();
-    } catch (err: any) {
-      error(err.message || 'Failed to confirm pickup handover');
-    }
-  };
-
-  // Two-party: Confirm delivery on an assigned recipient delivery stop
-  const handleStopDelivery = async (stopId: string, claimId: string, portions: number, code?: string) => {
-    try {
-      const res = await claimsService.confirmDelivery(claimId, DEMO_PROFILES.recipient.id, portions, code);
-      if (activeTripPlan) {
-        await claimsService.completeTripStop(activeTripPlan.id, stopId);
-      }
-      success(`Rescue verified by recipient NGO! ${res.pointsAwarded} volunteer reward points released!`);
-      await loadDashboardData();
-    } catch (err: any) {
-      error(err.message || 'Failed to confirm delivery');
-    }
-  };
-
   // Legacy fallback stop complete
   const handleCompleteStop = async (stopId: string) => {
     if (!activeTripPlan) return;
@@ -309,17 +281,6 @@ export const VolunteerDashboard: React.FC = () => {
     }
   };
 
-  // Two-party: Donor confirms pickup handoff
-  const handleConfirmDonorPickup = async (claimId: string) => {
-    try {
-      await claimsService.confirmPickup(claimId, DEMO_PROFILES.donor.id);
-      success('Donor handover confirmed! Food is now officially IN TRANSIT.');
-      await loadDashboardData();
-    } catch (err: any) {
-      error(err.message || 'Failed to confirm donor handover');
-    }
-  };
-
   // Two-party: Volunteer initiates delivery (records arrival at NGO)
   const handleVolunteerInitiateDelivery = async (claimId: string) => {
     if (!user) return;
@@ -329,20 +290,6 @@ export const VolunteerDashboard: React.FC = () => {
       await loadDashboardData();
     } catch (err: any) {
       error(err.message || 'Failed to record delivery arrival');
-    }
-  };
-
-  // Two-party: Recipient confirms receipt & portions received
-  const handleConfirmRecipientDelivery = async (claimId: string, claimedPortions: number) => {
-    try {
-      const portions = deliveryPortions[claimId] ?? claimedPortions;
-      const res = await claimsService.confirmDelivery(claimId, DEMO_PROFILES.recipient.id, portions);
-      success(
-        `Rescue verified by recipient NGO! ${res.pointsAwarded} volunteer reward points have been released to your ledger!`
-      );
-      await loadDashboardData();
-    } catch (err: any) {
-      error(err.message || 'Failed to confirm delivery');
     }
   };
 
@@ -1105,27 +1052,61 @@ export const VolunteerDashboard: React.FC = () => {
                                   In Transit to Shelter
                                 </span>
                               </div>
-                            ) : (
-                              <div className="space-y-2">
-                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                                  <div className="text-xs text-stone-700">
-                                    <strong>Two-Party Rule:</strong> Donor kitchen staff confirms food temperature and portions handed over.
-                                  </div>
-                                  <div className="text-xs font-mono font-bold bg-white px-2.5 py-1 rounded-lg border border-amber-300 text-amber-900">
-                                    Pickup Verification Code: <strong>{linkedClaim?.pickup_code || '4821'}</strong>
-                                  </div>
+                            ) : linkedClaim?.verification_status === 'pickup_pending' ? (
+                              <div className="p-3.5 bg-amber-50 rounded-xl border border-amber-300 space-y-2.5">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                                    <Clock className="w-4 h-4 text-amber-700 animate-pulse" />
+                                    <span>Awaiting Donor Handover Confirmation</span>
+                                  </span>
+                                  <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-md border border-amber-200">
+                                    Valid 15m · Attempts: {linkedClaim?.pickup_attempts || 0}/3
+                                  </span>
                                 </div>
-
-                                <div className="flex flex-wrap items-center gap-2 pt-1">
+                                <div className="bg-white p-3 rounded-lg border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                  <div>
+                                    <div className="text-[10px] font-bold uppercase tracking-wider text-stone-500">
+                                      Your Pickup Handover OTP:
+                                    </div>
+                                    <div className="text-2xl font-mono font-black text-forest-950 tracking-widest mt-0.5">
+                                      {linkedClaim?.pickup_code || '4821'}
+                                    </div>
+                                  </div>
+                                  <p className="text-[11px] text-stone-600 sm:text-right max-w-xs leading-relaxed">
+                                    Present this 4-digit code to donor staff. The donor verifies and releases food from their own authenticated portal.
+                                  </p>
+                                </div>
+                                <div className="flex items-center justify-between pt-1">
+                                  <span className="text-[10px] text-stone-500 italic">
+                                    Volunteer cannot self-confirm on behalf of donor.
+                                  </span>
                                   <button
                                     type="button"
-                                    onClick={() => handleStopPickup(stop.id, claimId, linkedClaim?.pickup_code || '4821')}
-                                    className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-amber-700 hover:bg-amber-800 transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                                    onClick={() => handleVolunteerInitiatePickup(claimId)}
+                                    className="text-[11px] font-bold text-forest-900 hover:underline cursor-pointer"
                                   >
-                                    <CheckCircle2 className="w-4 h-4" />
-                                    <span>Mark Picked Up (Confirm Donor Handover)</span>
+                                    Re-generate Pickup Code
                                   </button>
                                 </div>
+                              </div>
+                            ) : (
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-1">
+                                <div>
+                                  <p className="text-xs font-bold text-stone-800">
+                                    Arrived at {stop.name || 'Donor Kitchen'}?
+                                  </p>
+                                  <p className="text-[11px] text-stone-500 mt-0.5">
+                                    Initiate handover to generate your secure 4-digit pickup code for the donor staff.
+                                  </p>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleVolunteerInitiatePickup(claimId)}
+                                  className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-forest-900 hover:bg-forest-800 transition flex items-center gap-1.5 cursor-pointer shadow-xs shrink-0"
+                                >
+                                  <CheckCircle2 className="w-4 h-4 text-emerald-300" />
+                                  <span>Initiate Pickup Handover</span>
+                                </button>
                               </div>
                             )}
                           </div>
@@ -1150,52 +1131,70 @@ export const VolunteerDashboard: React.FC = () => {
                                 </span>
                               </div>
                             ) : isPickedUp ? (
-                              <div className="space-y-2">
-                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                                  <div className="text-xs text-stone-700">
-                                    <strong>Two-Party Verification:</strong> Recipient NGO confirms portions received to release volunteer points.
+                              linkedClaim?.verification_status === 'delivery_pending' ? (
+                                <div className="p-3.5 bg-blue-50 rounded-xl border border-blue-300 space-y-2.5">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs font-bold text-blue-900 flex items-center gap-1.5">
+                                      <Clock className="w-4 h-4 text-blue-700 animate-pulse" />
+                                      <span>Awaiting Recipient NGO Receipt Confirmation</span>
+                                    </span>
+                                    <span className="text-[10px] font-bold text-blue-800 bg-blue-100 px-2 py-0.5 rounded-md border border-blue-200">
+                                      Valid 15m · Attempts: {linkedClaim?.delivery_attempts || 0}/3
+                                    </span>
                                   </div>
-                                  <div className="text-xs font-mono font-bold bg-white px-2.5 py-1 rounded-lg border border-blue-300 text-blue-900">
-                                    Delivery Verification Code: <strong>{linkedClaim?.delivery_code || '7392'}</strong>
+                                  <div className="bg-white p-3 rounded-lg border border-blue-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                    <div>
+                                      <div className="text-[10px] font-bold uppercase tracking-wider text-stone-500">
+                                        Your Delivery Verification OTP:
+                                      </div>
+                                      <div className="text-2xl font-mono font-black text-blue-950 tracking-widest mt-0.5">
+                                        {linkedClaim?.delivery_code || '7392'}
+                                      </div>
+                                    </div>
+                                    <p className="text-[11px] text-stone-600 sm:text-right max-w-xs leading-relaxed">
+                                      Present this 4-digit code to recipient NGO coordinator. The NGO verifies portions and confirms receipt in their portal to release your points.
+                                    </p>
+                                  </div>
+                                  <div className="flex items-center justify-between pt-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleVolunteerInitiateDelivery(claimId)}
+                                      className="text-[11px] font-bold text-blue-900 hover:underline cursor-pointer"
+                                    >
+                                      Re-generate Delivery Code
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setDisputeClaimId(claimId);
+                                        setDisputeModalOpen(true);
+                                      }}
+                                      className="text-[11px] font-semibold text-rose-700 hover:bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200 transition cursor-pointer"
+                                    >
+                                      Flag Dispute / Issue
+                                    </button>
                                   </div>
                                 </div>
-
-                                <div className="flex flex-wrap items-center gap-3 pt-1">
-                                  <div className="flex items-center gap-1.5 text-xs font-bold text-stone-700">
-                                    <label>Portions Received:</label>
-                                    <input
-                                      type="number"
-                                      min={1}
-                                      max={stop.portions || linkedClaim?.quantity_claimed || 50}
-                                      value={deliveryPortions[claimId] ?? (stop.portions || linkedClaim?.quantity_claimed || 10)}
-                                      onChange={(e) =>
-                                        setDeliveryPortions({
-                                          ...deliveryPortions,
-                                          [claimId]: parseInt(e.target.value) || 1,
-                                        })
-                                      }
-                                      className="w-20 px-2 py-1 rounded-lg border border-stone-300 text-xs font-bold text-stone-900 text-center bg-white"
-                                    />
-                                    <span className="text-stone-400 text-[11px]">/ {stop.portions || linkedClaim?.quantity_claimed}</span>
+                              ) : (
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-1">
+                                  <div>
+                                    <p className="text-xs font-bold text-stone-800">
+                                      Arrived at {stop.name || 'Recipient Shelter'}?
+                                    </p>
+                                    <p className="text-[11px] text-stone-500 mt-0.5">
+                                      Initiate handoff to generate your 4-digit delivery code for the NGO coordinator.
+                                    </p>
                                   </div>
-
                                   <button
                                     type="button"
-                                    onClick={() =>
-                                      handleStopDelivery(
-                                        stop.id,
-                                        claimId,
-                                        deliveryPortions[claimId] ?? (stop.portions || linkedClaim?.quantity_claimed || 10),
-                                        linkedClaim?.delivery_code || '7392'
-                                      )
-                                    }
-                                    className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-blue-700 hover:bg-blue-800 transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                                    onClick={() => handleVolunteerInitiateDelivery(claimId)}
+                                    className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-blue-700 hover:bg-blue-800 transition flex items-center gap-1.5 cursor-pointer shadow-xs shrink-0"
                                   >
-                                    <ShieldCheck className="w-4 h-4" />
-                                    <span>Confirm Delivery (Verify Receipt & Release Points)</span>
+                                    <ShieldCheck className="w-4 h-4 text-blue-200" />
+                                    <span>Initiate Delivery Handoff</span>
                                   </button>
                                 </div>
-                              </div>
+                              )
                             ) : (
                               <div className="p-3 bg-amber-50/70 rounded-xl border border-amber-200 text-xs text-amber-900 flex items-center gap-2">
                                 <Clock className="w-4 h-4 text-amber-700 shrink-0" />
@@ -1332,18 +1331,11 @@ export const VolunteerDashboard: React.FC = () => {
                             </div>
                           </div>
                         ) : (
-                          <div className="space-y-2">
+                          <div className="p-3 bg-warm-100/70 rounded-xl border border-warm-200 text-xs text-stone-600 space-y-1">
+                            <p className="font-bold text-stone-800">Two-Party Authentication Rule:</p>
                             <p className="text-[11px] text-stone-600 leading-relaxed">
-                              Volunteer cannot confirm on behalf of donor. Donor must sign in to confirm, or click the demo simulation helper below:
+                              Volunteers cannot self-confirm donor handover. The donor kitchen verifies and releases food using the 4-digit code above from their authenticated donor portal.
                             </p>
-                            <button
-                              type="button"
-                              onClick={() => handleConfirmDonorPickup(claim.id)}
-                              className="w-full px-3 py-2 rounded-xl text-xs font-bold text-emerald-900 bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 transition flex items-center justify-center gap-1.5 cursor-pointer"
-                            >
-                              <CheckCircle2 className="w-3.5 h-3.5" />
-                              <span>Simulate Donor Handover Sign-off</span>
-                            </button>
                           </div>
                         )}
                       </div>
@@ -1387,7 +1379,7 @@ export const VolunteerDashboard: React.FC = () => {
                             {claim.delivery_code || '7392'}
                           </div>
                           <div className="text-[10px] text-stone-500">
-                            Recipient coordinator checks meals and confirms receipt.
+                            Recipient coordinator checks meals and confirms receipt in their portal.
                           </div>
                         </div>
 
@@ -1422,39 +1414,12 @@ export const VolunteerDashboard: React.FC = () => {
                           </div>
                         ) : (
                           <div className="space-y-2">
-                            <div className="flex items-center gap-2">
-                              <label className="text-[11px] font-bold text-stone-700">
-                                Portions Received:
-                              </label>
-                              <input
-                                type="number"
-                                min={1}
-                                max={claim.quantity_claimed}
-                                value={deliveryPortions[claim.id] ?? claim.quantity_claimed}
-                                onChange={(e) =>
-                                  setDeliveryPortions({
-                                    ...deliveryPortions,
-                                    [claim.id]: parseInt(e.target.value) || 1,
-                                  })
-                                }
-                                className="w-20 px-2 py-1 rounded-lg border border-stone-300 text-xs font-bold text-stone-900 text-center"
-                              />
-                              <span className="text-[10px] text-stone-400">
-                                / {claim.quantity_claimed}
-                              </span>
+                            <div className="p-3 bg-warm-100/70 rounded-xl border border-warm-200 text-xs text-stone-600 space-y-1">
+                              <p className="font-bold text-stone-800">Two-Party Authentication Rule:</p>
+                              <p className="text-[11px] text-stone-600 leading-relaxed">
+                                Volunteers cannot self-confirm delivery. The recipient NGO coordinator verifies portion count and signs off using the code above from their authenticated recipient portal.
+                              </p>
                             </div>
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleConfirmRecipientDelivery(claim.id, claim.quantity_claimed)
-                              }
-                              disabled={!claim.pickup_confirmed_at}
-                              className="w-full px-3 py-2 rounded-xl text-xs font-bold text-white bg-blue-700 hover:bg-blue-800 transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                            >
-                              <CheckCircle2 className="w-3.5 h-3.5" />
-                              <span>Simulate NGO Delivery Confirmation</span>
-                            </button>
 
                             {/* Dispute trigger button */}
                             <button

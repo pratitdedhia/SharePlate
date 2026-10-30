@@ -29,6 +29,9 @@ export const RecipientDashboard: React.FC = () => {
   const [availableDonations, setAvailableDonations] = useState<Donation[]>([]);
   const [myClaims, setMyClaims] = useState<Claim[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deliveryCodeInput, setDeliveryCodeInput] = useState<Record<string, string>>({});
+  const [portionsInput, setPortionsInput] = useState<Record<string, number>>({});
+  const [confirmingClaimId, setConfirmingClaimId] = useState<string | null>(null);
 
   const loadData = async () => {
     if (!user) return;
@@ -60,6 +63,31 @@ export const RecipientDashboard: React.FC = () => {
       loadData();
     } catch (err: any) {
       error(err.message || 'Status transition failed.');
+    }
+  };
+
+  const handleVerifyDeliveryReceipt = async (claim: Claim) => {
+    if (!user) return;
+    const code = deliveryCodeInput[claim.id]?.trim();
+    if (!code) {
+      error('Please enter the 4-digit delivery verification code presented by the volunteer.');
+      return;
+    }
+    const portions = portionsInput[claim.id] ?? claim.quantity_claimed;
+    if (portions <= 0) {
+      error('Portions received must be at least 1 portion.');
+      return;
+    }
+    setConfirmingClaimId(claim.id);
+    try {
+      const res = await claimsService.confirmDelivery(claim.id, user.id, portions, code);
+      success(`Delivery verified! ${res.pointsAwarded} volunteer reward points released.`);
+      setDeliveryCodeInput((prev) => ({ ...prev, [claim.id]: '' }));
+      await loadData();
+    } catch (err: any) {
+      error(err.message || 'Delivery verification failed.');
+    } finally {
+      setConfirmingClaimId(null);
     }
   };
 
@@ -219,29 +247,78 @@ export const RecipientDashboard: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 self-end sm:self-center">
+                    <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 self-end sm:self-center">
                       {claim.status === 'claimed' && (
-                        <button
-                          type="button"
-                          onClick={() => handleUpdateClaimStatus(claim.id, 'collected')}
-                          className="px-3.5 py-1.5 rounded-lg text-xs font-bold text-white bg-forest-900 hover:bg-forest-800 transition cursor-pointer"
-                        >
-                          Mark Collected
-                        </button>
+                        <span className="text-xs font-semibold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 flex items-center gap-1">
+                          <Clock className="w-3.5 h-3.5 text-amber-600" /> Reserved · Awaiting Volunteer Pickup
+                        </span>
                       )}
                       {claim.status === 'collected' && (
-                        <button
-                          type="button"
-                          onClick={() => handleUpdateClaimStatus(claim.id, 'delivered')}
-                          className="px-3.5 py-1.5 rounded-lg text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition cursor-pointer"
-                        >
-                          Confirm Delivered
-                        </button>
+                        claim.verification_status === 'delivery_pending' ? (
+                          <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 bg-blue-50/80 p-2.5 rounded-xl border border-blue-300">
+                            <div className="text-right sm:text-left">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-blue-900 block">
+                                Volunteer Arrived · Confirm Receipt:
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <div className="flex items-center gap-1">
+                                <label className="text-[10px] font-bold text-stone-600">Portions:</label>
+                                <input
+                                  type="number"
+                                  min={1}
+                                  max={claim.quantity_claimed}
+                                  value={portionsInput[claim.id] ?? claim.quantity_claimed}
+                                  onChange={(e) =>
+                                    setPortionsInput((prev) => ({
+                                      ...prev,
+                                      [claim.id]: parseInt(e.target.value) || 1,
+                                    }))
+                                  }
+                                  className="w-16 px-2 py-1 text-xs font-bold text-center border border-blue-300 rounded-lg bg-white"
+                                  title="Confirmed portions received"
+                                />
+                              </div>
+                              <input
+                                type="text"
+                                maxLength={4}
+                                placeholder="4-digit OTP"
+                                value={deliveryCodeInput[claim.id] || ''}
+                                onChange={(e) =>
+                                  setDeliveryCodeInput((prev) => ({
+                                    ...prev,
+                                    [claim.id]: e.target.value.replace(/\D/g, ''),
+                                  }))
+                                }
+                                className="w-24 px-2 py-1 text-xs font-mono font-bold text-center border border-blue-300 rounded-lg focus:border-blue-700 focus:outline-hidden bg-white text-stone-900 shadow-2xs"
+                                title="Enter 4-digit OTP shown on volunteer's screen"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleVerifyDeliveryReceipt(claim)}
+                                disabled={confirmingClaimId === claim.id}
+                                className="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-blue-700 hover:bg-blue-800 transition cursor-pointer shadow-xs disabled:opacity-50 flex items-center gap-1 shrink-0"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5 text-blue-200" />
+                                <span>{confirmingClaimId === claim.id ? 'Verifying...' : 'Verify Receipt & Release Points'}</span>
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-xs font-semibold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200 flex items-center gap-1">
+                            <Clock className="w-3.5 h-3.5 text-blue-600" /> In Transit · Awaiting Volunteer Arrival
+                          </span>
+                        )
                       )}
                       {claim.status === 'delivered' && (
-                        <span className="text-xs font-semibold text-emerald-700 flex items-center gap-1">
-                          <CheckCircle2 className="w-4 h-4" /> Delivered to Community
-                        </span>
+                        <div className="text-right">
+                          <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Delivered to Community
+                          </span>
+                          <span className="text-[10px] text-stone-500 block mt-0.5">
+                            {claim.portions_delivered_confirmed || claim.quantity_claimed} portions received & verified
+                          </span>
+                        </div>
                       )}
                     </div>
                   </div>

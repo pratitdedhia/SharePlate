@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { demoStore, INITIAL_DEMO_DONATIONS } from '../lib/mockData';
 import { calculateClaimPoints, calculateDonorRewardPoints, DONOR_REWARD_RULES } from '../types';
+import { generateGoogleMapsTripSegments, RouteStopInput } from '../lib/routing';
 
 describe('Demo Claim Safety Flow', () => {
   beforeEach(() => {
@@ -882,6 +883,375 @@ describe('Volunteer Routing & Personal Travel Segregation Regression', () => {
       // Donor history contains donor_id; volunteer history contains volunteer_id
       expect(donorRewards.history.every((r) => r.donor_id === donorId)).toBe(true);
       expect(volunteerRewards.history.every((r) => r.volunteer_id === volunteerId)).toBe(true);
+    });
+  });
+
+  describe('Two-Party Pickup and Delivery OTP Verification Across Portals', () => {
+    const donorId = 'a0000000-0000-0000-0000-000000000001';
+    const recipientId = 'b0000000-0000-0000-0000-000000000001';
+    const volunteerId = 'c0000000-0000-0000-0000-000000000001';
+    const otherDonorId = 'd0000000-0000-0000-0000-000000000002';
+    const otherRecipientId = 'b0000000-0000-0000-0000-000000000002';
+
+    it('Volunteer initiates pickup: generates 4-digit code, sets 15-minute expiry, and resets attempts', () => {
+      const donation = demoStore.createDonation({
+        donor_id: donorId,
+        title: 'Fresh Paneer Tikka Wraps',
+        description: 'Hot wraps ready for pickup',
+        category: 'cooked_meals',
+        quantity_total: 25,
+        quantity_unit: 'portions',
+        pickup_deadline: new Date(Date.now() + 4 * 3600000).toISOString(),
+        location_label: 'Connaught Place',
+        city: 'Delhi NCR',
+      });
+
+      const claim = demoStore.claimDonation(donation.id, recipientId, 25);
+      demoStore.assignVolunteerToClaim(claim.id, volunteerId);
+
+      const initiated = demoStore.initiatePickup(claim.id, volunteerId);
+      expect(initiated.verification_status).toBe('pickup_pending');
+      expect(initiated.pickup_code).toMatch(/^\d{4}$/);
+      expect(initiated.pickup_expires_at).toBeDefined();
+      expect(initiated.pickup_attempts).toBe(0);
+    });
+
+    it('Volunteer cannot self-confirm pickup on behalf of donor kitchen', () => {
+      const donation = demoStore.createDonation({
+        donor_id: donorId,
+        title: 'Biryani Pots',
+        description: 'Steaming veg biryani',
+        category: 'cooked_meals',
+        quantity_total: 30,
+        quantity_unit: 'portions',
+        pickup_deadline: new Date(Date.now() + 4 * 3600000).toISOString(),
+        location_label: 'Khan Market',
+        city: 'Delhi NCR',
+      });
+
+      const claim = demoStore.claimDonation(donation.id, recipientId, 30);
+      demoStore.assignVolunteerToClaim(claim.id, volunteerId);
+      demoStore.initiatePickup(claim.id, volunteerId);
+
+      expect(() => {
+        demoStore.confirmPickup(claim.id, volunteerId, claim.pickup_code);
+      }).toThrow(/unauthorized.*volunteer cannot confirm pickup/i);
+    });
+
+    it('Wrong donor is rejected from confirming pickup for another donor’s listing', () => {
+      const donation = demoStore.createDonation({
+        donor_id: donorId,
+        title: 'Dal Makhani & Roti',
+        description: 'Fresh dinner batch',
+        category: 'cooked_meals',
+        quantity_total: 20,
+        quantity_unit: 'portions',
+        pickup_deadline: new Date(Date.now() + 4 * 3600000).toISOString(),
+        location_label: 'Lajpat Nagar',
+        city: 'Delhi NCR',
+      });
+
+      const claim = demoStore.claimDonation(donation.id, recipientId, 20);
+      demoStore.assignVolunteerToClaim(claim.id, volunteerId);
+      demoStore.initiatePickup(claim.id, volunteerId);
+
+      expect(() => {
+        demoStore.confirmPickup(claim.id, otherDonorId, claim.pickup_code);
+      }).toThrow(/unauthorized.*only the listing donor/i);
+    });
+
+    it('Incorrect pickup code increments attempts and reports remaining tries', () => {
+      const donation = demoStore.createDonation({
+        donor_id: donorId,
+        title: 'Idli Sambar Batch',
+        description: 'South Indian breakfast meal',
+        category: 'cooked_meals',
+        quantity_total: 15,
+        quantity_unit: 'portions',
+        pickup_deadline: new Date(Date.now() + 4 * 3600000).toISOString(),
+        location_label: 'Karol Bagh',
+        city: 'Delhi NCR',
+      });
+
+      const claim = demoStore.claimDonation(donation.id, recipientId, 15);
+      demoStore.assignVolunteerToClaim(claim.id, volunteerId);
+      demoStore.initiatePickup(claim.id, volunteerId);
+
+      // Attempt 1 with wrong code '0000'
+      expect(() => {
+        demoStore.confirmPickup(claim.id, donorId, '0000');
+      }).toThrow(/invalid pickup verification code.*2 attempt\(s\) remaining/i);
+
+      expect(claim.pickup_attempts).toBe(1);
+
+      // Attempt 2 with wrong code '1111'
+      expect(() => {
+        demoStore.confirmPickup(claim.id, donorId, '1111');
+      }).toThrow(/invalid pickup verification code.*1 attempt\(s\) remaining/i);
+
+      expect(claim.pickup_attempts).toBe(2);
+    });
+
+    it('Exceeding 3 pickup code attempts locks out verification until re-initiated', () => {
+      const donation = demoStore.createDonation({
+        donor_id: donorId,
+        title: 'Veg Pulao',
+        description: 'Hot spiced pulao',
+        category: 'cooked_meals',
+        quantity_total: 18,
+        quantity_unit: 'portions',
+        pickup_deadline: new Date(Date.now() + 4 * 3600000).toISOString(),
+        location_label: 'Rajouri Garden',
+        city: 'Delhi NCR',
+      });
+
+      const claim = demoStore.claimDonation(donation.id, recipientId, 18);
+      demoStore.assignVolunteerToClaim(claim.id, volunteerId);
+      demoStore.initiatePickup(claim.id, volunteerId);
+
+      // 3 wrong attempts
+      try { demoStore.confirmPickup(claim.id, donorId, '0001'); } catch {}
+      try { demoStore.confirmPickup(claim.id, donorId, '0002'); } catch {}
+      expect(() => {
+        demoStore.confirmPickup(claim.id, donorId, '0003');
+      }).toThrow(/maximum pickup verification attempts exceeded/i);
+
+      // Even correct code is locked out now
+      expect(() => {
+        demoStore.confirmPickup(claim.id, donorId, claim.pickup_code);
+      }).toThrow(/maximum pickup verification attempts exceeded/i);
+
+      // Re-initiating resets attempts
+      demoStore.initiatePickup(claim.id, volunteerId);
+      expect(claim.pickup_attempts).toBe(0);
+
+      // Now correct code succeeds
+      const confirmed = demoStore.confirmPickup(claim.id, donorId, claim.pickup_code);
+      expect(confirmed.status).toBe('collected');
+      expect(confirmed.verification_status).toBe('in_transit');
+    });
+
+    it('Expired pickup code is rejected with expiration error', () => {
+      const donation = demoStore.createDonation({
+        donor_id: donorId,
+        title: 'Samosa Platter',
+        description: 'Crispy potato samosas',
+        category: 'cooked_meals',
+        quantity_total: 40,
+        quantity_unit: 'portions',
+        pickup_deadline: new Date(Date.now() + 4 * 3600000).toISOString(),
+        location_label: 'Chandni Chowk',
+        city: 'Delhi NCR',
+      });
+
+      const claim = demoStore.claimDonation(donation.id, recipientId, 40);
+      demoStore.assignVolunteerToClaim(claim.id, volunteerId);
+      demoStore.initiatePickup(claim.id, volunteerId);
+
+      // Simulate code expiration in the past
+      claim.pickup_expires_at = new Date(Date.now() - 60000).toISOString();
+
+      expect(() => {
+        demoStore.confirmPickup(claim.id, donorId, claim.pickup_code);
+      }).toThrow(/pickup verification code has expired/i);
+    });
+
+    it('Correct pickup code confirms handover and advances status to in_transit', () => {
+      const donation = demoStore.createDonation({
+        donor_id: donorId,
+        title: 'Chole Bhature Combo',
+        description: 'Lunch boxes',
+        category: 'cooked_meals',
+        quantity_total: 20,
+        quantity_unit: 'portions',
+        pickup_deadline: new Date(Date.now() + 4 * 3600000).toISOString(),
+        location_label: 'South Ex',
+        city: 'Delhi NCR',
+      });
+
+      const claim = demoStore.claimDonation(donation.id, recipientId, 20);
+      demoStore.assignVolunteerToClaim(claim.id, volunteerId);
+      demoStore.initiatePickup(claim.id, volunteerId);
+
+      const pickedUp = demoStore.confirmPickup(claim.id, donorId, claim.pickup_code);
+      expect(pickedUp.status).toBe('collected');
+      expect(pickedUp.verification_status).toBe('in_transit');
+      expect(pickedUp.pickup_confirmed_by).toBeDefined();
+      expect(pickedUp.pickup_confirmed_at).toBeDefined();
+    });
+
+    it('Volunteer initiates delivery: generates 4-digit code, sets 15-minute expiry, and resets attempts', () => {
+      const donation = demoStore.createDonation({
+        donor_id: donorId,
+        title: 'Vegetable Khichdi',
+        description: 'Nutritious warm meal',
+        category: 'cooked_meals',
+        quantity_total: 35,
+        quantity_unit: 'portions',
+        pickup_deadline: new Date(Date.now() + 4 * 3600000).toISOString(),
+        location_label: 'Dwarka',
+        city: 'Delhi NCR',
+      });
+
+      const claim = demoStore.claimDonation(donation.id, recipientId, 35);
+      demoStore.assignVolunteerToClaim(claim.id, volunteerId);
+      demoStore.initiatePickup(claim.id, volunteerId);
+      demoStore.confirmPickup(claim.id, donorId, claim.pickup_code);
+
+      const initiated = demoStore.initiateDelivery(claim.id, volunteerId);
+      expect(initiated.verification_status).toBe('delivery_pending');
+      expect(initiated.delivery_code).toMatch(/^\d{4}$/);
+      expect(initiated.delivery_expires_at).toBeDefined();
+      expect(initiated.delivery_attempts).toBe(0);
+    });
+
+    it('Volunteer cannot self-confirm delivery on behalf of recipient NGO', () => {
+      const donation = demoStore.createDonation({
+        donor_id: donorId,
+        title: 'Poori Bhaji Feast',
+        description: 'Temple surplus',
+        category: 'cooked_meals',
+        quantity_total: 50,
+        quantity_unit: 'portions',
+        pickup_deadline: new Date(Date.now() + 4 * 3600000).toISOString(),
+        location_label: 'Mayur Vihar',
+        city: 'Delhi NCR',
+      });
+
+      const claim = demoStore.claimDonation(donation.id, recipientId, 50);
+      demoStore.assignVolunteerToClaim(claim.id, volunteerId);
+      demoStore.initiatePickup(claim.id, volunteerId);
+      demoStore.confirmPickup(claim.id, donorId, claim.pickup_code);
+      demoStore.initiateDelivery(claim.id, volunteerId);
+
+      expect(() => {
+        demoStore.confirmDelivery(claim.id, volunteerId, 50, claim.delivery_code);
+      }).toThrow(/unauthorized.*volunteer cannot confirm delivery/i);
+    });
+
+    it('Wrong recipient is rejected from confirming delivery for another recipient’s claim', () => {
+      const donation = demoStore.createDonation({
+        donor_id: donorId,
+        title: 'Mixed Sandwiches',
+        description: 'Catering leftovers',
+        category: 'bakery',
+        quantity_total: 24,
+        quantity_unit: 'portions',
+        pickup_deadline: new Date(Date.now() + 4 * 3600000).toISOString(),
+        location_label: 'Rohini',
+        city: 'Delhi NCR',
+      });
+
+      const claim = demoStore.claimDonation(donation.id, recipientId, 24);
+      demoStore.assignVolunteerToClaim(claim.id, volunteerId);
+      demoStore.initiatePickup(claim.id, volunteerId);
+      demoStore.confirmPickup(claim.id, donorId, claim.pickup_code);
+      demoStore.initiateDelivery(claim.id, volunteerId);
+
+      expect(() => {
+        demoStore.confirmDelivery(claim.id, otherRecipientId, 24, claim.delivery_code);
+      }).toThrow(/unauthorized.*only the claiming recipient/i);
+    });
+
+    it('Incorrect delivery code increments attempts and reports remaining tries', () => {
+      const donation = demoStore.createDonation({
+        donor_id: donorId,
+        title: 'Sweet Halwa',
+        description: 'Warm semolina pudding',
+        category: 'bakery',
+        quantity_total: 20,
+        quantity_unit: 'portions',
+        pickup_deadline: new Date(Date.now() + 4 * 3600000).toISOString(),
+        location_label: 'Noida Sec 18',
+        city: 'Delhi NCR',
+      });
+
+      const claim = demoStore.claimDonation(donation.id, recipientId, 20);
+      demoStore.assignVolunteerToClaim(claim.id, volunteerId);
+      demoStore.initiatePickup(claim.id, volunteerId);
+      demoStore.confirmPickup(claim.id, donorId, claim.pickup_code);
+      demoStore.initiateDelivery(claim.id, volunteerId);
+
+      expect(() => {
+        demoStore.confirmDelivery(claim.id, recipientId, 20, '9999');
+      }).toThrow(/invalid delivery verification code.*2 attempt\(s\) remaining/i);
+
+      expect(claim.delivery_attempts).toBe(1);
+    });
+
+    it('Correct delivery code by recipient confirms receipt and atomically awards volunteer and donor rewards', () => {
+      const donation = demoStore.createDonation({
+        donor_id: donorId,
+        title: 'Rajma Chawal Trays',
+        description: 'Comfort meal for shelter',
+        category: 'cooked_meals',
+        quantity_total: 30,
+        quantity_unit: 'portions',
+        pickup_deadline: new Date(Date.now() + 4 * 3600000).toISOString(),
+        location_label: 'Pitampura',
+        city: 'Delhi NCR',
+      });
+
+      const claim = demoStore.claimDonation(donation.id, recipientId, 30);
+      demoStore.assignVolunteerToClaim(claim.id, volunteerId);
+      demoStore.initiatePickup(claim.id, volunteerId);
+      demoStore.confirmPickup(claim.id, donorId, claim.pickup_code);
+      demoStore.initiateDelivery(claim.id, volunteerId);
+
+      const donorBalanceBefore = demoStore.getDonorRewards(donorId).points_balance;
+      const volunteerRewardsBefore = demoStore.getVolunteerRewards(volunteerId).points_released;
+
+      const result = demoStore.confirmDelivery(claim.id, recipientId, 30, claim.delivery_code);
+      expect(result.claim.status).toBe('delivered');
+      expect(result.claim.verification_status).toBe('verified');
+      expect(result.pointsAwarded).toBe(110); // 50 base + 30*2
+
+      const donorBalanceAfter = demoStore.getDonorRewards(donorId).points_balance;
+      const volunteerRewardsAfter = demoStore.getVolunteerRewards(volunteerId).points_released;
+
+      expect(donorBalanceAfter).toBe(donorBalanceBefore + 90); // 30 base + 30*2
+      expect(volunteerRewardsAfter).toBe(volunteerRewardsBefore + 110);
+    });
+
+    it('Generates one Google Maps link with waypoints for trips with <= 9 stops ending at destination', () => {
+      const origin = 'Rohini Sector 14, Delhi';
+      const destination = 'Connaught Place, New Delhi';
+      const stops: RouteStopInput[] = [
+        { name: 'DTU Canteen', address: 'Bawana Road, Rohini, Delhi', type: 'pickup' },
+        { name: 'Prerna Shelter', address: 'Pitampura, Delhi', type: 'delivery' },
+      ];
+
+      const segments = generateGoogleMapsTripSegments(origin, destination, stops);
+      expect(segments).toHaveLength(1);
+      expect(segments[0].segmentNumber).toBe(1);
+      expect(segments[0].totalSegments).toBe(1);
+      expect(segments[0].origin).toBe(origin);
+      expect(segments[0].destination).toBe(destination);
+      expect(segments[0].waypoints).toEqual(['Bawana Road, Rohini, Delhi', 'Pitampura, Delhi']);
+      expect(segments[0].url).toContain(encodeURIComponent(origin));
+      expect(segments[0].url).toContain(encodeURIComponent(destination));
+      expect(segments[0].url).toContain(encodeURIComponent('Bawana Road, Rohini, Delhi|Pitampura, Delhi'));
+    });
+
+    it('Splits trips with > 9 stops into ordered route segments respecting Google Maps waypoint limits', () => {
+      const origin = 'Rohini Sector 14, Delhi';
+      const destination = 'Noida Sector 62, UP';
+      const stops: RouteStopInput[] = Array.from({ length: 14 }, (_, i) => ({
+        name: `Stop #${i + 1}`,
+        address: `Delhi Stop Address ${i + 1}`,
+        type: i % 2 === 0 ? 'pickup' : 'delivery',
+      }));
+
+      const segments = generateGoogleMapsTripSegments(origin, destination, stops);
+      expect(segments.length).toBe(2);
+      expect(segments[0].segmentNumber).toBe(1);
+      expect(segments[0].totalSegments).toBe(2);
+      expect(segments[0].waypoints.length).toBeLessThanOrEqual(9);
+      expect(segments[1].segmentNumber).toBe(2);
+      expect(segments[1].totalSegments).toBe(2);
+      // Final segment must end at the volunteer's selected destination
+      expect(segments[1].destination).toBe(destination);
+      expect(segments[1].url).toContain(encodeURIComponent(destination));
     });
   });
 });

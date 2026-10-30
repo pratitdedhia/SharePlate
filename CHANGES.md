@@ -561,3 +561,53 @@ Use the pre-filled fields in [docs/NOTION_SUBMISSION_CHECKLIST.md](file:///c:/Us
   - Donors cannot view another donor's rewards (`Unauthorized` error); admins can view any donor's rewards.
   - Donor rewards and volunteer rewards are strictly segregated across ledger, rules, and endpoints.
 - **Total Test Suite:** 7 test files, **76 passed, 0 failed** (74 web + 2 API).
+
+---
+
+### TIER 7: Volunteer Route Waypoint Link & Two-Party OTP Verification Across All Portals
+
+#### 1. Multi-Stop Google Maps Route Generation with Limit Partitioning
+- **Segmented Route Generation Utility ([`apps/web/src/lib/routing.ts`](file:///c:/Users/dedhi/OneDrive/Desktop/Pratit/Hackathon/Hacktober%20HackDays/apps/web/src/lib/routing.ts)):**
+  - Implemented `generateGoogleMapsTripSegments` to construct Google Maps directions URLs containing all assigned donor pickup stops and recipient delivery drop-offs as sequential waypoints.
+  - Automatically sets the volunteer's selected final commute stop as the destination.
+  - Enforces Google Maps' URL parameter limit (max 9 intermediate waypoints per directions request) by partitioning long multi-stop rescue routes into cleanly numbered legs (`Leg 1: X stops`, `Leg 2: Y stops → Final Destination`) while preserving all stops in transit order.
+- **TaskRouteMap Navigation Integration ([`apps/web/src/components/volunteer/TaskRouteMap.tsx`](file:///c:/Users/dedhi/OneDrive/Desktop/Pratit/Hackathon/Hacktober%20HackDays/apps/web/src/components/volunteer/TaskRouteMap.tsx)):**
+  - Renders dynamic navigation buttons: *"Open Route in Google Maps (X stops)"* or segmented leg buttons for large trips.
+  - Transparent disclosures clarifying that navigation opens external Google Maps for actual turn-by-turn mobile navigation without fabricating simulated GPS telemetry or fake traffic times.
+
+#### 2. Two-Party OTP Verification Engine (DemoStore & Express API & PostgreSQL Schema)
+- **Role Control Symmetry:**
+  - **Pickup Stage:** Volunteer initiates arrival at the donor loading dock (`pickup_pending`), generating a secure 4-digit OTP (`pickup_code`). Only the authenticated donor kitchen staff can submit this code in their portal to verify food handoff. Volunteers cannot self-confirm.
+  - **Delivery Stage:** When in transit, volunteer arrives at the recipient shelter and initiates handoff (`delivery_pending`), generating a secure 4-digit OTP (`delivery_code`). Only the authenticated recipient NGO coordinator can enter this code with confirmed portion counts to verify receipt and release rewards. Volunteers cannot self-confirm.
+- **Security & Integrity Safeguards:**
+  - **15-Minute Expiry Window:** Enforced via `pickup_expires_at` and `delivery_expires_at`. Expired codes require the volunteer to re-initiate.
+  - **3-Attempt Lockout:** Tracked via `pickup_attempts` and `delivery_attempts`. Entering wrong codes 3 times locks out verification until re-initiated, protecting against brute-force guessing.
+  - **Identity & Ownership Enforcement:** Rejects volunteers attempting to verify their own deliveries; rejects unassociated donors or recipients from confirming claims belonging to other users.
+  - **Server-Side Rewards Issuance:** Atomically releases volunteer reward points into `volunteer_rewards` and records donor points into `donor_rewards` ledger only upon valid two-party verification.
+- **Schema Updates ([`supabase/schema.sql`](file:///c:/Users/dedhi/OneDrive/Desktop/Pratit/Hackathon/Hacktober%20HackDays/supabase/schema.sql)):**
+  - Added `pickup_expires_at`, `pickup_attempts`, `delivery_expires_at`, `delivery_attempts` columns to `public.claims`.
+  - Hardened Express API endpoints `POST /api/claims/:id/pickup-confirm` and `POST /api/claims/:id/delivery-confirm`.
+
+#### 3. Cross-Portal Role-Specific Verification UI
+- **Volunteer Portal ([`apps/web/src/pages/dashboards/VolunteerDashboard.tsx`](file:///c:/Users/dedhi/OneDrive/Desktop/Pratit/Hackathon/Hacktober%20HackDays/apps/web/src/pages/dashboards/VolunteerDashboard.tsx)):**
+  - Shows "Initiate Pickup Handover" and "Initiate Delivery Handoff" buttons at stops.
+  - Displays high-contrast OTP presentation cards showing the 4-digit code, remaining time, attempt counter, and role-appropriate instructions.
+  - Completely removed simulation/self-confirmation buttons to maintain strict authorization integrity.
+- **Donor Portal ([`apps/web/src/pages/dashboards/DonorDashboard.tsx`](file:///c:/Users/dedhi/OneDrive/Desktop/Pratit/Hackathon/Hacktober%20HackDays/apps/web/src/pages/dashboards/DonorDashboard.tsx)):**
+  - Displays interactive OTP input field on incoming claims when a volunteer initiates handover.
+  - Donor enters the volunteer's 4-digit code and clicks *"Verify & Release Food"*, instantly updating the claim to *In Transit*.
+- **Recipient Portal & Claim Cards ([`apps/web/src/pages/dashboards/RecipientDashboard.tsx`](file:///c:/Users/dedhi/OneDrive/Desktop/Pratit/Hackathon/Hacktober%20HackDays/apps/web/src/pages/dashboards/RecipientDashboard.tsx) & [`apps/web/src/components/claims/ClaimCard.tsx`](file:///c:/Users/dedhi/OneDrive/Desktop/Pratit/Hackathon/Hacktober%20HackDays/apps/web/src/components/claims/ClaimCard.tsx)):**
+  - Displays interactive delivery verification form with confirmed portion count input and 4-digit OTP input.
+  - Recipient verifies meals and clicks *"Verify Receipt & Release Rewards"*, crediting volunteer and donor ledgers.
+
+#### 4. Automated Regression Tests ([`apps/web/src/tests/claimFlow.test.ts`](file:///c:/Users/dedhi/OneDrive/Desktop/Pratit/Hackathon/Hacktober%20HackDays/apps/web/src/tests/claimFlow.test.ts))
+- Added 14 new automated tests covering:
+  - Pickup and delivery OTP initiation, code generation, 15-minute expiration, and attempt tracking.
+  - Volunteer self-confirmation rejection at pickup and delivery.
+  - Cross-user ownership rejections for wrong donors and wrong recipients.
+  - Incorrect code attempt increments and 3-attempt lockout.
+  - Expired code rejection.
+  - Successful pickup and delivery with atomic rewards release.
+  - Multi-stop Google Maps directions link generation and waypoint partitioning for trips > 9 stops.
+- **Full Test Suite:** 7 test files, **90 passed, 0 failed** (88 web + 2 API).
+

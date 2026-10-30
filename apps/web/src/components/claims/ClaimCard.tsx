@@ -40,6 +40,8 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
   const [disputeModalOpen, setDisputeModalOpen] = useState(false);
   const [disputeReason, setDisputeReason] = useState('');
   const [portionsReceived, setPortionsReceived] = useState<number>(claim.quantity_claimed);
+  const [deliveryOtp, setDeliveryOtp] = useState('');
+  const [pickupOtp, setPickupOtp] = useState('');
   const [loading, setLoading] = useState(false);
 
   const donation = claim.donation;
@@ -70,7 +72,7 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
   const handleDonorConfirmHandover = async () => {
     setLoading(true);
     try {
-      await claimsService.confirmPickup(claim.id, user?.id || 'donor');
+      await claimsService.confirmPickup(claim.id, user?.id || 'donor', pickupOtp);
       if (onRefresh) onRefresh();
     } finally {
       setLoading(false);
@@ -83,7 +85,8 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
       await claimsService.confirmDelivery(
         claim.id,
         user?.id || 'recipient',
-        portionsReceived || claim.quantity_claimed
+        portionsReceived || claim.quantity_claimed,
+        deliveryOtp
       );
       if (onRefresh) onRefresh();
     } finally {
@@ -257,15 +260,26 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
         <div className="flex flex-wrap items-center gap-2">
           {/* DONOR SPECIFIC ACTION: Confirm Handover */}
           {isDonor && claim.status === 'claimed' && !claim.pickup_confirmed_at && (
-            <button
-              type="button"
-              onClick={handleDonorConfirmHandover}
-              disabled={loading}
-              className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-forest-900 hover:bg-forest-800 transition flex items-center gap-1.5 shadow-xs cursor-pointer"
-            >
-              <CheckCircle className="w-3.5 h-3.5 text-emerald-300" />
-              <span>Confirm Handover to Volunteer</span>
-            </button>
+            <div className="flex items-center gap-1.5">
+              <input
+                type="text"
+                maxLength={4}
+                placeholder="4-digit OTP"
+                value={pickupOtp}
+                onChange={(e) => setPickupOtp(e.target.value.replace(/\D/g, ''))}
+                className="w-24 px-2 py-1 rounded-lg border border-emerald-300 text-xs font-mono font-bold text-center bg-emerald-50/50"
+                title="Enter 4-digit code shown on volunteer's screen"
+              />
+              <button
+                type="button"
+                onClick={handleDonorConfirmHandover}
+                disabled={loading}
+                className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-forest-900 hover:bg-forest-800 transition flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
+              >
+                <CheckCircle className="w-3.5 h-3.5 text-emerald-300" />
+                <span>Verify & Release Food</span>
+              </button>
+            </div>
           )}
 
           {/* VOLUNTEER SPECIFIC ACTION: Mark Picked Up */}
@@ -283,24 +297,36 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
 
           {/* RECIPIENT SPECIFIC ACTION: Confirm Delivery & Portions */}
           {isRecipient && claim.status === 'collected' && !claim.delivery_confirmed_at && !claim.is_disputed && (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] font-bold text-stone-500">Portions:</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={claim.quantity_claimed}
+                  value={portionsReceived}
+                  onChange={(e) => setPortionsReceived(parseInt(e.target.value) || 1)}
+                  className="w-16 px-2 py-1 rounded-lg border border-stone-300 text-xs font-bold text-center bg-white"
+                  title="Portions received"
+                />
+              </div>
               <input
-                type="number"
-                min={1}
-                max={claim.quantity_claimed}
-                value={portionsReceived}
-                onChange={(e) => setPortionsReceived(parseInt(e.target.value) || 1)}
-                className="w-16 px-2 py-1 rounded-lg border border-stone-300 text-xs font-bold text-center"
-                title="Portions received"
+                type="text"
+                maxLength={4}
+                placeholder="4-digit OTP"
+                value={deliveryOtp}
+                onChange={(e) => setDeliveryOtp(e.target.value.replace(/\D/g, ''))}
+                className="w-24 px-2 py-1 rounded-lg border border-emerald-300 text-xs font-mono font-bold text-center bg-emerald-50/50"
+                title="Enter 4-digit code shown on volunteer's screen"
               />
               <button
                 type="button"
                 onClick={handleRecipientConfirmReceipt}
                 disabled={loading}
-                className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+                className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 transition flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
               >
                 <CheckCircle className="w-3.5 h-3.5" />
-                <span>Confirm Receipt ({portionsReceived} portions)</span>
+                <span>Verify Receipt & Release Rewards</span>
               </button>
               <button
                 type="button"

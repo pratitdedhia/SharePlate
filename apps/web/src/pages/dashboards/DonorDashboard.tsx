@@ -39,6 +39,8 @@ export const DonorDashboard: React.FC = () => {
   const [activityLogs, setActivityLogs] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'listings' | 'rewards'>('listings');
   const [loading, setLoading] = useState(true);
+  const [pickupCodeInput, setPickupCodeInput] = useState<Record<string, string>>({});
+  const [verifyingClaimId, setVerifyingClaimId] = useState<string | null>(null);
 
   const loadData = async () => {
     if (!user) return;
@@ -77,6 +79,26 @@ export const DonorDashboard: React.FC = () => {
       loadData();
     } catch (err: any) {
       error(err.message || 'Failed to update claim');
+    }
+  };
+
+  const handleVerifyPickupHandoff = async (claimId: string) => {
+    if (!user) return;
+    const code = pickupCodeInput[claimId]?.trim();
+    if (!code) {
+      error('Please enter the 4-digit pickup code presented by the volunteer.');
+      return;
+    }
+    setVerifyingClaimId(claimId);
+    try {
+      await claimsService.confirmPickup(claimId, user.id, code);
+      success('Volunteer pickup verified! Food is officially in transit.');
+      setPickupCodeInput((prev) => ({ ...prev, [claimId]: '' }));
+      await loadData();
+    } catch (err: any) {
+      error(err.message || 'Pickup verification failed.');
+    } finally {
+      setVerifyingClaimId(null);
     }
   };
 
@@ -342,25 +364,62 @@ export const DonorDashboard: React.FC = () => {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 self-end sm:self-center">
+                      <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 self-end sm:self-center">
                         {claim.status === 'claimed' && (
-                          <button
-                            type="button"
-                            onClick={() => handleMarkCollected(claim.id)}
-                            className="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-forest-900 hover:bg-forest-800 transition cursor-pointer shadow-xs"
-                          >
-                            Mark Handed Over
-                          </button>
+                          claim.verification_status === 'pickup_pending' ? (
+                            <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 bg-emerald-50/80 p-2.5 rounded-xl border border-emerald-300">
+                              <div className="text-right sm:text-left">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-forest-900 block">
+                                  Volunteer Arrived · Enter OTP:
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <input
+                                  type="text"
+                                  maxLength={4}
+                                  placeholder="4-digit OTP"
+                                  value={pickupCodeInput[claim.id] || ''}
+                                  onChange={(e) =>
+                                    setPickupCodeInput((prev) => ({
+                                      ...prev,
+                                      [claim.id]: e.target.value.replace(/\D/g, ''),
+                                    }))
+                                  }
+                                  className="w-24 px-2 py-1.5 text-xs font-mono font-bold text-center border border-emerald-300 rounded-lg focus:border-forest-900 focus:outline-hidden bg-white text-stone-900 shadow-2xs"
+                                  title="Enter the 4-digit code shown on volunteer's screen"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => handleVerifyPickupHandoff(claim.id)}
+                                  disabled={verifyingClaimId === claim.id}
+                                  className="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-forest-900 hover:bg-forest-800 transition cursor-pointer shadow-xs disabled:opacity-50 flex items-center gap-1 shrink-0"
+                                >
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300" />
+                                  <span>{verifyingClaimId === claim.id ? 'Verifying...' : 'Verify & Release Food'}</span>
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-xs font-semibold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 flex items-center gap-1">
+                              <Clock className="w-3.5 h-3.5 text-amber-600" />
+                              Awaiting Volunteer Handover Arrival
+                            </span>
+                          )
                         )}
                         {claim.status === 'collected' && (
-                          <span className="text-xs font-semibold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 flex items-center gap-1">
-                            <Clock className="w-3.5 h-3.5" /> In Transit · Awaiting NGO Confirmation
+                          <span className="text-xs font-semibold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200 flex items-center gap-1">
+                            <Clock className="w-3.5 h-3.5 text-blue-600" /> Handed Over · In Transit
                           </span>
                         )}
                         {claim.status === 'delivered' && (
-                          <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 flex items-center gap-1">
-                            <CheckCircle2 className="w-3.5 h-3.5" /> Verified by NGO
-                          </span>
+                          <div className="text-right">
+                            <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 flex items-center gap-1">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Verified by NGO
+                            </span>
+                            <span className="text-[10px] text-forest-900 font-bold block mt-0.5">
+                              +{Math.min(200, 30 + (claim.portions_delivered_confirmed || claim.quantity_claimed) * 2)} pts in Rewards
+                            </span>
+                          </div>
                         )}
                       </div>
                     </div>

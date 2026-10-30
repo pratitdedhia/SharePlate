@@ -1101,7 +1101,13 @@ class DemoStore {
   initiatePickup(claimId: string, volunteerId: string): Claim {
     const claim = this.claims.find((c) => c.id === claimId);
     if (!claim) throw new Error('Claim not found');
+    if (claim.is_disputed) throw new Error('Cannot initiate pickup on a disputed claim');
     claim.verification_status = 'pickup_pending';
+    if (!claim.pickup_code) {
+      claim.pickup_code = Math.floor(1000 + Math.random() * 9000).toString();
+    }
+    claim.pickup_expires_at = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+    claim.pickup_attempts = 0;
 
     this.addActivityLog('pickup_handoff_initiated', {
       claim_id: claimId,
@@ -1115,13 +1121,44 @@ class DemoStore {
   confirmPickup(claimId: string, confirmedByUserId: string, enteredCode?: string): Claim {
     const claim = this.claims.find((c) => c.id === claimId);
     if (!claim) throw new Error('Claim not found');
+    if (claim.status === 'collected' || claim.status === 'delivered') {
+      return claim;
+    }
     if (claim.is_disputed) throw new Error('Disputed claim cannot be confirmed for pickup');
     if (claim.volunteer_id && confirmedByUserId === claim.volunteer_id) {
       throw new Error('Unauthorized: Volunteer cannot confirm pickup on behalf of donor');
     }
     const confirmingUser = this.users.find((u) => u.id === confirmedByUserId);
+    const donation = this.donations.find((d) => d.id === claim.donation_id) || claim.donation;
+    if (donation && donation.donor_id !== confirmedByUserId && (!confirmingUser || confirmingUser.role !== 'admin')) {
+      throw new Error('Unauthorized: Only the listing donor or an admin can confirm pickup');
+    }
     if (confirmingUser && confirmingUser.role !== 'donor' && confirmingUser.role !== 'admin') {
       throw new Error('Unauthorized: Only a donor or admin can confirm pickup');
+    }
+
+    // Expiration check
+    if (claim.pickup_expires_at && new Date() > new Date(claim.pickup_expires_at)) {
+      throw new Error('Pickup verification code has expired. Volunteer must re-initiate handover.');
+    }
+
+    // Attempt limit check
+    claim.pickup_attempts = claim.pickup_attempts || 0;
+    if (claim.pickup_attempts >= 3) {
+      throw new Error('Maximum pickup verification attempts exceeded. Volunteer must re-initiate handover.');
+    }
+
+    // Code verification
+    if (enteredCode !== undefined) {
+      if (!claim.pickup_code || enteredCode.trim() !== claim.pickup_code.trim()) {
+        claim.pickup_attempts += 1;
+        const remaining = 3 - claim.pickup_attempts;
+        throw new Error(
+          remaining > 0
+            ? `Invalid pickup verification code. ${remaining} attempt(s) remaining.`
+            : 'Maximum pickup verification attempts exceeded. Volunteer must re-initiate handover.'
+        );
+      }
     }
 
     const donorProfile = this.users.find((u) => u.id === confirmedByUserId) || DEMO_PROFILES.donor;
@@ -1143,10 +1180,16 @@ class DemoStore {
   initiateDelivery(claimId: string, volunteerId: string): Claim {
     const claim = this.claims.find((c) => c.id === claimId);
     if (!claim) throw new Error('Claim not found');
+    if (claim.is_disputed) throw new Error('Cannot initiate delivery on a disputed claim');
     if (claim.verification_status !== 'in_transit' && claim.status !== 'collected') {
       throw new Error('Claim must be collected and in transit before delivery can be initiated');
     }
     claim.verification_status = 'delivery_pending';
+    if (!claim.delivery_code) {
+      claim.delivery_code = Math.floor(1000 + Math.random() * 9000).toString();
+    }
+    claim.delivery_expires_at = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+    claim.delivery_attempts = 0;
 
     this.addActivityLog('delivery_handoff_initiated', {
       claim_id: claimId,
@@ -1173,8 +1216,35 @@ class DemoStore {
       throw new Error('Unauthorized: Volunteer cannot confirm delivery on behalf of recipient');
     }
     const confirmingUser = this.users.find((u) => u.id === confirmedByUserId);
+    if (claim.recipient_id !== confirmedByUserId && (!confirmingUser || confirmingUser.role !== 'admin')) {
+      throw new Error('Unauthorized: Only the claiming recipient NGO or an admin can confirm delivery');
+    }
     if (confirmingUser && confirmingUser.role !== 'recipient' && confirmingUser.role !== 'admin') {
       throw new Error('Unauthorized: Only a recipient NGO or admin can confirm delivery');
+    }
+
+    // Expiration check
+    if (claim.delivery_expires_at && new Date() > new Date(claim.delivery_expires_at)) {
+      throw new Error('Delivery verification code has expired. Volunteer must re-initiate handoff.');
+    }
+
+    // Attempt limit check
+    claim.delivery_attempts = claim.delivery_attempts || 0;
+    if (claim.delivery_attempts >= 3) {
+      throw new Error('Maximum delivery verification attempts exceeded. Volunteer must re-initiate handoff.');
+    }
+
+    // Code verification
+    if (enteredCode !== undefined) {
+      if (!claim.delivery_code || enteredCode.trim() !== claim.delivery_code.trim()) {
+        claim.delivery_attempts += 1;
+        const remaining = 3 - claim.delivery_attempts;
+        throw new Error(
+          remaining > 0
+            ? `Invalid delivery verification code. ${remaining} attempt(s) remaining.`
+            : 'Maximum delivery verification attempts exceeded. Volunteer must re-initiate handoff.'
+        );
+      }
     }
 
     if (!portionsReceived || portionsReceived <= 0) {

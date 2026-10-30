@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { TripStop } from '../../types';
+import { generateGoogleMapsTripSegments } from '../../lib/routing';
 import {
   MapPin,
   Navigation,
@@ -13,6 +14,7 @@ import {
   AlertTriangle,
   ChevronRight,
   ShieldCheck,
+  Layers,
 } from 'lucide-react';
 
 interface TaskRouteMapProps {
@@ -35,29 +37,15 @@ export const TaskRouteMap: React.FC<TaskRouteMapProps> = ({
   const personalOrigin = stops.find((s) => s.type === 'start');
   const personalDestination = stops.find((s) => s.type === 'destination');
 
-  // Build external Google Maps direction URL
-  const generateGoogleMapsUrl = (originAddr: string, destAddr: string, waypoints: string[] = []) => {
-    let url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(originAddr)}&destination=${encodeURIComponent(destAddr)}`;
-    if (waypoints.length > 0) {
-      url += `&waypoints=${encodeURIComponent(waypoints.join('|'))}`;
-    }
-    return url;
+  // Build segmented Google Maps direction URLs respecting Google Maps' 9-waypoint limit
+  const originAddr = personalOrigin?.address || taskStops[0]?.address || 'Start Location';
+  const destAddr = personalDestination?.address || taskStops[taskStops.length - 1]?.address || 'Final Destination';
+  const routeSegments = generateGoogleMapsTripSegments(originAddr, destAddr, taskStops);
+
+  // Build leg URL helper
+  const generateLegMapsUrl = (origin: string, dest: string) => {
+    return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(dest)}`;
   };
-
-  // Primary task route link between first pickup and last delivery
-  const firstPickup = taskStops.find((s) => s.type === 'pickup');
-  const lastDelivery = [...taskStops].reverse().find((s) => s.type === 'delivery');
-
-  const mainTaskMapsUrl =
-    firstPickup && lastDelivery
-      ? generateGoogleMapsUrl(
-          firstPickup.address,
-          lastDelivery.address,
-          taskStops.slice(1, -1).map((s) => s.address)
-        )
-      : personalOrigin && personalDestination
-      ? generateGoogleMapsUrl(personalOrigin.address, personalDestination.address)
-      : '#';
 
   return (
     <div className="bg-white rounded-3xl border border-warm-200 overflow-hidden shadow-xs space-y-6">
@@ -77,23 +65,31 @@ export const TaskRouteMap: React.FC<TaskRouteMapProps> = ({
             Map-Based Rescue Route & Stop Order
           </h2>
           <p className="text-xs text-stone-600 mt-0.5">
-            Sequential route showing donor pickups and recipient shelter deliveries in verified transit order.
+            Sequential route including all assigned donor pickups and shelter drop-offs ending at your destination.
           </p>
         </div>
 
-        {/* External Live Navigation Button */}
-        {firstPickup && lastDelivery && (
-          <a
-            href={mainTaskMapsUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-forest-900 hover:bg-forest-800 transition shadow-xs shrink-0"
-          >
-            <Navigation className="w-4 h-4 text-emerald-300" />
-            <span>Open in Google Maps</span>
-            <ExternalLink className="w-3.5 h-3.5 text-emerald-300" />
-          </a>
-        )}
+        {/* External Google Maps Navigation Links (Full Trip with Waypoints) */}
+        <div className="flex flex-wrap items-center gap-2">
+          {routeSegments.map((segment) => (
+            <a
+              key={segment.segmentNumber}
+              href={segment.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-forest-900 hover:bg-forest-800 transition shadow-xs shrink-0"
+              title={`Opens Google Maps in a new tab with ${segment.stopsCount} stops in sequence ending at ${destAddr.split(',')[0]}`}
+            >
+              <Navigation className="w-4 h-4 text-emerald-300" />
+              <span>
+                {routeSegments.length > 1
+                  ? `${segment.label} (${segment.stopsCount} stops)`
+                  : `Open Route in Google Maps (${segment.stopsCount} stops)`}
+              </span>
+              <ExternalLink className="w-3.5 h-3.5 text-emerald-300" />
+            </a>
+          ))}
+        </div>
       </div>
 
       <div className="px-6 space-y-6">
@@ -148,7 +144,7 @@ export const TaskRouteMap: React.FC<TaskRouteMapProps> = ({
             {taskStops.map((stop, idx) => {
               const isSelected = selectedStopId === stop.id;
               const isPickup = stop.type === 'pickup';
-              const legMapsUrl = generateGoogleMapsUrl(
+              const legMapsUrl = generateLegMapsUrl(
                 idx === 0 && personalOrigin ? personalOrigin.address : taskStops[idx - 1]?.address || stop.address,
                 stop.address
               );
@@ -254,7 +250,7 @@ export const TaskRouteMap: React.FC<TaskRouteMapProps> = ({
               {taskStops.map((stop, idx) => {
                 if (idx === taskStops.length - 1) return null;
                 const nextStop = taskStops[idx + 1];
-                const segmentMapsUrl = generateGoogleMapsUrl(stop.address, nextStop.address);
+                const segmentMapsUrl = generateLegMapsUrl(stop.address, nextStop.address);
 
                 return (
                   <div
