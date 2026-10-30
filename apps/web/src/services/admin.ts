@@ -9,8 +9,11 @@ export interface AdminReport {
   donation_id?: string;
   reported_by: string;
   reporter_name?: string;
+  reporter_phone?: string;
+  restaurant_name?: string;
+  description?: string;
   reason: string;
-  status: 'pending' | 'investigating' | 'resolved' | 'dismissed';
+  status: 'pending' | 'open' | 'investigating' | 'resolved' | 'dismissed';
   resolution_notes?: string;
   created_at: string;
   resolved_at?: string;
