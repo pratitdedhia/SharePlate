@@ -22,7 +22,7 @@ export const DonationsPage: React.FC = () => {
 
   // Align to user's registered operating city/state if set
   useEffect(() => {
-    if (user?.city && !searchParams.get('city') && city === 'all') {
+    if (user?.city && !searchParams.get('city')) {
       setCity(user.city);
     }
   }, [user?.city]);

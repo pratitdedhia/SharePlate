@@ -26,7 +26,7 @@ export const DemoAccountBanner: React.FC = () => {
             </div>
             <p className="text-stone-600 text-xs mt-0.5">
               Active Persona: <strong className="text-stone-900">{user.full_name}</strong>{' '}
-              {user.organization_name && `(${user.organization_name})`} · {user.city}
+              {user.organization_name && `(${user.organization_name})`} · {user.city || 'Delhi NCR'}
             </p>
           </div>
         </div>

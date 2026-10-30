@@ -1096,9 +1096,27 @@ class DemoStore {
   }
 
   updateUser(userId: string, updates: Partial<UserProfile>): UserProfile | null {
-    const userIndex = this.users.findIndex((u) => u.id === userId);
-    if (userIndex === -1) return null;
-    this.users[userIndex] = { ...this.users[userIndex], ...updates };
+    this.reloadFromStorage();
+    let userIndex = this.users.findIndex((u) => u.id === userId);
+    if (userIndex === -1) {
+      const demoUser = Object.values(DEMO_PROFILES).find((p) => p.id === userId);
+      const newUser: UserProfile = {
+        ...(demoUser || {
+          id: userId,
+          full_name: 'User',
+          email: 'user@example.com',
+          role: 'donor',
+          city: 'Delhi NCR',
+          is_active: true,
+        }),
+        ...updates,
+      };
+      this.users.push(newUser);
+      userIndex = this.users.length - 1;
+    } else {
+      this.users[userIndex] = { ...this.users[userIndex], ...updates };
+    }
+    this.persist();
     this.addActivityLog('admin_user_updated', {
       user_id: userId,
       updates,

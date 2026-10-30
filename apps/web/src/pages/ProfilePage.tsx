@@ -1,21 +1,51 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import { User, Building, MapPin, Phone, ShieldCheck, Mail } from 'lucide-react';
+import { User, Building, MapPin, Phone, ShieldCheck, Mail, Loader2, Save } from 'lucide-react';
 
 export const ProfilePage: React.FC = () => {
-  const { user } = useAuth();
-  const { success } = useToast();
+  const { user, updateProfile } = useAuth();
+  const { success, error } = useToast();
 
   const [fullName, setFullName] = useState(user?.full_name || '');
   const [orgName, setOrgName] = useState(user?.organization_name || '');
   const [phone, setPhone] = useState(user?.phone || '');
   const [city, setCity] = useState(user?.city || 'Delhi NCR');
   const [serviceArea, setServiceArea] = useState(user?.service_area || '');
+  const [saving, setSaving] = useState(false);
 
-  const handleSave = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (user) {
+      setFullName(user.full_name || '');
+      setOrgName(user.organization_name || '');
+      setPhone(user.phone || '');
+      setCity(user.city || 'Delhi NCR');
+      setServiceArea(user.service_area || '');
+    }
+  }, [user]);
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    success('Profile updated successfully!');
+    if (!fullName.trim()) {
+      error('Full Name is required.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await updateProfile({
+        full_name: fullName.trim(),
+        organization_name: orgName.trim() || null,
+        phone: phone.trim() || null,
+        city: city,
+        service_area: serviceArea.trim() || null,
+      });
+      success('Profile updated successfully!');
+    } catch (err: any) {
+      error(err?.message || 'Failed to update profile.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -44,7 +74,9 @@ export const ProfilePage: React.FC = () => {
                 {user?.role}
               </span>
             </div>
-            <p className="text-xs text-stone-500">{user?.organization_name || 'Individual Contributor'}</p>
+            <p className="text-xs text-stone-500">
+              {user?.organization_name || 'Individual Contributor'} · {user?.city || city}
+            </p>
           </div>
         </div>
 
@@ -111,9 +143,11 @@ export const ProfilePage: React.FC = () => {
           <div className="pt-4 flex justify-end">
             <button
               type="submit"
-              className="px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-forest-900 hover:bg-forest-800 transition shadow-xs"
+              disabled={saving}
+              className="px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-forest-900 hover:bg-forest-800 disabled:opacity-50 transition shadow-xs flex items-center gap-2 cursor-pointer"
             >
-              Save Profile Changes
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              <span>Save Profile Changes</span>
             </button>
           </div>
         </form>

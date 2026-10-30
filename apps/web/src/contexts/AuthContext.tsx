@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase, isSupabaseClientConfigured } from '../lib/supabase';
 import { DEMO_PROFILES, demoStore } from '../lib/mockData';
+import { liveUpdatesService } from '../services/liveUpdates';
 import { UserProfile, UserRole, RegistrationData } from '../types';
 
 interface AuthContextType {
@@ -18,6 +19,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   updatePassword: (newPassword: string) => Promise<void>;
+  updateProfile: (updates: Partial<UserProfile>) => Promise<UserProfile>;
   loginDemoRole: (role: UserRole) => Promise<UserProfile>;
   switchDemoRole: (role: UserRole) => void;
   isDonor: boolean;
@@ -380,6 +382,81 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.info('[Demo Mode] Password successfully updated in session.');
   };
 
+  const updateProfile = async (updates: Partial<UserProfile>): Promise<UserProfile> => {
+    if (!user) throw new Error('No active user session found.');
+
+    const updatedUser: UserProfile = {
+      ...user,
+      ...updates,
+    };
+
+    if (isSupabaseClientConfigured && supabase && !isDemoUser) {
+      const { error: sbError } = await supabase
+        .from('profiles')
+        .update({
+          full_name: updatedUser.full_name,
+          organization_name: updatedUser.organization_name,
+          phone: updatedUser.phone,
+          city: updatedUser.city,
+          service_area: updatedUser.service_area,
+          avatar_url: updatedUser.avatar_url,
+          bio: updatedUser.bio,
+        })
+        .eq('id', user.id);
+
+      if (sbError) {
+        console.warn('Supabase profile update warning:', sbError.message);
+      }
+    }
+
+    // Keep demo store updated
+    demoStore.updateUser(user.id, updates);
+
+    // Keep seeded demo role updated if applicable
+    if (user.role && DEMO_PROFILES[user.role]) {
+      Object.assign(DEMO_PROFILES[user.role], updates);
+    }
+
+    // Persist to local state & storage
+    setUser(updatedUser);
+    localStorage.setItem('shareplate_current_user', JSON.stringify(updatedUser));
+
+    // Broadcast live change across components and tabs
+    liveUpdatesService.notifyChange('profiles', 'UPDATE', updatedUser);
+
+    return updatedUser;
+  };
+
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'shareplate_current_user' && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          setUser(parsed);
+        } catch {
+          // ignore
+        }
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+
+    const unsubscribe = liveUpdatesService.subscribe((eventType, payload) => {
+      if ((eventType.startsWith('profiles') || eventType === 'state_synced') && payload) {
+        setUser((prev) => {
+          if (prev && (!payload.id || prev.id === payload.id)) {
+            return { ...prev, ...payload };
+          }
+          return prev;
+        });
+      }
+    });
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      unsubscribe();
+    };
+  }, []);
+
   const logout = async (): Promise<void> => {
     setLoading(true);
     try {
@@ -414,6 +491,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         logout,
         resetPassword,
         updatePassword,
+        updateProfile,
         loginDemoRole,
         switchDemoRole,
         isDonor,

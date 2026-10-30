@@ -305,4 +305,30 @@ describe('SharePlate Authentication & Role Governance Suite', () => {
     const updatedDonation = demoStore.getDonationById(newDonation.id);
     expect(updatedDonation?.quantity_available).toBe(30);
   });
+
+  it('updates and persists user profile city and details in demoStore and localStorage', () => {
+    const user = {
+      id: 'user-donor-mumbai',
+      email: 'dedhia.pratit@example.com',
+      full_name: 'dedhia.pratit',
+      role: 'donor' as const,
+      city: 'Delhi NCR',
+      is_active: true,
+    };
+    demoStore.addUser(user);
+    localStorage.setItem('shareplate_current_user', JSON.stringify(user));
+
+    // Update profile city to Mumbai
+    const updated = demoStore.updateUser('user-donor-mumbai', {
+      city: 'Mumbai',
+      organization_name: 'Pratit Foods',
+    });
+
+    expect(updated?.city).toBe('Mumbai');
+    expect(updated?.organization_name).toBe('Pratit Foods');
+
+    // Verify persisted in storage
+    const reloaded = demoStore.getUsers().find((u) => u.id === 'user-donor-mumbai');
+    expect(reloaded?.city).toBe('Mumbai');
+  });
 });
