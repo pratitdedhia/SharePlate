@@ -46,6 +46,61 @@ import {
 } from 'lucide-react';
 import { TaskRouteMap } from '../../components/volunteer/TaskRouteMap';
 
+interface CorridorPreset {
+  cityKey: string;
+  id: string;
+  label: string;
+  origin: string;
+  destination: string;
+  defaultTaskIds: string[];
+}
+
+const CORRIDOR_PRESETS: CorridorPreset[] = [
+  // Mumbai Presets
+  {
+    cityKey: 'mumbai',
+    id: 'Mumbai Central Transit Corridor',
+    label: 'Mumbai: BKC → Kurla → Ghatkopar',
+    origin: 'BKC Commercial Hub, Bandra East',
+    destination: 'Ghatkopar East Transit Terminus',
+    defaultTaskIds: ['task-mumbai-01'],
+  },
+  {
+    cityKey: 'mumbai',
+    id: 'Mumbai Western Transit Corridor',
+    label: 'Mumbai: Andheri → Sakinaka → Ghatkopar',
+    origin: 'Andheri East Station Road',
+    destination: 'Mission Feed Foundation, Ghatkopar',
+    defaultTaskIds: ['task-mumbai-02'],
+  },
+  // Delhi NCR Presets
+  {
+    cityKey: 'delhi',
+    id: 'Delhi North-West Corridor',
+    label: 'Delhi: Rohini → Connaught Place',
+    origin: 'DTU Main Campus, Rohini Sector 17',
+    destination: 'Connaught Place Metro Hub, Central Delhi',
+    defaultTaskIds: ['task-delhi-01'],
+  },
+  {
+    cityKey: 'delhi',
+    id: 'Delhi South-East Corridor',
+    label: 'Delhi / Noida: Sector 62 → South Delhi',
+    origin: 'Sector 62 IT Hub, Noida',
+    destination: 'Hauz Khas Social Center, South Delhi',
+    defaultTaskIds: ['task-delhi-02'],
+  },
+  // Pune Presets
+  {
+    cityKey: 'pune',
+    id: 'Pune University Corridor',
+    label: 'Pune: FC Road → Shivajinagar',
+    origin: 'Deccan Gymkhana, FC Road',
+    destination: 'Shivajinagar Bus Station Hub',
+    defaultTaskIds: ['task-pune-01'],
+  },
+];
+
 export const VolunteerDashboard: React.FC = () => {
   const { user } = useAuth();
   const { success, error, info } = useToast();
@@ -53,33 +108,41 @@ export const VolunteerDashboard: React.FC = () => {
   // Navigation tab state: 'planner' | 'checklist' | 'rewards'
   const [activeTab, setActiveTab] = useState<'planner' | 'checklist' | 'rewards'>('planner');
 
+  // Derive available corridor presets based on volunteer's registered operating city
+  const userCity = (user?.city || undefined || '').toLowerCase();
+  const availablePresets = CORRIDOR_PRESETS.filter((p) => {
+    if (!userCity) return true;
+    if (userCity.includes('mumbai') || userCity.includes('maharashtra')) return p.cityKey === 'mumbai';
+    if (userCity.includes('delhi') || userCity.includes('noida')) return p.cityKey === 'delhi';
+    if (userCity.includes('pune')) return p.cityKey === 'pune';
+    return p.cityKey.includes(userCity) || userCity.includes(p.cityKey);
+  });
+  const corridorPresets = availablePresets.length > 0 ? availablePresets : CORRIDOR_PRESETS;
+  const initialPreset = corridorPresets[0];
+
   // Trip planner state
-  const [originInput, setOriginInput] = useState('DTU Main Campus, Rohini Sector 17');
-  const [destinationInput, setDestinationInput] = useState('Connaught Place Metro Hub, Central Delhi');
-  const [selectedCorridor, setSelectedCorridor] = useState('Delhi North-West Corridor');
-  const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>(['task-delhi-01']);
+  const [originInput, setOriginInput] = useState(initialPreset.origin);
+  const [destinationInput, setDestinationInput] = useState(initialPreset.destination);
+  const [selectedCorridor, setSelectedCorridor] = useState(initialPreset.id);
+  const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>(initialPreset.defaultTaskIds);
   const [availableTasks, setAvailableTasks] = useState<RescueTask[]>([]);
   const [activeTripPlan, setActiveTripPlan] = useState<VolunteerTripPlan | null>(null);
 
   // Align corridor and route inputs to volunteer's registered operating city/state
   useEffect(() => {
     if (!user?.city) return;
-    const c = user.city.toLowerCase();
-    if (c.includes('mumbai')) {
-      setSelectedCorridor('Mumbai Central Transit Corridor');
-      setOriginInput('BKC Commercial Hub, Bandra East');
-      setDestinationInput('Ghatkopar East Transit Terminus');
-      setSelectedTaskIds(['task-mumbai-01']);
-    } else if (c.includes('pune')) {
-      setSelectedCorridor('Pune University Corridor');
-      setOriginInput('FC Road, Deccan Gymkhana');
-      setDestinationInput('Shivajinagar Bus Stand');
-      setSelectedTaskIds(['task-pune-01']);
-    } else if (c.includes('delhi') || c.includes('noida')) {
-      setSelectedCorridor('Delhi North-West Corridor');
-      setOriginInput('DTU Main Campus, Rohini Sector 17');
-      setDestinationInput('Connaught Place Metro Hub, Central Delhi');
-      setSelectedTaskIds(['task-delhi-01']);
+    const c = (user?.city || '').toLowerCase();
+    const matching = CORRIDOR_PRESETS.filter((p) => {
+      if (c.includes('mumbai') || c.includes('maharashtra')) return p.cityKey === 'mumbai';
+      if (c.includes('delhi') || c.includes('noida')) return p.cityKey === 'delhi';
+      if (c.includes('pune')) return p.cityKey === 'pune';
+      return p.cityKey.includes(c) || c.includes(p.cityKey);
+    });
+    if (matching.length > 0) {
+      setSelectedCorridor(matching[0].id);
+      setOriginInput(matching[0].origin);
+      setDestinationInput(matching[0].destination);
+      setSelectedTaskIds(matching[0].defaultTaskIds);
     }
   }, [user?.city]);
 
@@ -106,7 +169,7 @@ export const VolunteerDashboard: React.FC = () => {
     setLoading(true);
     try {
       // 1. Load tasks for corridor
-      const tasks = await claimsService.getRescueTasks(selectedCorridor);
+      const tasks = await claimsService.getRescueTasks(selectedCorridor, user.city);
       setAvailableTasks(tasks);
 
       // 2. Load active trip plan
@@ -153,7 +216,7 @@ export const VolunteerDashboard: React.FC = () => {
     setOriginInput(origin);
     setDestinationInput(destination);
     // Auto-select tasks matching the new corridor
-    const tasks = demoStore.getRescueTasks(corridor);
+    const tasks = demoStore.getRescueTasks(corridor, user?.city);
     if (tasks.length > 0) {
       setSelectedTaskIds([tasks[0].id]);
     } else {
@@ -530,63 +593,26 @@ export const VolunteerDashboard: React.FC = () => {
               {/* Corridor Quick Selectors */}
               <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/15 text-xs space-y-2 shrink-0">
                 <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-300">
-                  Quick Corridor Presets:
+                  Quick Corridor Presets ({user?.city || 'Local Area'}):
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleCorridorSelect(
-                        'Delhi North-West Corridor',
-                        'DTU Main Campus, Rohini Sector 17',
-                        'Connaught Place Metro Hub, Central Delhi'
-                      )
-                    }
-                    className={`px-3 py-1.5 rounded-xl text-left text-xs font-bold transition flex items-center justify-between gap-2 cursor-pointer ${
-                      selectedCorridor === 'Delhi North-West Corridor'
-                        ? 'bg-emerald-400 text-stone-950 shadow-xs'
-                        : 'bg-white/10 text-stone-200 hover:bg-white/20'
-                    }`}
-                  >
-                    <span>Delhi: Rohini → Connaught Place</span>
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleCorridorSelect(
-                        'Mumbai Central Transit Corridor',
-                        'BKC Commercial Hub, Bandra East',
-                        'Ghatkopar East Transit Terminus'
-                      )
-                    }
-                    className={`px-3 py-1.5 rounded-xl text-left text-xs font-bold transition flex items-center justify-between gap-2 cursor-pointer ${
-                      selectedCorridor === 'Mumbai Central Transit Corridor'
-                        ? 'bg-emerald-400 text-stone-950 shadow-xs'
-                        : 'bg-white/10 text-stone-200 hover:bg-white/20'
-                    }`}
-                  >
-                    <span>Mumbai: BKC → Kurla → Ghatkopar</span>
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleCorridorSelect(
-                        'Pune University Corridor',
-                        'Deccan Gymkhana, FC Road',
-                        'Shivajinagar Bus Station Hub'
-                      )
-                    }
-                    className={`px-3 py-1.5 rounded-xl text-left text-xs font-bold transition flex items-center justify-between gap-2 cursor-pointer ${
-                      selectedCorridor === 'Pune University Corridor'
-                        ? 'bg-emerald-400 text-stone-950 shadow-xs'
-                        : 'bg-white/10 text-stone-200 hover:bg-white/20'
-                    }`}
-                  >
-                    <span>Pune: FC Road → Shivajinagar</span>
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </button>
+                  {corridorPresets.map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() =>
+                        handleCorridorSelect(preset.id, preset.origin, preset.destination)
+                      }
+                      className={`px-3 py-1.5 rounded-xl text-left text-xs font-bold transition flex items-center justify-between gap-2 cursor-pointer ${
+                        selectedCorridor === preset.id
+                          ? 'bg-emerald-400 text-stone-950 shadow-xs'
+                          : 'bg-white/10 text-stone-200 hover:bg-white/20'
+                      }`}
+                    >
+                      <span>{preset.label}</span>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>
@@ -649,10 +675,13 @@ export const VolunteerDashboard: React.FC = () => {
               <div className="flex items-center gap-2 flex-wrap">
                 <button
                   type="button"
-                  onClick={() => setSelectedCorridor(selectedCorridor === 'all' ? 'Mumbai Central Transit Corridor' : 'all')}
+                  onClick={() => {
+                    const defaultCorridor = corridorPresets[0]?.id || 'Mumbai Central Transit Corridor';
+                    setSelectedCorridor(selectedCorridor === 'all' ? defaultCorridor : 'all');
+                  }}
                   className="text-xs font-semibold px-2.5 py-1 rounded-lg border border-warm-300 text-stone-600 hover:bg-stone-50 transition cursor-pointer"
                 >
-                  {selectedCorridor === 'all' ? 'Filter by Corridor' : 'Show All Regions'}
+                  {selectedCorridor === 'all' ? 'Filter by Specific Corridor' : `Show All in ${user?.city || 'City'}`}
                 </button>
                 <span className="text-xs font-bold px-3 py-1 rounded-full bg-emerald-100 text-forest-900">
                   {selectedTaskIds.length} of {availableTasks.length} tasks selected

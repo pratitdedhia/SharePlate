@@ -221,16 +221,16 @@ export const claimsService = {
     return res.data;
   },
 
-  async getRescueTasks(corridor?: string): Promise<RescueTask[]> {
+  async getRescueTasks(corridor?: string, city?: string | null): Promise<RescueTask[]> {
     if (isDemoMode()) {
-      return demoStore.getRescueTasks(corridor);
+      return demoStore.getRescueTasks(corridor, city);
     }
 
     try {
       const res = await apiRequest(`/volunteer/tasks${corridor ? `?corridor=${encodeURIComponent(corridor)}` : ''}`);
       return res.data || [];
     } catch {
-      return demoStore.getRescueTasks(corridor);
+      return demoStore.getRescueTasks(corridor, city);
     }
   },
 

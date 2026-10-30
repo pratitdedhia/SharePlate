@@ -754,7 +754,18 @@ class DemoStore {
       results = results.filter((d) => d.category === params.category);
     }
     if (params?.city && params.city !== 'all') {
-      results = results.filter((d) => d.city.toLowerCase().includes(params.city!.toLowerCase()));
+      const qCity = params.city.toLowerCase().trim();
+      results = results.filter((d) => {
+        const dCity = (d.city || '').toLowerCase().trim();
+        return (
+          dCity.includes(qCity) ||
+          qCity.includes(dCity) ||
+          (qCity.includes('delhi') && dCity.includes('delhi')) ||
+          (qCity.includes('mumbai') && dCity.includes('mumbai')) ||
+          (qCity.includes('pune') && dCity.includes('pune')) ||
+          (qCity.includes('noida') && (dCity.includes('noida') || dCity.includes('delhi')))
+        );
+      });
     }
     // Only filter status if explicitly requested or if browsing public catalog (no donor_id)
     const effectiveStatus = params?.status !== undefined ? params.status : (params?.donor_id ? 'all' : undefined);
@@ -1176,17 +1187,44 @@ class DemoStore {
     }
   }
 
-  getRescueTasks(corridor?: string): RescueTask[] {
+  getRescueTasks(corridor?: string, city?: string | null): RescueTask[] {
     this.reloadFromStorage();
     this.checkExpiredDonations();
     this.ensureRescueTasksForDonations();
 
+    let tasks = [...this.rescueTasks];
+
+    // If city is specified, filter tasks strictly to this operating city
+    if (city && city !== 'all') {
+      const c = city.toLowerCase();
+      tasks = tasks.filter((t) => {
+        const fullInfo = `${t.corridor} ${t.pickup_location} ${t.pickup_address} ${t.dropoff_location} ${t.dropoff_address}`.toLowerCase();
+        if (c.includes('mumbai') || c.includes('maharashtra')) {
+          return (
+            fullInfo.includes('mumbai') ||
+            fullInfo.includes('bkc') ||
+            fullInfo.includes('kurla') ||
+            fullInfo.includes('andheri') ||
+            fullInfo.includes('andheir') ||
+            fullInfo.includes('ghatkopar')
+          );
+        }
+        if (c.includes('pune')) {
+          return fullInfo.includes('pune') || fullInfo.includes('shivajinagar') || fullInfo.includes('fc road') || fullInfo.includes('deccan');
+        }
+        if (c.includes('delhi') || c.includes('noida')) {
+          return fullInfo.includes('delhi') || fullInfo.includes('rohini') || fullInfo.includes('noida') || fullInfo.includes('connaught') || fullInfo.includes('pitampura');
+        }
+        return fullInfo.includes(c);
+      });
+    }
+
     if (!corridor || corridor === 'all') {
-      return [...this.rescueTasks];
+      return tasks;
     }
     const q = corridor.toLowerCase().trim();
 
-    return this.rescueTasks.filter((t) => {
+    return tasks.filter((t) => {
       // 1. Direct corridor substring match
       if (t.corridor.toLowerCase().includes(q)) return true;
 
