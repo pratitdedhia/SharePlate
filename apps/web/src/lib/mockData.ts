@@ -655,9 +655,11 @@ class DemoStore {
   }
 
   getUserClaims(userId: string, roleOrIsDonor: boolean | string = false): Claim[] {
-    const isDonor = roleOrIsDonor === true || roleOrIsDonor === 'donor';
-    const isVolunteer = roleOrIsDonor === 'volunteer';
-    const isAdmin = roleOrIsDonor === 'admin';
+    const user = this.users.find((u) => u.id === userId);
+    const detectedRole = typeof roleOrIsDonor === 'string' ? roleOrIsDonor : user?.role;
+    const isDonor = roleOrIsDonor === true || detectedRole === 'donor';
+    const isVolunteer = detectedRole === 'volunteer';
+    const isAdmin = detectedRole === 'admin';
 
     // Ensure all claims have fresh embedded donation and recipient references
     for (const c of this.claims) {
@@ -961,13 +963,41 @@ class DemoStore {
       const task = this.rescueTasks.find((t) => t.id === taskId);
       if (task) {
         task.status = 'claimed';
-        const claim = this.claims.find((c) => c.donation_id === task.donation_id);
-        if (claim) {
+        let claim = this.claims.find((c) => c.donation_id === task.donation_id);
+        if (!claim) {
+          const donation = this.donations.find((d) => d.id === task.donation_id);
+          claim = {
+            id: `claim-${task.id}`,
+            donation_id: task.donation_id,
+            recipient_id: DEMO_PROFILES.recipient.id,
+            volunteer_id: plan.volunteer_id,
+            volunteer: DEMO_PROFILES.volunteer,
+            quantity_claimed: task.portions,
+            status: 'claimed',
+            verification_status: 'accepted',
+            claimed_at: new Date().toISOString(),
+            notes: `Claim for corridor task: ${task.title}`,
+            pickup_code: '4821',
+            delivery_code: '7392',
+            points_pending: calculateClaimPoints(task.portions),
+            points_released: 0,
+            donation: donation || INITIAL_DEMO_DONATIONS[0],
+            recipient: DEMO_PROFILES.recipient,
+          };
+          this.claims.unshift(claim);
+        } else {
           claim.volunteer_id = plan.volunteer_id;
           claim.verification_status = 'accepted';
-          if (!claim.pickup_code) claim.pickup_code = Math.floor(1000 + Math.random() * 9000).toString();
-          if (!claim.delivery_code) claim.delivery_code = Math.floor(1000 + Math.random() * 9000).toString();
+          if (!claim.pickup_code) claim.pickup_code = '4821';
+          if (!claim.delivery_code) claim.delivery_code = '7392';
           claim.points_pending = calculateClaimPoints(claim.quantity_claimed);
+        }
+        task.claim_id = claim.id;
+
+        for (const stop of plan.stops) {
+          if (stop.task_id === task.id) {
+            stop.claim_id = claim.id;
+          }
         }
       }
     }

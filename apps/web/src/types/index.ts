@@ -129,6 +129,7 @@ export interface TripStop {
   phone?: string;
   instructions?: string;
   task_id?: string;
+  claim_id?: string;
   portions?: number;
   food_title?: string;
   dietary_type?: string;

@@ -472,3 +472,179 @@ describe('Multi-Account Isolation & Role-Based Authorization Regression', () => 
     }).toThrow(/already delivered/i);
   });
 });
+
+describe('Volunteer Routing & Personal Travel Segregation Regression', () => {
+  beforeEach(() => {
+    demoStore.reset();
+  });
+
+  it('personal route stops (start origin & destination) cannot change claim status or release points', () => {
+    const volunteerId = 'c0000000-0000-0000-0000-000000000001';
+    const tasks = demoStore.getRescueTasks('Delhi');
+    expect(tasks.length).toBeGreaterThan(0);
+    const task = tasks[0];
+
+    const plan = demoStore.createTripPlan({
+      volunteer_id: volunteerId,
+      origin: 'DTU Main Campus, Rohini Sector 17',
+      destination: 'Connaught Place Metro Hub, Central Delhi',
+      corridor_label: 'Delhi North-West Corridor',
+      task_ids: [task.id],
+      stops: [
+        {
+          id: 'stop-start-01',
+          type: 'start',
+          name: 'Personal Commute Departure',
+          address: 'DTU Main Campus, Rohini Sector 17',
+          city: 'Delhi NCR',
+          sequence: 1,
+          completed: false,
+        },
+        {
+          id: 'stop-pickup-01',
+          type: 'pickup',
+          name: task.pickup_location,
+          address: task.pickup_address,
+          city: 'Delhi NCR',
+          task_id: task.id,
+          portions: task.portions,
+          food_title: task.title,
+          sequence: 2,
+          completed: false,
+        },
+        {
+          id: 'stop-delivery-01',
+          type: 'delivery',
+          name: task.dropoff_location,
+          address: task.dropoff_address,
+          city: 'Delhi NCR',
+          task_id: task.id,
+          portions: task.portions,
+          food_title: task.title,
+          sequence: 3,
+          completed: false,
+        },
+        {
+          id: 'stop-dest-01',
+          type: 'destination',
+          name: 'Personal Commute Arrival',
+          address: 'Connaught Place Metro Hub, Central Delhi',
+          city: 'Delhi NCR',
+          sequence: 4,
+          completed: false,
+        },
+      ],
+      is_demo_preview: true,
+    });
+
+    const acceptedPlan = demoStore.acceptTripPlan(plan.id);
+    expect(acceptedPlan.status).toBe('accepted');
+
+    // Retrieve corresponding claim
+    const assignedClaim = demoStore.getAllClaims().find((c) => c.volunteer_id === volunteerId && c.status === 'claimed');
+    expect(assignedClaim).toBeDefined();
+    const initialClaimStatus = assignedClaim!.status;
+    const initialVerificationStatus = assignedClaim!.verification_status;
+    expect(assignedClaim!.points_released || 0).toBe(0);
+
+    // 1. Volunteer marks personal origin departure stop as completed
+    const updatedPlan1 = demoStore.completeTripStop(plan.id, 'stop-start-01');
+    expect(updatedPlan1.stops.find((s) => s.id === 'stop-start-01')?.completed).toBe(true);
+
+    // Verify claim status remains untouched!
+    const claimAfterPersonalOrigin = demoStore.getAllClaims().find((c) => c.id === assignedClaim!.id)!;
+    expect(claimAfterPersonalOrigin.status).toBe(initialClaimStatus);
+    expect(claimAfterPersonalOrigin.verification_status).toBe(initialVerificationStatus);
+    expect(claimAfterPersonalOrigin.points_released || 0).toBe(0);
+
+    // 2. Volunteer marks personal destination arrival stop as completed
+    const updatedPlan2 = demoStore.completeTripStop(plan.id, 'stop-dest-01');
+    expect(updatedPlan2.stops.find((s) => s.id === 'stop-dest-01')?.completed).toBe(true);
+
+    // Verify claim status STILL remains untouched!
+    const claimAfterPersonalDest = demoStore.getAllClaims().find((c) => c.id === assignedClaim!.id)!;
+    expect(claimAfterPersonalDest.status).toBe(initialClaimStatus);
+    expect(claimAfterPersonalDest.verification_status).toBe(initialVerificationStatus);
+    expect(claimAfterPersonalDest.points_released || 0).toBe(0);
+  });
+
+  it('assigned SharePlate pickup and delivery actions update correct claim and appear across donor, NGO, volunteer, and admin views', () => {
+    const donorId = 'a0000000-0000-0000-0000-000000000001';
+    const ngoId = 'b0000000-0000-0000-0000-000000000001';
+    const volunteerId = 'c0000000-0000-0000-0000-000000000001';
+
+    // 1. Donor creates listing
+    const donation = demoStore.createDonation({
+      donor_id: donorId,
+      title: 'Nutritious Khichdi Trays',
+      description: 'Prepared for community kitchen relief',
+      category: 'cooked_meals',
+      quantity_total: 35,
+      quantity_unit: 'portions',
+      pickup_deadline: new Date(Date.now() + 86400000).toISOString(),
+      city: 'Delhi NCR',
+      location_label: 'Pitampura',
+    });
+
+    // 2. NGO reserves the donation
+    const claim = demoStore.claimDonation(donation.id, ngoId, 35, 'Shelter dinner distribution');
+    expect(claim.status).toBe('claimed');
+
+    // 3. Volunteer assigns route to this claim
+    demoStore.assignVolunteerToClaim(claim.id, volunteerId);
+
+    // 4. Pickup Handover: donor kitchen confirms food handover
+    const pickedUpClaim = demoStore.confirmPickup(claim.id, donorId);
+    expect(pickedUpClaim.status).toBe('collected');
+    expect(pickedUpClaim.verification_status).toBe('in_transit');
+    expect(pickedUpClaim.pickup_confirmed_by).toBeDefined();
+
+    // Verify cross-account consistency after pickup:
+    // - Donor view: sees claim as collected / in transit on their donation
+    const donorClaims = demoStore.getUserClaims(donorId, true);
+    const donorViewClaim = donorClaims.find((c) => c.id === claim.id);
+    expect(donorViewClaim?.status).toBe('collected');
+    expect(donorViewClaim?.verification_status).toBe('in_transit');
+
+    // - NGO view: sees incoming food as in transit
+    const ngoClaims = demoStore.getUserClaims(ngoId, false);
+    const ngoViewClaim = ngoClaims.find((c) => c.id === claim.id);
+    expect(ngoViewClaim?.status).toBe('collected');
+    expect(ngoViewClaim?.verification_status).toBe('in_transit');
+
+    // - Volunteer view: sees claim as collected and in transit
+    const volunteerClaims = demoStore.getUserClaims(volunteerId, 'volunteer');
+    const volViewClaim = volunteerClaims.find((c) => c.id === claim.id);
+    expect(volViewClaim?.status).toBe('collected');
+
+    // - Admin view: sees claim in transit
+    const allClaims = demoStore.getAllClaims();
+    const adminViewClaim = allClaims.find((c) => c.id === claim.id);
+    expect(adminViewClaim?.status).toBe('collected');
+
+    // 5. Delivery Confirmation: recipient NGO confirms receipt of portions
+    const { claim: deliveredClaim, pointsAwarded } = demoStore.confirmDelivery(claim.id, ngoId, 35);
+    expect(deliveredClaim.status).toBe('delivered');
+    expect(deliveredClaim.verification_status).toBe('verified');
+    expect(deliveredClaim.portions_delivered_confirmed).toBe(35);
+    expect(pointsAwarded).toBe(120); // 50 base + 35*2 = 120 pts
+
+    // Verify cross-account consistency after delivery:
+    // - Donor view: sees delivery completed
+    const donorClaimsAfter = demoStore.getUserClaims(donorId, true);
+    expect(donorClaimsAfter.find((c) => c.id === claim.id)?.status).toBe('delivered');
+
+    // - NGO view: sees delivered & verified
+    const ngoClaimsAfter = demoStore.getUserClaims(ngoId, false);
+    expect(ngoClaimsAfter.find((c) => c.id === claim.id)?.status).toBe('delivered');
+
+    // - Volunteer rewards ledger: sees released points
+    const rewards = demoStore.getVolunteerRewards(volunteerId);
+    expect(rewards.points_released).toBeGreaterThanOrEqual(120);
+    expect(rewards.verified_deliveries_count).toBeGreaterThanOrEqual(1);
+
+    // - Admin view: sees delivered
+    const adminClaimsAfter = demoStore.getAllClaims();
+    expect(adminClaimsAfter.find((c) => c.id === claim.id)?.status).toBe('delivered');
+  });
+});

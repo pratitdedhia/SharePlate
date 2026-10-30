@@ -42,7 +42,9 @@ import {
   ChevronRight,
   ShieldCheck,
   ShieldAlert,
+  ExternalLink,
 } from 'lucide-react';
+import { TaskRouteMap } from '../../components/volunteer/TaskRouteMap';
 
 export const VolunteerDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -72,6 +74,10 @@ export const VolunteerDashboard: React.FC = () => {
 
   // Partial delivery state
   const [deliveryPortions, setDeliveryPortions] = useState<Record<string, number>>({});
+  const [pickupCodeInput, setPickupCodeInput] = useState<Record<string, string>>({});
+  const [deliveryCodeInput, setDeliveryCodeInput] = useState<Record<string, string>>({});
+  const [deliveryPortionsInput, setDeliveryPortionsInput] = useState<Record<string, number>>({});
+  const [selectedRouteStopId, setSelectedRouteStopId] = useState<string | null>(null);
 
   const loadDashboardData = async () => {
     if (!user) return;
@@ -157,8 +163,12 @@ export const VolunteerDashboard: React.FC = () => {
         completed_at: new Date().toISOString(),
       });
 
-      // Stops: Pickups
+      // Stops: Pickups (SharePlate Donor Handoffs)
       for (const t of selectedTasks) {
+        const matchingClaim = activeClaims.find(
+          (c) => c.id === t.claim_id || c.donation_id === t.donation_id
+        );
+        const claimId = matchingClaim?.id || t.claim_id || `claim-${t.id}`;
         stops.push({
           id: `stop-${seq}`,
           type: 'pickup',
@@ -169,6 +179,7 @@ export const VolunteerDashboard: React.FC = () => {
           phone: t.donor_phone,
           instructions: t.pickup_instructions,
           task_id: t.id,
+          claim_id: claimId,
           portions: t.portions,
           food_title: t.title,
           dietary_type: t.dietary_type,
@@ -178,8 +189,12 @@ export const VolunteerDashboard: React.FC = () => {
         });
       }
 
-      // Stops: Deliveries
+      // Stops: Deliveries (SharePlate Recipient NGO Handoffs)
       for (const t of selectedTasks) {
+        const matchingClaim = activeClaims.find(
+          (c) => c.id === t.claim_id || c.donation_id === t.donation_id
+        );
+        const claimId = matchingClaim?.id || t.claim_id || `claim-${t.id}`;
         stops.push({
           id: `stop-${seq}`,
           type: 'delivery',
@@ -189,6 +204,7 @@ export const VolunteerDashboard: React.FC = () => {
           contact_person: t.recipient_name,
           phone: t.recipient_phone,
           task_id: t.id,
+          claim_id: claimId,
           portions: t.portions,
           food_title: t.title,
           dietary_type: t.dietary_type,
@@ -229,12 +245,52 @@ export const VolunteerDashboard: React.FC = () => {
     }
   };
 
-  // Complete a stop in the checklist
+  // Complete a personal commute stop (Origin/Destination) - strictly segregated from food claims!
+  const handleCompletePersonalStop = async (stopId: string) => {
+    if (!activeTripPlan) return;
+    try {
+      await claimsService.completeTripStop(activeTripPlan.id, stopId);
+      success('Personal travel leg acknowledged.');
+      await loadDashboardData();
+    } catch (err: any) {
+      error(err.message || 'Failed to update personal travel stop');
+    }
+  };
+
+  // Two-party: Mark picked up on an assigned donor pickup stop
+  const handleStopPickup = async (stopId: string, claimId: string, code?: string) => {
+    try {
+      await claimsService.confirmPickup(claimId, DEMO_PROFILES.donor.id, code);
+      if (activeTripPlan) {
+        await claimsService.completeTripStop(activeTripPlan.id, stopId);
+      }
+      success('Donor handover confirmed! Food is now IN TRANSIT.');
+      await loadDashboardData();
+    } catch (err: any) {
+      error(err.message || 'Failed to confirm pickup handover');
+    }
+  };
+
+  // Two-party: Confirm delivery on an assigned recipient delivery stop
+  const handleStopDelivery = async (stopId: string, claimId: string, portions: number, code?: string) => {
+    try {
+      const res = await claimsService.confirmDelivery(claimId, DEMO_PROFILES.recipient.id, portions, code);
+      if (activeTripPlan) {
+        await claimsService.completeTripStop(activeTripPlan.id, stopId);
+      }
+      success(`Rescue verified by recipient NGO! ${res.pointsAwarded} volunteer reward points released!`);
+      await loadDashboardData();
+    } catch (err: any) {
+      error(err.message || 'Failed to confirm delivery');
+    }
+  };
+
+  // Legacy fallback stop complete
   const handleCompleteStop = async (stopId: string) => {
     if (!activeTripPlan) return;
     try {
       await claimsService.completeTripStop(activeTripPlan.id, stopId);
-      success('Stop completed!');
+      success('Stop acknowledged!');
       await loadDashboardData();
     } catch (err: any) {
       error(err.message || 'Failed to update stop status');
@@ -805,113 +861,356 @@ export const VolunteerDashboard: React.FC = () => {
       {/* ============================================================== */}
       {activeTab === 'checklist' && (
         <div className="space-y-6">
-          {/* Active Trip Checklist Banner */}
-          <div className="bg-white rounded-3xl border border-warm-200 p-6 shadow-xs space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-warm-100 pb-3">
+          {/* 1. Map-Based Route for Assigned SharePlate Tasks */}
+          {activeTripPlan && activeTripPlan.stops && activeTripPlan.stops.length > 0 ? (
+            <TaskRouteMap
+              stops={activeTripPlan.stops}
+              corridorLabel={activeTripPlan.corridor_label || selectedCorridor}
+              selectedStopId={selectedRouteStopId || undefined}
+              onSelectStop={(id) => setSelectedRouteStopId(id)}
+            />
+          ) : (
+            <div className="bg-white rounded-3xl border border-warm-200 p-8 text-center space-y-4">
+              <Compass className="w-10 h-10 text-emerald-700 mx-auto" />
               <div>
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-forest-900 bg-emerald-100 px-2 py-0.5 rounded-md">
-                  Active Commute Route
-                </span>
-                <h2 className="text-lg font-black text-stone-900 mt-1">
-                  Stop-by-Stop Rescue Checklist
-                </h2>
-                <p className="text-xs text-stone-500">
-                  Follow each stop in order. Contact details and loading instructions are unlocked for accepted tasks.
+                <h3 className="text-base font-bold text-stone-900">No Active Route Accepted Yet</h3>
+                <p className="text-xs text-stone-500 mt-1 max-w-md mx-auto">
+                  Head over to the <strong>Trip Planner</strong> tab to configure your personal commute endpoints, browse nearby surplus meal batches, and accept your route.
                 </p>
               </div>
-
-              <div className="text-xs font-bold text-stone-600">
-                Corridor: <strong>{activeTripPlan?.corridor_label || selectedCorridor}</strong>
-              </div>
+              <button
+                type="button"
+                onClick={() => setActiveTab('planner')}
+                className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-forest-900 hover:bg-forest-800 transition"
+              >
+                Go to Trip Planner
+              </button>
             </div>
+          )}
 
-            {/* Checklist Stop Items */}
-            <div className="space-y-3">
-              {activeTripPlan?.stops.map((stop) => (
-                <div
-                  key={stop.id}
-                  className={`p-4 rounded-2xl border transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
-                    stop.completed
-                      ? 'bg-emerald-50/50 border-emerald-200 text-stone-600'
-                      : 'bg-white border-warm-200 shadow-xs'
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
+          {/* 2. Stop-by-Stop Rescue Checklist */}
+          {activeTripPlan && activeTripPlan.stops && activeTripPlan.stops.length > 0 && (
+            <div className="bg-white rounded-3xl border border-warm-200 p-6 shadow-xs space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-warm-100 pb-3">
+                <div>
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-forest-900 bg-emerald-100 px-2 py-0.5 rounded-md">
+                    Verified Execution
+                  </span>
+                  <h2 className="text-lg font-black text-stone-900 mt-1">
+                    Stop-by-Stop Actions & Verification
+                  </h2>
+                  <p className="text-xs text-stone-500">
+                    Personal commute travel is strictly segregated from SharePlate food actions. Pickups and deliveries must be individually verified.
+                  </p>
+                </div>
+
+                <div className="text-xs font-bold text-stone-600">
+                  Corridor: <strong>{activeTripPlan?.corridor_label || selectedCorridor}</strong>
+                </div>
+              </div>
+
+              {/* Stop Items */}
+              <div className="space-y-4">
+                {activeTripPlan.stops.map((stop) => {
+                  const isPersonal = stop.type === 'start' || stop.type === 'destination';
+                  const isPickup = stop.type === 'pickup';
+                  const isDelivery = stop.type === 'delivery';
+
+                  const linkedClaim = !isPersonal
+                    ? activeClaims.find(
+                        (c) =>
+                          c.id === stop.claim_id ||
+                          c.donation_id === stop.task_id ||
+                          c.donation?.id === stop.task_id
+                      )
+                    : null;
+
+                  const claimId = linkedClaim?.id || stop.claim_id || '';
+                  const isPickedUp =
+                    Boolean(linkedClaim?.pickup_confirmed_at) ||
+                    linkedClaim?.status === 'collected' ||
+                    linkedClaim?.status === 'delivered';
+                  const isDelivered =
+                    linkedClaim?.status === 'delivered' ||
+                    linkedClaim?.verification_status === 'verified';
+                  const isDisputed = linkedClaim?.is_disputed;
+
+                  const stopMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(stop.address)}`;
+
+                  return (
                     <div
-                      className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 ${
+                      key={stop.id}
+                      id={stop.id}
+                      className={`rounded-2xl border transition overflow-hidden ${
                         stop.completed
-                          ? 'bg-emerald-600 text-white'
-                          : 'bg-forest-900 text-white'
+                          ? 'bg-emerald-50/40 border-emerald-200'
+                          : isPersonal
+                          ? 'bg-stone-50 border-stone-200 shadow-xs'
+                          : isPickup
+                          ? 'bg-white border-amber-200 shadow-xs'
+                          : 'bg-white border-blue-200 shadow-xs'
                       }`}
                     >
-                      {stop.completed ? <CheckCircle2 className="w-4 h-4" /> : stop.sequence}
-                    </div>
+                      {/* Stop Header & Details */}
+                      <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                        <div className="flex items-start gap-3.5">
+                          <div
+                            className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 text-white ${
+                              stop.completed
+                                ? 'bg-emerald-600'
+                                : isPersonal
+                                ? 'bg-stone-600'
+                                : isPickup
+                                ? 'bg-amber-600'
+                                : 'bg-blue-600'
+                            }`}
+                          >
+                            {stop.completed ? <CheckCircle2 className="w-4 h-4" /> : stop.sequence}
+                          </div>
 
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-md ${
-                            stop.type === 'start'
-                              ? 'bg-stone-100 text-stone-700'
-                              : stop.type === 'pickup'
-                              ? 'bg-amber-100 text-amber-900'
-                              : stop.type === 'delivery'
-                              ? 'bg-blue-100 text-blue-900'
-                              : 'bg-purple-100 text-purple-900'
-                          }`}
-                        >
-                          {stop.type}
-                        </span>
-                        {stop.food_title && (
-                          <span className="text-xs font-bold text-stone-800">
-                            {stop.food_title} ({stop.portions} portions)
-                          </span>
-                        )}
-                      </div>
+                          <div className="space-y-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span
+                                className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md ${
+                                  isPersonal
+                                    ? 'bg-stone-200 text-stone-700'
+                                    : isPickup
+                                    ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                                    : 'bg-blue-100 text-blue-900 border border-blue-300'
+                                }`}
+                              >
+                                {isPersonal
+                                  ? `Personal Commute (${stop.type === 'start' ? 'Origin' : 'Destination'})`
+                                  : isPickup
+                                  ? 'SharePlate Donor Kitchen Pickup'
+                                  : 'SharePlate Recipient Shelter Delivery'}
+                              </span>
 
-                      <div className="text-xs font-bold text-stone-900">{stop.name}</div>
-                      <div className="text-[11px] text-stone-500">{stop.address}</div>
+                              {stop.portions && (
+                                <span className="text-xs font-bold text-stone-800">
+                                  {stop.food_title} ({stop.portions} portions)
+                                </span>
+                              )}
+                            </div>
 
-                      {/* Unlocked contact details */}
-                      {stop.contact_person && (
-                        <div className="text-[11px] text-forest-900 font-semibold flex items-center gap-2 pt-1">
-                          <span>Contact: {stop.contact_person}</span>
-                          {stop.phone && (
-                            <span className="flex items-center gap-1">
-                              <Phone className="w-3 h-3" /> {stop.phone}
+                            <div className="text-sm font-bold text-stone-900">{stop.name}</div>
+                            <div className="text-xs text-stone-500">{stop.address}</div>
+
+                            {/* External Directions Link Fallback */}
+                            <div className="pt-1 flex items-center gap-3">
+                              <a
+                                href={stopMapsUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[11px] font-bold text-forest-900 hover:text-forest-950 inline-flex items-center gap-1"
+                              >
+                                <span>Directions in Google Maps</span>
+                                <ExternalLink className="w-3 h-3 text-emerald-700" />
+                              </a>
+
+                              {stop.deadline && (
+                                <span className="text-[11px] text-stone-500 flex items-center gap-1">
+                                  <Clock className="w-3 h-3 text-amber-600" /> Pickup by: {new Date(stop.deadline).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Unlocked Contact Details */}
+                            {stop.contact_person && (
+                              <div className="text-xs text-forest-900 font-semibold flex flex-wrap items-center gap-3 pt-1">
+                                <span>Contact: <strong>{stop.contact_person}</strong></span>
+                                {stop.phone && (
+                                  <span className="flex items-center gap-1 text-stone-700">
+                                    <Phone className="w-3 h-3 text-emerald-700" /> {stop.phone}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Handling Instructions */}
+                            {stop.instructions && (
+                              <div className="text-xs text-stone-600 italic bg-warm-50 p-2.5 rounded-xl border border-warm-200 mt-1 max-w-xl">
+                                "{stop.instructions}"
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Status Badge on right */}
+                        <div className="self-start sm:self-center shrink-0">
+                          {stop.completed ? (
+                            <span className="text-xs font-bold text-emerald-800 bg-emerald-100 px-3 py-1.5 rounded-xl border border-emerald-300 flex items-center gap-1">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Completed
+                            </span>
+                          ) : isPersonal ? (
+                            <span className="text-xs font-semibold text-stone-500 bg-stone-100 px-3 py-1 rounded-lg">
+                              Commute Leg
+                            </span>
+                          ) : isPickup ? (
+                            <span className="text-xs font-bold text-amber-800 bg-amber-50 px-3 py-1 rounded-lg border border-amber-200">
+                              Awaiting Pickup
+                            </span>
+                          ) : (
+                            <span className="text-xs font-bold text-blue-800 bg-blue-50 px-3 py-1 rounded-lg border border-blue-200">
+                              Awaiting Drop-off
                             </span>
                           )}
                         </div>
-                      )}
+                      </div>
 
-                      {/* Unlocked instructions */}
-                      {stop.instructions && (
-                        <div className="text-[11px] text-stone-600 italic bg-warm-50 p-2 rounded-lg border border-warm-200 mt-1">
-                          "{stop.instructions}"
-                        </div>
-                      )}
+                      {/* Action Bar for this specific stop */}
+                      <div className="bg-warm-50/70 p-4 border-t border-warm-200/80">
+                        {/* CASE 1: PERSONAL COMMUTE LEG */}
+                        {isPersonal && (
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <p className="text-[11px] text-stone-500 italic">
+                              Personal commute travel · Does not advance, complete, or alter any food rescue claim.
+                            </p>
+                            {stop.completed ? (
+                              <span className="text-xs font-bold text-stone-600 flex items-center gap-1">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-stone-500" />
+                                Personal Travel Acknowledged
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleCompletePersonalStop(stop.id)}
+                                className="px-4 py-2 rounded-xl text-xs font-bold text-stone-800 bg-white hover:bg-stone-100 border border-stone-300 transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                              >
+                                <CheckSquare className="w-3.5 h-3.5" />
+                                <span>Acknowledge Commute {stop.type === 'start' ? 'Departure' : 'Arrival'}</span>
+                              </button>
+                            )}
+                          </div>
+                        )}
+
+                        {/* CASE 2: SHAREPLATE DONOR PICKUP STOP */}
+                        {isPickup && (
+                          <div className="space-y-3">
+                            {isPickedUp ? (
+                              <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-xs text-emerald-950 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <div className="space-y-0.5">
+                                  <div className="font-bold flex items-center gap-1 text-emerald-800">
+                                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                                    <span>Food Handover Confirmed by Donor Kitchen</span>
+                                  </div>
+                                  <div className="text-[11px] text-stone-600">
+                                    Confirmed by: <strong>{linkedClaim?.pickup_confirmed_by || stop.contact_person || 'Donor Kitchen'}</strong>
+                                    {linkedClaim?.pickup_confirmed_at && (
+                                      <span> at {new Date(linkedClaim.pickup_confirmed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                    )}
+                                  </div>
+                                </div>
+                                <span className="text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300 self-start sm:self-center">
+                                  In Transit to Shelter
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="space-y-2">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                  <div className="text-xs text-stone-700">
+                                    <strong>Two-Party Rule:</strong> Donor kitchen staff confirms food temperature and portions handed over.
+                                  </div>
+                                  <div className="text-xs font-mono font-bold bg-white px-2.5 py-1 rounded-lg border border-amber-300 text-amber-900">
+                                    Pickup Verification Code: <strong>{linkedClaim?.pickup_code || '4821'}</strong>
+                                  </div>
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-2 pt-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleStopPickup(stop.id, claimId, linkedClaim?.pickup_code || '4821')}
+                                    className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-amber-700 hover:bg-amber-800 transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                                  >
+                                    <CheckCircle2 className="w-4 h-4" />
+                                    <span>Mark Picked Up (Confirm Donor Handover)</span>
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* CASE 3: SHAREPLATE RECIPIENT DELIVERY STOP */}
+                        {isDelivery && (
+                          <div className="space-y-3">
+                            {isDelivered ? (
+                              <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-xs text-emerald-950 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <div className="space-y-0.5">
+                                  <div className="font-bold flex items-center gap-1 text-emerald-800">
+                                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                                    <span>Verified Delivery by Recipient NGO</span>
+                                  </div>
+                                  <div className="text-[11px] text-stone-600">
+                                    {linkedClaim?.portions_delivered_confirmed || stop.portions} portions confirmed by <strong>{linkedClaim?.delivery_confirmed_by || stop.contact_person || 'Recipient Coordinator'}</strong>
+                                  </div>
+                                </div>
+                                <span className="text-[10px] font-extrabold uppercase px-3 py-1 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300 self-start sm:self-center">
+                                  +{linkedClaim?.points_released || calculateClaimPoints(stop.portions || 10, false)} pts Awarded
+                                </span>
+                              </div>
+                            ) : isPickedUp ? (
+                              <div className="space-y-2">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                  <div className="text-xs text-stone-700">
+                                    <strong>Two-Party Verification:</strong> Recipient NGO confirms portions received to release volunteer points.
+                                  </div>
+                                  <div className="text-xs font-mono font-bold bg-white px-2.5 py-1 rounded-lg border border-blue-300 text-blue-900">
+                                    Delivery Verification Code: <strong>{linkedClaim?.delivery_code || '7392'}</strong>
+                                  </div>
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-3 pt-1">
+                                  <div className="flex items-center gap-1.5 text-xs font-bold text-stone-700">
+                                    <label>Portions Received:</label>
+                                    <input
+                                      type="number"
+                                      min={1}
+                                      max={stop.portions || linkedClaim?.quantity_claimed || 50}
+                                      value={deliveryPortions[claimId] ?? (stop.portions || linkedClaim?.quantity_claimed || 10)}
+                                      onChange={(e) =>
+                                        setDeliveryPortions({
+                                          ...deliveryPortions,
+                                          [claimId]: parseInt(e.target.value) || 1,
+                                        })
+                                      }
+                                      className="w-20 px-2 py-1 rounded-lg border border-stone-300 text-xs font-bold text-stone-900 text-center bg-white"
+                                    />
+                                    <span className="text-stone-400 text-[11px]">/ {stop.portions || linkedClaim?.quantity_claimed}</span>
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleStopDelivery(
+                                        stop.id,
+                                        claimId,
+                                        deliveryPortions[claimId] ?? (stop.portions || linkedClaim?.quantity_claimed || 10),
+                                        linkedClaim?.delivery_code || '7392'
+                                      )
+                                    }
+                                    className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-blue-700 hover:bg-blue-800 transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                                  >
+                                    <ShieldCheck className="w-4 h-4" />
+                                    <span>Confirm Delivery (Verify Receipt & Release Points)</span>
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="p-3 bg-amber-50/70 rounded-xl border border-amber-200 text-xs text-amber-900 flex items-center gap-2">
+                                <Clock className="w-4 h-4 text-amber-700 shrink-0" />
+                                <span>Awaiting Donor Kitchen Pickup. Complete pickup at stop #{stop.sequence - 1} before delivering to shelter.</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-
-                  <div className="self-end sm:self-center shrink-0">
-                    {stop.completed ? (
-                      <span className="text-xs font-bold text-emerald-800 bg-emerald-100 px-3 py-1.5 rounded-xl border border-emerald-300 flex items-center gap-1">
-                        <CheckCircle2 className="w-3.5 h-3.5" /> Completed
-                      </span>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => handleCompleteStop(stop.id)}
-                        className="px-4 py-2 rounded-xl text-xs font-bold text-forest-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 transition flex items-center gap-1 cursor-pointer"
-                      >
-                        <CheckSquare className="w-3.5 h-3.5" /> Mark Stop Visited
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* TWO-PARTY VERIFICATION & HANDOVER PANELS */}
           <div className="space-y-4">
