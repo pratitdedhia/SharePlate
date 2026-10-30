@@ -59,6 +59,7 @@ export const RegisterPage: React.FC = () => {
   const [volunteerBio, setVolunteerBio] = useState('');
 
   const [loading, setLoading] = useState(false);
+  const [googleAuthNotice, setGoogleAuthNotice] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
   const handleStateChange = (newState: string) => {
@@ -168,12 +169,31 @@ export const RegisterPage: React.FC = () => {
 
   const handleGoogleSignUp = async () => {
     setLoading(true);
+    setGoogleAuthNotice(null);
     try {
       const authenticatedProfile = await loginWithGoogle(role);
       success(`Welcome to SharePlate, ${authenticatedProfile.full_name}! Signed in via Google.`);
       navigate(`/dashboard/${authenticatedProfile.role}`);
     } catch (err: any) {
-      if (err.code !== 'auth/popup-closed-by-user') {
+      console.warn('[Google Sign-Up Error]', err);
+      const isCustomDomain = !['localhost', '127.0.0.1'].includes(window.location.hostname);
+      if (err.code === 'auth/unauthorized-domain') {
+        const msg = `Domain "${window.location.hostname}" is not authorized in Firebase Console. Please add it to Firebase Console > Authentication > Settings > Authorized domains.`;
+        error(msg);
+        setGoogleAuthNotice(msg);
+      } else if (err.code === 'auth/popup-closed-by-user') {
+        if (isCustomDomain) {
+          const msg = `Google popup closed. If it showed "The requested action is invalid", add "${window.location.hostname}" to Firebase Console > Authentication > Settings > Authorized domains.`;
+          error(msg);
+          setGoogleAuthNotice(msg);
+        } else {
+          error('Google registration was cancelled.');
+        }
+      } else if (err.code === 'auth/configuration-not-found' || err.code === 'auth/operation-not-allowed') {
+        const msg = 'Google provider is not enabled in Firebase Console. Please enable Google under Authentication > Sign-in method.';
+        error(msg);
+        setGoogleAuthNotice(msg);
+      } else {
         error(err.message || 'Google registration was cancelled or failed.');
       }
     } finally {
@@ -220,6 +240,29 @@ export const RegisterPage: React.FC = () => {
               </svg>
               <span>Continue with Google as {role.toUpperCase()}</span>
             </button>
+
+            {googleAuthNotice && (
+              <div className="p-3.5 bg-amber-50/90 border border-amber-200/90 rounded-2xl text-xs space-y-2 text-stone-800">
+                <div className="flex items-start gap-2">
+                  <span className="text-amber-600 font-bold text-sm leading-none mt-0.5">⚠️</span>
+                  <div>
+                    <p className="font-bold text-amber-950 text-[11px]">Domain Authorization Notice</p>
+                    <p className="text-[11px] text-stone-600 mt-0.5 leading-relaxed">
+                      {googleAuthNotice}
+                    </p>
+                  </div>
+                </div>
+                <div className="pt-1.5 flex items-center justify-between gap-2 border-t border-amber-200/60">
+                  <span className="text-[10px] text-stone-500">Need immediate access?</span>
+                  <Link
+                    to="/login"
+                    className="py-1 px-3 bg-forest-900 hover:bg-forest-950 text-white rounded-xl text-[11px] font-bold transition cursor-pointer shadow-xs"
+                  >
+                    Use 1-Click Demo Presets &rarr;
+                  </Link>
+                </div>
+              </div>
+            )}
 
             <div className="relative flex py-1 items-center">
               <div className="flex-grow border-t border-warm-200"></div>
