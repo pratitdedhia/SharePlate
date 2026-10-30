@@ -29,6 +29,7 @@ To provide instant, zero-friction evaluation for hackathon judges without requir
 ## 📸 Overview & Key Features
 
 - **🔐 Role-Based Food Rescue Access:** Professional authentication flows with session persistence, inline error handling, and role-based redirects.
+- **🔑 Dual Authentication (Google Sign-In & Email/Password):** Integrated Firebase Authentication supporting 1-click **Continue with Google** (via official Google Auth Provider popup) alongside traditional Email & Password with automatic Firestore profile creation and role assignment.
 - **⚡ 1-Click Quick Demo Access:** Instant evaluation buttons for Judges on `/login` to continue immediately as Donor, Recipient, Volunteer, or Admin with seeded personas.
 - **🛡️ Strict Role-Based Dashboards & Dynamic RBAC Navigation:** Purpose-built workflows with tailored navigation for all personas:
   - **Donor:** Dashboard, My Listings (`/my-donations`), and **Donor Rewards Ledger**; Browse Food, Impact, and About links are strictly hidden.
@@ -181,6 +182,10 @@ VITE_FIREBASE_MESSAGING_SENDER_ID=1075617712212
 VITE_FIREBASE_APP_ID=1:1075617712212:web:ab667a7e6b1c3652ec45c1
 VITE_FIREBASE_MEASUREMENT_ID=G-945TEWG4F3
 ```
+
+##### Enabled Firebase Authentication Providers:
+- **Google Sign-In:** 1-click authentication with official Google popup and automatic Firestore user profile creation.
+- **Email & Password:** Secure credential-based sign-in and onboarding for Donors, Recipients, and Volunteers.
 
 ##### Provision Firestore & Seed Current Actual Data:
 1. Open the Firebase Console: https://console.firebase.google.com/project/shareplate-57783/firestore
