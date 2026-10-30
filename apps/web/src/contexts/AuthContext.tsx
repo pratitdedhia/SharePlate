@@ -21,7 +21,7 @@ interface AuthContextType {
   role: UserRole | null;
   loading: boolean;
   isDemoUser: boolean;
-  login: (email: string, password: string) => Promise<UserProfile>;
+  login: (email: string, password: string, intendedRole?: UserRole) => Promise<UserProfile>;
   loginWithGoogle: (intendedRole?: UserRole) => Promise<UserProfile>;
   register: (
     email: string,
@@ -198,17 +198,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         if (!profile) {
+          const roleLabel =
+            intendedRole === 'recipient'
+              ? 'Community Relief Partner'
+              : intendedRole === 'volunteer'
+              ? 'Food Runner Courier'
+              : 'Community Kitchen Partner';
           profile = {
             id: fbUser.uid,
             full_name: fbUser.displayName || fbUser.email?.split('@')[0] || 'Google User',
             email: fbUser.email || '',
             role: intendedRole,
             avatar_url: fbUser.photoURL || null,
-            city: 'Delhi NCR',
-            state: 'Delhi',
+            city: intendedRole === 'donor' ? 'Mumbai' : 'Delhi NCR',
+            state: intendedRole === 'donor' ? 'Maharashtra' : 'Delhi',
             phone: fbUser.phoneNumber || '+91 98110 00000',
-            organization_name: fbUser.displayName ? `${fbUser.displayName}'s Organization` : 'Community Kitchen Partner',
-            service_area: 'Delhi NCR & Suburban Corridors',
+            organization_name: fbUser.displayName ? `${fbUser.displayName}'s ${intendedRole.toUpperCase()}` : roleLabel,
+            service_area: intendedRole === 'donor' ? 'BKC, Bandra & Andheri' : 'Delhi NCR & Suburban Corridors',
             is_active: true,
           };
 
@@ -221,6 +227,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               });
             } catch (err: any) {
               console.warn('[Firebase Auth] Firestore profile write notice:', err.message);
+            }
+          }
+        } else if (intendedRole && profile.role !== intendedRole) {
+          // If the user explicitly chose a different role on the login screen, honor the switch
+          profile = {
+            ...profile,
+            role: intendedRole,
+            city: intendedRole === 'donor' ? 'Mumbai' : 'Delhi NCR',
+            state: intendedRole === 'donor' ? 'Maharashtra' : 'Delhi',
+            updated_at: new Date().toISOString(),
+          };
+          if (db) {
+            try {
+              await setDoc(doc(db, 'users', fbUser.uid), profile, { merge: true });
+            } catch (err: any) {
+              console.warn('[Firebase Auth] Firestore role update notice:', err.message);
             }
           }
         }
@@ -238,8 +260,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         full_name: 'Verified Google Partner',
         email: 'partner@gmail.com',
         role: intendedRole,
-        city: 'Mumbai',
-        organization_name: 'Google Community Partner',
+        city: intendedRole === 'donor' ? 'Mumbai' : 'Delhi NCR',
+        state: intendedRole === 'donor' ? 'Maharashtra' : 'Delhi',
+        organization_name: `${intendedRole.toUpperCase()} Community Partner`,
         phone: '+91 98110 99887',
         is_active: true,
       };
@@ -254,7 +277,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const login = async (email: string, password: string): Promise<UserProfile> => {
+  const login = async (
+    email: string,
+    password: string,
+    intendedRole: UserRole = 'donor'
+  ): Promise<UserProfile> => {
     setLoading(true);
     try {
       if (!email || !password) {
@@ -271,11 +298,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             localStorage.setItem('shareplate_token', token);
             const userDoc = await getDoc(doc(db, 'users', cred.user.uid));
             if (userDoc.exists()) {
-              const profile = userDoc.data() as UserProfile;
+              let profile = userDoc.data() as UserProfile;
+              if (intendedRole && profile.role !== intendedRole && intendedRole !== 'donor') {
+                profile = { ...profile, role: intendedRole, updated_at: new Date().toISOString() };
+                await setDoc(doc(db, 'users', cred.user.uid), profile, { merge: true });
+              }
               setUser(profile);
               setIsDemoUser(false);
               localStorage.setItem('shareplate_current_user', JSON.stringify(profile));
               return profile;
+            } else {
+              const newProfile: UserProfile = {
+                id: cred.user.uid,
+                full_name: cred.user.displayName || email.split('@')[0],
+                email,
+                role: intendedRole,
+                city: intendedRole === 'donor' ? 'Mumbai' : 'Delhi NCR',
+                state: intendedRole === 'donor' ? 'Maharashtra' : 'Delhi',
+                phone: '+91 98110 00000',
+                is_active: true,
+              };
+              await setDoc(doc(db, 'users', cred.user.uid), newProfile);
+              setUser(newProfile);
+              setIsDemoUser(false);
+              localStorage.setItem('shareplate_current_user', JSON.stringify(newProfile));
+              return newProfile;
             }
           }
         } catch (fbErr: any) {
@@ -301,10 +348,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               id: data.user.id,
               full_name: meta.full_name || email.split('@')[0],
               email: data.user.email || email,
-              role: (meta.role as UserRole) || 'donor',
+              role: (meta.role as UserRole) || intendedRole,
               organization_name: meta.organization_name || null,
               phone: meta.phone || null,
-              city: meta.city || 'Delhi NCR',
+              city: meta.city || (intendedRole === 'donor' ? 'Mumbai' : 'Delhi NCR'),
+              state: intendedRole === 'donor' ? 'Maharashtra' : 'Delhi',
               is_active: true,
             };
             setUser(fallbackProfile);
@@ -349,8 +397,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           id: `user-${Date.now()}`,
           full_name: email.split('@')[0],
           email,
-          role: 'donor',
-          city: 'Mumbai',
+          role: intendedRole,
+          city: intendedRole === 'donor' ? 'Mumbai' : 'Delhi NCR',
+          state: intendedRole === 'donor' ? 'Maharashtra' : 'Delhi',
           is_active: true,
         };
       }

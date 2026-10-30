@@ -24,6 +24,7 @@ export const LoginPage: React.FC = () => {
   const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
   const [demoLoadingRole, setDemoLoadingRole] = useState<UserRole | null>(null);
+  const [selectedRole, setSelectedRole] = useState<UserRole>('donor');
 
   // Return to requested protected route or fallback to role dashboard
   const from = (location.state as any)?.from?.pathname || (location.state as any)?.from;
@@ -32,8 +33,8 @@ export const LoginPage: React.FC = () => {
   const handleGoogleSignIn = async () => {
     setLoading(true);
     try {
-      const authenticatedProfile = await loginWithGoogle();
-      success(`Welcome, ${authenticatedProfile.full_name}!`);
+      const authenticatedProfile = await loginWithGoogle(selectedRole);
+      success(`Welcome, ${authenticatedProfile.full_name}! Signed in as ${authenticatedProfile.role.toUpperCase()}`);
       const destination = from && !from.includes('/login') ? from : `/dashboard/${authenticatedProfile.role}`;
       navigate(destination, { replace: true, state: { autoReserve } });
     } catch (err: any) {
@@ -54,8 +55,8 @@ export const LoginPage: React.FC = () => {
 
     setLoading(true);
     try {
-      const authenticatedProfile = await login(email, password);
-      success(`Welcome back, ${authenticatedProfile.full_name}!`);
+      const authenticatedProfile = await login(email, password, selectedRole);
+      success(`Welcome back, ${authenticatedProfile.full_name}! Signed in as ${authenticatedProfile.role.toUpperCase()}`);
 
       // Determine destination based on trusted authenticated role
       const destination = from && !from.includes('/login') ? from : `/dashboard/${authenticatedProfile.role}`;
@@ -106,6 +107,48 @@ export const LoginPage: React.FC = () => {
             </div>
           )}
 
+          {/* Role Selector for Portal Sign In */}
+          <div className="space-y-1.5">
+            <label className="block text-[11px] font-bold text-stone-600 text-center uppercase tracking-wider">
+              I am signing in as
+            </label>
+            <div className="grid grid-cols-3 gap-1.5 p-1 bg-warm-100/90 rounded-2xl border border-warm-200">
+              <button
+                type="button"
+                onClick={() => setSelectedRole('donor')}
+                className={`py-2 px-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer ${
+                  selectedRole === 'donor'
+                    ? 'bg-emerald-700 text-white shadow-xs'
+                    : 'text-stone-600 hover:text-stone-900 hover:bg-warm-200/60'
+                }`}
+              >
+                <span>🍽️ Donor</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedRole('recipient')}
+                className={`py-2 px-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer ${
+                  selectedRole === 'recipient'
+                    ? 'bg-blue-700 text-white shadow-xs'
+                    : 'text-stone-600 hover:text-stone-900 hover:bg-warm-200/60'
+                }`}
+              >
+                <span>🤝 Recipient</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedRole('volunteer')}
+                className={`py-2 px-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer ${
+                  selectedRole === 'volunteer'
+                    ? 'bg-purple-700 text-white shadow-xs'
+                    : 'text-stone-600 hover:text-stone-900 hover:bg-warm-200/60'
+                }`}
+              >
+                <span>🚴 Volunteer</span>
+              </button>
+            </div>
+          </div>
+
           {/* Google Sign In Button */}
           <button
             type="button"
@@ -131,7 +174,7 @@ export const LoginPage: React.FC = () => {
                 d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
               />
             </svg>
-            <span>Continue with Google</span>
+            <span>Continue with Google as {selectedRole.toUpperCase()}</span>
           </button>
 
           <div className="relative flex py-0.5 items-center">
