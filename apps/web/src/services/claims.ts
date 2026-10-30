@@ -280,6 +280,27 @@ export const claimsService = {
     return claim;
   },
 
+  async fileRestaurantComplaint(
+    claimId: string,
+    reporterUser: { id: string; full_name?: string; role?: string; phone?: string },
+    data: { reason: string; description: string; category?: string }
+  ): Promise<{ claim: Claim; report: any }> {
+    const result = demoStore.fileClaimComplaint(claimId, reporterUser, data);
+
+    if (db && isFirebaseConfigured) {
+      try {
+        await setDoc(doc(db, 'claims', result.claim.id), result.claim, { merge: true });
+        await setDoc(doc(db, 'reports', result.report.id), result.report);
+      } catch (err: any) {
+        console.warn('[Firebase] Firestore fileRestaurantComplaint notice:', err.message);
+      }
+    }
+
+    liveUpdatesService.notifyChange('claims', 'UPDATE', result.claim);
+    liveUpdatesService.notifyChange('reports', 'INSERT', result.report);
+    return result;
+  },
+
   async getVolunteerRewards(volunteerId: string): Promise<VolunteerRewardsSummary> {
     return demoStore.getVolunteerRewards(volunteerId);
   },

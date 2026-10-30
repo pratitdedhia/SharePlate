@@ -1394,4 +1394,93 @@ describe('Volunteer Routing & Personal Travel Segregation Regression', () => {
       expect(linkedClaim?.quantity_claimed).toBe(30);
     });
   });
+
+  describe('Restaurant Complaint & Admin Moderation Flagging Flow', () => {
+    it('files a complaint against a restaurant, flags the claim to admin, and populates reports queue', () => {
+      const claim = demoStore.claimDonation(
+        'd0000000-0000-0000-0000-000000000001',
+        'b0000000-0000-0000-0000-000000000001',
+        10
+      );
+
+      const reporter = {
+        id: 'b0000000-0000-0000-0000-000000000001',
+        full_name: 'Rajesh Kumar (Robin Hood Army)',
+        role: 'recipient',
+        phone: '+91 98110 99887',
+      };
+
+      const complaintData = {
+        reason: 'Food Quality & Spoilage (Smell, stale)',
+        description: 'Food arrived smelling sour and stale, unsuitable for community consumption.',
+        category: 'Food Quality & Freshness',
+      };
+
+      const result = demoStore.fileClaimComplaint(claim.id, reporter, complaintData);
+
+      expect(result.claim.is_flagged_to_admin).toBe(true);
+      expect(result.claim.complaint).toBeDefined();
+      expect(result.claim.complaint?.restaurant_name).toContain('DTU');
+      expect(result.claim.complaint?.status).toBe('open');
+      expect(result.claim.complaint?.description).toBe(complaintData.description);
+
+      // Verify report was pushed to reports queue
+      const reports = demoStore.getReports();
+      const filedReport = reports.find((r) => r.claim_id === claim.id);
+      expect(filedReport).toBeDefined();
+      expect(filedReport?.restaurant_name).toContain('DTU');
+      expect(filedReport?.status).toBe('open');
+      expect(filedReport?.reporter_name).toBe(reporter.full_name);
+
+      // Verify activity logs contain the flagged complaint
+      const logs = demoStore.getActivityLogs();
+      const log = logs.find((l) => l.action === 'admin_complaint_flagged');
+      expect(log).toBeDefined();
+      expect(log?.details.claim_id).toBe(claim.id);
+    });
+
+    it('admin investigates, resolves, or issues warning against reported restaurant', () => {
+      const claim = demoStore.claimDonation(
+        'd0000000-0000-0000-0000-000000000001',
+        'b0000000-0000-0000-0000-000000000001',
+        5
+      );
+
+      const reporter = {
+        id: 'b0000000-0000-0000-0000-000000000001',
+        full_name: 'Rajesh Kumar',
+        role: 'recipient',
+      };
+
+      const { report } = demoStore.fileClaimComplaint(claim.id, reporter, {
+        reason: 'Handover Refusal / Kitchen Closed',
+        description: 'Kitchen door was locked 30 mins before stated pickup deadline.',
+      });
+
+      // 1. Admin sets investigating
+      demoStore.resolveReport(report.id, 'investigating', 'Safety officer reviewing CCTV & call logs');
+      let updatedRep = demoStore.getReports().find((r) => r.id === report.id);
+      expect(updatedRep?.status).toBe('investigating');
+      expect(updatedRep?.admin_notes).toContain('Safety officer');
+
+      let updatedClaim = demoStore.getAllClaims().find((c) => c.id === claim.id);
+      expect(updatedClaim?.complaint?.status).toBe('investigating');
+      expect(updatedClaim?.complaint?.admin_notes).toContain('Safety officer');
+
+      // 2. Admin issues official warning to restaurant
+      demoStore.issueRestaurantWarning(report.restaurant_name, 'Early kitchen closure warning', 'Platform Safety Lead');
+      const logs = demoStore.getActivityLogs();
+      const warningLog = logs.find((l) => l.action === 'restaurant_warning_issued');
+      expect(warningLog).toBeDefined();
+      expect(warningLog?.details.restaurant_name).toBe(report.restaurant_name);
+
+      // 3. Admin resolves grievance
+      demoStore.resolveReport(report.id, 'resolved', 'Restaurant apologized and committed to full pickup window');
+      updatedRep = demoStore.getReports().find((r) => r.id === report.id);
+      expect(updatedRep?.status).toBe('resolved');
+
+      updatedClaim = demoStore.getAllClaims().find((c) => c.id === claim.id);
+      expect(updatedClaim?.complaint?.status).toBe('resolved');
+    });
+  });
 });

@@ -125,12 +125,12 @@ export const adminService = {
     resolution_notes?: string
   ): Promise<AdminReport> {
     if (isDemoMode()) {
-      demoStore.resolveReport(reportId, status === 'dismissed' ? 'dismissed' : 'resolved');
+      demoStore.resolveReport(reportId, status, resolution_notes);
       const r = demoStore.getReports().find((x) => x.id === reportId) || {
         id: reportId,
         reported_by: '',
         reason: '',
-        status: status === 'dismissed' ? 'dismissed' : 'resolved',
+        status: status,
         created_at: new Date().toISOString(),
       };
       liveUpdatesService.notifyChange('claims', 'UPDATE', { report_id: reportId });
@@ -143,6 +143,15 @@ export const adminService = {
     });
     liveUpdatesService.notifyChange('claims', 'UPDATE', { report_id: reportId });
     return res.data;
+  },
+
+  async issueRestaurantWarning(
+    restaurantName: string,
+    reason: string,
+    adminUser?: string
+  ): Promise<void> {
+    demoStore.issueRestaurantWarning(restaurantName, reason, adminUser);
+    liveUpdatesService.notifyChange('claims', 'UPDATE', { restaurant_name: restaurantName });
   },
 
   async getActivityLogs(): Promise<ActivityLog[]> {

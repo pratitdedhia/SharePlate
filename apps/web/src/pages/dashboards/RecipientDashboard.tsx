@@ -22,6 +22,7 @@ import {
   Heart,
   Phone,
   AlertCircle,
+  ShieldAlert,
 } from 'lucide-react';
 
 export const RecipientDashboard: React.FC = () => {
@@ -233,6 +234,11 @@ export const RecipientDashboard: React.FC = () => {
                           <span className="text-xs font-bold text-stone-900">
                             {claim.quantity_claimed} portions
                           </span>
+                          {(claim.is_flagged_to_admin || claim.complaint) && (
+                            <span className="text-[10px] font-black text-rose-800 bg-rose-100 border border-rose-300 px-2 py-0.5 rounded-full flex items-center gap-1">
+                              <ShieldAlert className="w-3 h-3 text-rose-600" /> Flagged to Admin
+                            </span>
+                          )}
                         </div>
                         <h3 className="text-sm font-bold text-stone-900 mt-1 line-clamp-1">
                           {claim.donation?.title || 'Food Donation'}
@@ -339,13 +345,19 @@ export const RecipientDashboard: React.FC = () => {
                         )
                       )}
                       {claim.status === 'delivered' && (
-                        <div className="text-right">
+                        <div className="text-right space-y-1">
                           <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 flex items-center gap-1">
                             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Delivered to Community
                           </span>
-                          <span className="text-[10px] text-stone-500 block mt-0.5">
+                          <span className="text-[10px] text-stone-500 block">
                             {claim.portions_delivered_confirmed || claim.quantity_claimed} portions received & verified
                           </span>
+                          <Link
+                            to="/my-claims"
+                            className="inline-block text-[11px] font-bold text-rose-700 hover:text-rose-900 underline"
+                          >
+                            {claim.is_flagged_to_admin || claim.complaint ? '🚩 Review Complaint' : '🚩 Report Issue / Complaint'}
+                          </Link>
                         </div>
                       )}
                     </div>

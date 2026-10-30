@@ -199,13 +199,27 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
-  const handleResolveReport = async (reportId: string, resolution: 'resolved' | 'dismissed') => {
+  const handleResolveReport = async (
+    reportId: string,
+    resolution: 'resolved' | 'dismissed' | 'investigating',
+    adminNotes?: string
+  ) => {
     try {
-      await adminService.updateReport(reportId, resolution);
+      await adminService.updateReport(reportId, resolution, adminNotes);
       await loadData();
       success(`Safety report marked as ${resolution}.`);
     } catch (err: any) {
       error(err.message || 'Failed to update report');
+    }
+  };
+
+  const handleIssueWarning = async (restaurantName: string, reason: string) => {
+    try {
+      await adminService.issueRestaurantWarning(restaurantName, reason, user?.full_name || 'Platform Administrator');
+      await loadData();
+      success(`Official warning recorded and issued to ${restaurantName}.`);
+    } catch (err: any) {
+      error(err.message || 'Failed to issue restaurant warning');
     }
   };
 
@@ -826,6 +840,17 @@ export const AdminDashboard: React.FC = () => {
                         {c.donation?.title || 'Surplus Meal Package'}
                       </div>
                       <div className="text-[11px] text-stone-400">Claim ID: {c.id.slice(0, 8)}</div>
+                      {(c.is_flagged_to_admin || c.complaint) && (
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab('reports')}
+                          className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-800 bg-rose-100 hover:bg-rose-200 border border-rose-300 px-2 py-0.5 rounded-md mt-1 cursor-pointer transition"
+                          title="View grievance in moderation queue"
+                        >
+                          <ShieldAlert className="w-3 h-3 text-rose-600" />
+                          <span>Flagged Complaint</span>
+                        </button>
+                      )}
                     </td>
                     <td className="p-4 text-stone-700">
                       {c.donation?.donor?.organization_name || c.donation?.donor?.full_name || 'DTU Canteen'}
@@ -857,56 +882,153 @@ export const AdminDashboard: React.FC = () => {
       {/* TAB 5: SAFETY & MODERATION QUEUE */}
       {activeTab === 'reports' && (
         <div className="bg-white rounded-3xl border border-warm-200 shadow-xs overflow-hidden">
-          <div className="p-6 border-b border-warm-100">
-            <h2 className="text-lg font-black text-stone-900">Safety & Allergen Moderation Queue</h2>
-            <p className="text-xs text-stone-500">Flagged donations requiring administrative review</p>
+          <div className="p-6 border-b border-warm-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="w-5 h-5 text-rose-700" />
+                <h2 className="text-lg font-black text-stone-900">Safety & Restaurant Moderation Queue</h2>
+              </div>
+              <p className="text-xs text-stone-500 mt-0.5">
+                Investigate user complaints against restaurants, food quality issues, and compliance grievances
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-rose-900 bg-rose-100 px-3 py-1 rounded-full border border-rose-200">
+                {openReportsCount} Pending Attention
+              </span>
+            </div>
           </div>
 
           <div className="divide-y divide-warm-100">
-            {reports.map((report) => (
-              <div key={report.id} className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-warm-50/50 transition">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                      report.status === 'open'
-                        ? 'bg-rose-100 text-rose-900'
-                        : report.status === 'investigating'
-                        ? 'bg-amber-100 text-amber-900'
-                        : 'bg-emerald-100 text-emerald-900'
-                    }`}>
-                      {report.status}
-                    </span>
-                    <span className="text-xs font-bold text-stone-900">{report.reason}</span>
-                  </div>
-                  <p className="text-xs text-stone-600">{report.description}</p>
-                  <div className="text-[11px] text-stone-400">
-                    Report ID: {report.id} · Filed {new Date(report.created_at).toLocaleString()}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 self-end sm:self-center">
-                  {report.status !== 'resolved' && (
-                    <button
-                      type="button"
-                      onClick={() => handleResolveReport(report.id, 'resolved')}
-                      className="px-3.5 py-1.5 rounded-lg text-xs font-bold text-white bg-forest-900 hover:bg-forest-800 transition cursor-pointer flex items-center gap-1"
-                    >
-                      <Check className="w-3.5 h-3.5" />
-                      Resolve
-                    </button>
-                  )}
-                  {report.status !== 'dismissed' && (
-                    <button
-                      type="button"
-                      onClick={() => handleResolveReport(report.id, 'dismissed')}
-                      className="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-stone-700 bg-warm-100 hover:bg-warm-200 transition cursor-pointer"
-                    >
-                      Dismiss
-                    </button>
-                  )}
-                </div>
+            {reports.length === 0 ? (
+              <div className="p-10 text-center text-xs text-stone-500">
+                No active complaints or safety reports filed.
               </div>
-            ))}
+            ) : (
+              reports.map((report) => {
+                const restName =
+                  report.restaurant_name ||
+                  report.donation?.donor?.organization_name ||
+                  report.donation?.donor?.full_name ||
+                  'Registered Donor Kitchen';
+
+                return (
+                  <div key={report.id} className="p-5 hover:bg-warm-50/50 transition space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full ${
+                            report.status === 'open'
+                              ? 'bg-rose-100 text-rose-900 border border-rose-200'
+                              : report.status === 'investigating'
+                              ? 'bg-amber-100 text-amber-900 border border-amber-200'
+                              : 'bg-emerald-100 text-emerald-900 border border-emerald-200'
+                          }`}
+                        >
+                          {report.status}
+                        </span>
+
+                        <span className="text-xs font-black text-stone-900 flex items-center gap-1.5">
+                          <Building2 className="w-3.5 h-3.5 text-stone-500" />
+                          <span>Restaurant: {restName}</span>
+                        </span>
+
+                        {report.claim_id && (
+                          <span className="text-[10px] font-semibold text-stone-500 bg-stone-100 px-2 py-0.5 rounded-md">
+                            Claim ID: {report.claim_id.slice(0, 8)}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="text-[11px] text-stone-400">
+                        Filed: {new Date(report.created_at).toLocaleString()}
+                      </div>
+                    </div>
+
+                    {/* Complaint details */}
+                    <div className="bg-warm-50/70 p-3.5 rounded-2xl border border-warm-200/80 space-y-1.5 text-xs">
+                      <div className="font-bold text-rose-950 flex items-center gap-1.5">
+                        <AlertTriangle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                        <span>Category: {report.reason}</span>
+                      </div>
+                      <p className="text-stone-700 leading-relaxed bg-white/80 p-2.5 rounded-xl border border-warm-200/50">
+                        "{report.description}"
+                      </p>
+
+                      <div className="flex flex-wrap items-center gap-4 text-[11px] text-stone-500 pt-1">
+                        {report.reporter_name && (
+                          <div>
+                            <span className="font-semibold text-stone-700">Reported By:</span>{' '}
+                            {report.reporter_name} ({report.reporter_role || 'user'})
+                          </div>
+                        )}
+                        {report.reporter_phone && (
+                          <div className="flex items-center gap-1">
+                            <Phone className="w-3 h-3" />
+                            <span>{report.reporter_phone}</span>
+                          </div>
+                        )}
+                        {report.donation?.title && (
+                          <div>
+                            <span className="font-semibold text-stone-700">Food Item:</span>{' '}
+                            {report.donation.title}
+                          </div>
+                        )}
+                      </div>
+
+                      {report.admin_notes && (
+                        <div className="text-[11px] text-stone-800 bg-amber-50 p-2 rounded-xl border border-amber-200 mt-2">
+                          <span className="font-bold text-amber-900">Admin Action Note:</span> {report.admin_notes}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Admin Action Buttons */}
+                    <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
+                      {report.status === 'open' && (
+                        <button
+                          type="button"
+                          onClick={() => handleResolveReport(report.id, 'investigating', 'Safety team actively reviewing restaurant logs')}
+                          className="px-3 py-1.5 rounded-xl text-xs font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition cursor-pointer"
+                        >
+                          Mark Investigating
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => handleIssueWarning(restName, `Official warning regarding safety report (${report.reason})`)}
+                        className="px-3 py-1.5 rounded-xl text-xs font-bold text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition cursor-pointer"
+                        title="Issue warning to restaurant profile and log audit action"
+                      >
+                        Issue Warning to Restaurant
+                      </button>
+
+                      {report.status !== 'resolved' && (
+                        <button
+                          type="button"
+                          onClick={() => handleResolveReport(report.id, 'resolved', 'Issue resolved with donor kitchen')}
+                          className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-forest-900 hover:bg-forest-800 transition cursor-pointer flex items-center gap-1 shadow-xs"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          <span>Resolve Grievance</span>
+                        </button>
+                      )}
+
+                      {report.status !== 'dismissed' && (
+                        <button
+                          type="button"
+                          onClick={() => handleResolveReport(report.id, 'dismissed', 'Report reviewed and dismissed')}
+                          className="px-3 py-1.5 rounded-xl text-xs font-semibold text-stone-600 bg-warm-100 hover:bg-warm-200 transition cursor-pointer"
+                        >
+                          Dismiss
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       )}

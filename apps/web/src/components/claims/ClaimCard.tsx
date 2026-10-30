@@ -16,6 +16,8 @@ import {
   Clock,
   Key,
   Lock,
+  Building2,
+  Store,
 } from 'lucide-react';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import { useAuth } from '../../contexts/AuthContext';
@@ -45,7 +47,21 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
   const [pickupOtp, setPickupOtp] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Restaurant Complaint & Admin Flag State
+  const [complaintModalOpen, setComplaintModalOpen] = useState(false);
+  const [complaintCategory, setComplaintCategory] = useState(
+    'Food Quality & Freshness (Spoilage, bad odor, unsafe temp)'
+  );
+  const [complaintDescription, setComplaintDescription] = useState('');
+  const [complaintSubmitting, setComplaintSubmitting] = useState(false);
+  const [complaintError, setComplaintError] = useState('');
+
   const donation = claim.donation;
+  const restaurantName =
+    donation?.donor?.organization_name ||
+    donation?.donor?.full_name ||
+    (donation as any)?.donor_name ||
+    'Donor Restaurant / Kitchen';
 
   const handleAction = async (actionFn: () => Promise<void>) => {
     setLoading(true);
@@ -95,6 +111,38 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
     }
   };
 
+  const handleComplaintSubmit = async () => {
+    if (!complaintDescription.trim()) {
+      setComplaintError('Please provide details about the issue faced.');
+      return;
+    }
+    setComplaintSubmitting(true);
+    setComplaintError('');
+    try {
+      await claimsService.fileRestaurantComplaint(
+        claim.id,
+        {
+          id: user?.id || 'recipient',
+          full_name: user?.full_name || 'Verified Community Partner',
+          role: user?.role || 'recipient',
+          phone: user?.phone || '',
+        },
+        {
+          reason: complaintCategory,
+          description: complaintDescription.trim(),
+          category: complaintCategory,
+        }
+      );
+      setComplaintModalOpen(false);
+      setComplaintDescription('');
+      if (onRefresh) onRefresh();
+    } catch (err: any) {
+      setComplaintError(err.message || 'Failed to submit complaint');
+    } finally {
+      setComplaintSubmitting(false);
+    }
+  };
+
   return (
     <div className="bg-white rounded-2xl border border-warm-200 overflow-hidden shadow-xs p-5 space-y-4">
       {/* Header with Title & Status */}
@@ -123,6 +171,12 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
           </div>
         </div>
         <div className="shrink-0 flex items-center gap-2">
+          {(claim.is_flagged_to_admin || claim.complaint) && (
+            <span className="text-xs font-bold text-rose-800 bg-rose-100 px-2.5 py-1 rounded-full border border-rose-200 flex items-center gap-1 shadow-xs">
+              <ShieldAlert className="w-3.5 h-3.5 text-rose-600" />
+              <span>Flagged to Admin</span>
+            </span>
+          )}
           {claim.is_disputed ? (
             <span className="text-xs font-bold text-rose-800 bg-rose-100 px-2.5 py-1 rounded-full border border-rose-200 flex items-center gap-1">
               <ShieldAlert className="w-3.5 h-3.5" /> Disputed
@@ -132,6 +186,52 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
           )}
         </div>
       </div>
+
+      {/* RESTAURANT COMPLAINT / ADMIN FLAGGED BANNER */}
+      {(claim.is_flagged_to_admin || claim.complaint) && (
+        <div className="bg-rose-50/90 border border-rose-200 rounded-2xl p-4 space-y-2.5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-rose-900">
+              <ShieldAlert className="w-4 h-4 shrink-0 text-rose-600" />
+              <span className="text-xs font-black">
+                Platform Admin Alert: Complaint Flagged Against {claim.complaint?.restaurant_name || restaurantName}
+              </span>
+            </div>
+            <span className="self-start sm:self-auto px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-200 text-rose-900 border border-rose-300">
+              Status: {claim.complaint?.status || 'open'}
+            </span>
+          </div>
+
+          <div className="text-xs text-rose-900">
+            <span className="font-bold">Reported Category:</span> {claim.complaint?.reason || 'Restaurant complaint under review'}
+          </div>
+
+          {claim.complaint?.description && (
+            <div className="text-xs text-stone-700 bg-white/95 p-2.5 rounded-xl border border-rose-100">
+              <span className="font-semibold text-stone-500 text-[11px] block mb-0.5">Complainant Remarks:</span>
+              <p className="italic">"{claim.complaint.description}"</p>
+            </div>
+          )}
+
+          {claim.complaint?.admin_notes && (
+            <div className="text-xs text-stone-800 bg-amber-50 p-2.5 rounded-xl border border-amber-200">
+              <span className="font-bold text-amber-900 block mb-0.5">Admin Moderation Action & Resolution Notes:</span>
+              <p>{claim.complaint.admin_notes}</p>
+            </div>
+          )}
+
+          <div className="text-[11px] text-rose-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
+            <span>🛡️ Flagged directly to the Platform Safety & Moderation Queue for administrative investigation.</span>
+            <button
+              type="button"
+              onClick={() => setComplaintModalOpen(true)}
+              className="font-bold text-rose-900 hover:text-rose-950 underline cursor-pointer shrink-0"
+            >
+              View / Add Complaint Details
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Dispute Alert Banner */}
       {claim.is_disputed && (
@@ -396,6 +496,27 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
               <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> Rescue Completed & Verified
             </span>
           )}
+
+          {/* Always accessible Restaurant Complaint button for non-donors */}
+          {!isDonor && (
+            <button
+              type="button"
+              onClick={() => setComplaintModalOpen(true)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs ${
+                claim.is_flagged_to_admin || claim.complaint
+                  ? 'bg-rose-100 text-rose-900 border border-rose-300 hover:bg-rose-200'
+                  : 'text-rose-700 hover:bg-rose-50 border border-rose-200 bg-white'
+              }`}
+              title="Report any issues faced or file a complaint against this restaurant (flagged directly to admin)"
+            >
+              <ShieldAlert className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+              <span>
+                {claim.is_flagged_to_admin || claim.complaint
+                  ? 'Flagged to Admin'
+                  : 'Report Restaurant Issue'}
+              </span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -453,6 +574,153 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
                 className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-rose-700 hover:bg-rose-800 transition cursor-pointer disabled:opacity-50"
               >
                 Submit Dispute (0 Points)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* RESTAURANT COMPLAINT & ADMIN FLAGGING MODAL */}
+      {complaintModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/60 p-4 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-warm-200 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-warm-100">
+              <div className="flex items-center gap-2.5 text-rose-700">
+                <div className="w-9 h-9 rounded-2xl bg-rose-100 flex items-center justify-center text-rose-700 shrink-0">
+                  <ShieldAlert className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-stone-900">
+                    Report Issue / Complaint Against Restaurant
+                  </h3>
+                  <p className="text-[11px] text-stone-500 font-medium">
+                    Directly flags this claim and restaurant to the Platform Admin
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setComplaintModalOpen(false);
+                  setComplaintError('');
+                }}
+                className="text-stone-400 hover:text-stone-700 p-1 rounded-lg cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Target Details */}
+            <div className="bg-warm-50 rounded-2xl p-3.5 border border-warm-200 text-xs space-y-1.5">
+              <div className="flex items-center gap-2 text-stone-900 font-bold">
+                <Building2 className="w-4 h-4 text-forest-800 shrink-0" />
+                <span>Restaurant / Kitchen: {restaurantName}</span>
+              </div>
+              <div className="text-stone-600 text-[11px] pl-6">
+                <span className="font-semibold text-stone-700">Food Item:</span> {donation?.title || 'Rescued Surplus Batch'} ({claim.quantity_claimed} portions)
+              </div>
+              <div className="text-stone-600 text-[11px] pl-6">
+                <span className="font-semibold text-stone-700">Location:</span> {donation?.location_label || donation?.city}
+              </div>
+            </div>
+
+            {/* Existing complaint warning if already flagged */}
+            {(claim.is_flagged_to_admin || claim.complaint) && (
+              <div className="bg-amber-50 p-3 rounded-xl border border-amber-200 text-xs text-amber-900 space-y-1">
+                <div className="font-bold flex items-center gap-1.5">
+                  <AlertCircle className="w-4 h-4 text-amber-700" />
+                  <span>Complaint Already Under Admin Review</span>
+                </div>
+                <p className="text-[11px] text-amber-800">
+                  Current Status: <strong className="uppercase">{claim.complaint?.status || 'Open'}</strong>. You can submit updated details below to assist the platform moderation team.
+                </p>
+              </div>
+            )}
+
+            {/* Issue Category Selection */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-stone-800">
+                Select Complaint Category:
+              </label>
+              <select
+                value={complaintCategory}
+                onChange={(e) => setComplaintCategory(e.target.value)}
+                className="w-full p-2.5 rounded-xl border border-stone-300 text-xs font-medium text-stone-900 bg-white focus:border-rose-600 focus:outline-hidden"
+              >
+                <option value="Food Quality & Freshness (Spoilage, bad odor, unsafe temp)">
+                  🍲 Food Quality & Freshness (Spoiled, foul smell, cold/unsafe temperature)
+                </option>
+                <option value="Portion Discrepancy (Received fewer portions than claimed)">
+                  📦 Portion Discrepancy (Received significantly less than listed)
+                </option>
+                <option value="Handover Refusal / Kitchen Closed during pickup window">
+                  🚫 Handover Refused / Restaurant Closed during pickup deadline
+                </option>
+                <option value="Allergen & Ingredient Mislabeling">
+                  🏷️ Allergen / Dietary Mislabeling (Undeclared allergens, wrong ingredients)
+                </option>
+                <option value="Hygiene & Sanitation Hazard (Unclean packaging, contamination)">
+                  🧹 Hygiene & Sanitation Hazard (Unclean containers, pest/dirt contamination)
+                </option>
+                <option value="Staff Misconduct & Uncooperative Behavior">
+                  ⚠️ Staff Misconduct (Hostile attitude, excessive pickup delay)
+                </option>
+                <option value="Other Operational Grievance">
+                  ❓ Other Platform Compliance / Safety Issue
+                </option>
+              </select>
+            </div>
+
+            {/* Description Textarea */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-stone-800">
+                Detailed Grievance / Issues Faced:
+              </label>
+              <textarea
+                rows={4}
+                value={complaintDescription}
+                onChange={(e) => {
+                  setComplaintDescription(e.target.value);
+                  if (complaintError) setComplaintError('');
+                }}
+                placeholder="Explain in detail what happened at the restaurant (e.g. food odor, refused handover, hygiene conditions, timestamps, staff conduct)..."
+                className="w-full p-3 rounded-xl border border-stone-300 text-xs text-stone-900 focus:border-rose-600 focus:outline-hidden"
+              />
+              {complaintError && (
+                <p className="text-[11px] font-bold text-rose-600 flex items-center gap-1">
+                  <AlertCircle className="w-3.5 h-3.5" /> {complaintError}
+                </p>
+              )}
+            </div>
+
+            {/* Admin Escalation Notice */}
+            <div className="bg-rose-50/80 p-3 rounded-xl border border-rose-200 text-[11px] text-rose-900 flex items-start gap-2">
+              <ShieldAlert className="w-4 h-4 text-rose-700 shrink-0 mt-0.5" />
+              <span>
+                <strong>Admin Escalation:</strong> Submitting this form flags this claim in the platform Admin Safety Moderation Queue. The platform admin will review restaurant logs, investigate, and can issue an official warning or deactivate the restaurant account if necessary.
+              </span>
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-warm-100">
+              <button
+                type="button"
+                onClick={() => {
+                  setComplaintModalOpen(false);
+                  setComplaintError('');
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-stone-600 hover:bg-stone-100 transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleComplaintSubmit}
+                disabled={complaintSubmitting || !complaintDescription.trim()}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-rose-700 hover:bg-rose-800 transition flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
+              >
+                <ShieldAlert className="w-4 h-4" />
+                <span>{complaintSubmitting ? 'Flagging to Admin...' : 'Submit Complaint & Flag to Admin'}</span>
               </button>
             </div>
           </div>

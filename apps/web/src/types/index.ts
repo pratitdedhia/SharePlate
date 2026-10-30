@@ -124,6 +124,21 @@ export interface Claim {
   disputed_at?: string | null;
   points_pending?: number;
   points_released?: number;
+  // Restaurant complaint & admin flagging
+  is_flagged_to_admin?: boolean;
+  complaint?: {
+    id: string;
+    reason: string;
+    description: string;
+    category?: string;
+    reported_by: string;
+    reporter_name?: string;
+    reporter_role?: string;
+    reported_at: string;
+    restaurant_name: string;
+    status: 'open' | 'investigating' | 'resolved' | 'dismissed';
+    admin_notes?: string;
+  };
 }
 
 export interface TripStop {
@@ -287,12 +302,19 @@ export interface ActivityLog {
 export interface ReportItem {
   id: string;
   reporter_id: string;
+  reporter_name?: string;
+  reporter_role?: string;
+  reporter_phone?: string;
   donation_id?: string | null;
+  claim_id?: string | null;
+  restaurant_name?: string;
   reason: string;
   description: string;
   status: 'open' | 'investigating' | 'resolved' | 'dismissed';
   created_at: string;
   donation?: Donation;
+  claim?: Claim;
+  admin_notes?: string;
 }
 
 export interface RegistrationData {

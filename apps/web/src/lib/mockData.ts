@@ -582,6 +582,7 @@ const DEMO_STORAGE_KEYS = {
   VOL_REWARDS: 'shareplate_demo_rewards_vol_v3',
   DONOR_REWARDS: 'shareplate_demo_rewards_donor_v3',
   USERS: 'shareplate_demo_users_v3',
+  REPORTS: 'shareplate_demo_reports_v3',
 };
 
 function loadDemoStorage<T>(key: string, fallback: T): T {
@@ -737,6 +738,7 @@ class DemoStore {
     saveDemoStorage(DEMO_STORAGE_KEYS.VOL_REWARDS, this.rewardRecords);
     saveDemoStorage(DEMO_STORAGE_KEYS.DONOR_REWARDS, this.donorRewardRecords);
     saveDemoStorage(DEMO_STORAGE_KEYS.USERS, this.users);
+    saveDemoStorage(DEMO_STORAGE_KEYS.REPORTS, this.reports);
   }
 
   private reloadFromStorage() {
@@ -747,6 +749,7 @@ class DemoStore {
     this.rewardRecords = loadDemoStorage(DEMO_STORAGE_KEYS.VOL_REWARDS, this.rewardRecords);
     this.donorRewardRecords = loadDemoStorage(DEMO_STORAGE_KEYS.DONOR_REWARDS, this.donorRewardRecords);
     this.users = loadDemoStorage(DEMO_STORAGE_KEYS.USERS, this.users);
+    this.reports = loadDemoStorage(DEMO_STORAGE_KEYS.REPORTS, this.reports);
   }
 
   /**
@@ -1060,10 +1063,13 @@ class DemoStore {
 
   // Users & Admin Moderation
   private users: UserProfile[] = JSON.parse(JSON.stringify(Object.values(DEMO_PROFILES)));
-  private reports: any[] = [
+  private reports: any[] = loadDemoStorage(DEMO_STORAGE_KEYS.REPORTS, [
     {
       id: 'rep-001',
       reporter_id: 'b0000000-0000-0000-0000-000000000001',
+      reporter_name: 'Rajesh Kumar (Robin Hood Army)',
+      reporter_role: 'recipient',
+      restaurant_name: 'DTU Central Canteen',
       donation_id: 'd0000000-0000-0000-0000-000000000001',
       reason: 'Incorrect allergen label',
       description: 'Listed as dairy only, but contains mustard seeds in seasoning.',
@@ -1073,13 +1079,16 @@ class DemoStore {
     {
       id: 'rep-002',
       reporter_id: 'c0000000-0000-0000-0000-000000000001',
+      reporter_name: 'Ananya Sen (Volunteer)',
+      reporter_role: 'volunteer',
+      restaurant_name: 'Haldiram Sweets & Savouries',
       donation_id: 'd0000000-0000-0000-0000-000000000002',
       reason: 'Gate security delay during pickup',
       description: 'Security guard was uninformed about SharePlate pickup schedule.',
       status: 'investigating',
       created_at: new Date(Date.now() - 12 * 3600000).toISOString(),
     },
-  ];
+  ]);
 
   private activityLogs: any[] = [
     {
@@ -1185,12 +1194,113 @@ class DemoStore {
   }
 
   getReports(): any[] {
+    this.reloadFromStorage();
     return [...this.reports];
   }
 
-  resolveReport(reportId: string, status: 'resolved' | 'dismissed') {
+  resolveReport(reportId: string, status: 'resolved' | 'dismissed' | 'investigating', adminNotes?: string) {
+    this.reloadFromStorage();
     const rep = this.reports.find((r) => r.id === reportId);
-    if (rep) rep.status = status;
+    if (rep) {
+      rep.status = status;
+      if (adminNotes) rep.admin_notes = adminNotes;
+      if (rep.claim_id) {
+        const claim = this.claims.find((c) => c.id === rep.claim_id);
+        if (claim && claim.complaint) {
+          claim.complaint.status = status;
+          if (adminNotes) claim.complaint.admin_notes = adminNotes;
+        }
+      }
+      this.addActivityLog('admin_report_updated', {
+        report_id: reportId,
+        new_status: status,
+        restaurant_name: rep.restaurant_name,
+        admin_notes: adminNotes,
+      });
+      this.persist();
+    }
+  }
+
+  issueRestaurantWarning(restaurantName: string, reason: string, adminUser?: string) {
+    this.reloadFromStorage();
+    this.addActivityLog('restaurant_warning_issued', {
+      restaurant_name: restaurantName,
+      reason,
+      issued_by: adminUser || 'Admin Safety Team',
+      timestamp: new Date().toISOString(),
+    });
+    this.persist();
+  }
+
+  fileClaimComplaint(
+    claimId: string,
+    reporterUser: { id: string; full_name?: string; role?: string; phone?: string },
+    complaintData: {
+      reason: string;
+      description: string;
+      category?: string;
+    }
+  ) {
+    this.reloadFromStorage();
+    const claim = this.claims.find((c) => c.id === claimId);
+    if (!claim) throw new Error('Claim not found');
+
+    const donation = claim.donation || this.donations.find((d) => d.id === claim.donation_id);
+    const restaurantName =
+      donation?.donor?.organization_name ||
+      donation?.donor?.full_name ||
+      (donation as any)?.donor_name ||
+      'Registered Donor Kitchen';
+
+    const now = new Date().toISOString();
+    const complaintId = `complaint-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+
+    const complaintRecord = {
+      id: complaintId,
+      reason: complaintData.reason,
+      description: complaintData.description,
+      category: complaintData.category || 'Quality / Safety Concern',
+      reported_by: reporterUser.id,
+      reporter_name: reporterUser.full_name || 'Verified Community User',
+      reporter_role: reporterUser.role || 'recipient',
+      reported_at: now,
+      restaurant_name: restaurantName,
+      status: 'open' as const,
+    };
+
+    claim.is_flagged_to_admin = true;
+    claim.complaint = complaintRecord;
+
+    const reportId = `rep-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const reportItem: any = {
+      id: reportId,
+      reporter_id: reporterUser.id,
+      reporter_name: reporterUser.full_name || 'Verified Community Partner',
+      reporter_role: reporterUser.role || 'recipient',
+      reporter_phone: reporterUser.phone || '',
+      donation_id: claim.donation_id,
+      claim_id: claim.id,
+      restaurant_name: restaurantName,
+      reason: complaintData.reason,
+      description: complaintData.description,
+      status: 'open',
+      created_at: now,
+      donation: donation,
+      claim: claim,
+    };
+
+    this.reports.unshift(reportItem);
+
+    this.addActivityLog('admin_complaint_flagged', {
+      claim_id: claim.id,
+      restaurant_name: restaurantName,
+      reported_by: reporterUser.full_name || reporterUser.id,
+      reason: complaintData.reason,
+      description: complaintData.description,
+    });
+
+    this.persist();
+    return { claim, report: reportItem };
   }
 
   getActivityLogs(): any[] {
