@@ -6,6 +6,8 @@ import {
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
   onAuthStateChanged,
+  GoogleAuthProvider,
+  signInWithPopup,
 } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { DEMO_PROFILES, demoStore } from '../lib/mockData';
@@ -19,6 +21,7 @@ interface AuthContextType {
   loading: boolean;
   isDemoUser: boolean;
   login: (email: string, password: string) => Promise<UserProfile>;
+  loginWithGoogle: (intendedRole?: UserRole) => Promise<UserProfile>;
   register: (
     email: string,
     password: string,
@@ -165,6 +168,85 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
   }, []);
+
+  const loginWithGoogle = async (intendedRole: UserRole = 'donor'): Promise<UserProfile> => {
+    setLoading(true);
+    try {
+      if (isFirebaseConfigured && auth) {
+        const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: 'select_account' });
+        const cred = await signInWithPopup(auth, provider);
+        const fbUser = cred.user;
+        const token = await fbUser.getIdToken();
+        localStorage.setItem('shareplate_token', token);
+
+        let profile: UserProfile | null = null;
+        if (db) {
+          try {
+            const userDoc = await getDoc(doc(db, 'users', fbUser.uid));
+            if (userDoc.exists()) {
+              profile = userDoc.data() as UserProfile;
+            }
+          } catch (err: any) {
+            console.warn('[Firebase Auth] Firestore profile read notice:', err.message);
+          }
+        }
+
+        if (!profile) {
+          profile = {
+            id: fbUser.uid,
+            full_name: fbUser.displayName || fbUser.email?.split('@')[0] || 'Google User',
+            email: fbUser.email || '',
+            role: intendedRole,
+            avatar_url: fbUser.photoURL || null,
+            city: 'Mumbai',
+            phone: fbUser.phoneNumber || '+91 98110 00000',
+            organization_name: fbUser.displayName ? `${fbUser.displayName}'s Organization` : 'Community Kitchen Partner',
+            service_area: 'Mumbai & Suburban Corridors',
+            is_active: true,
+          };
+
+          if (db) {
+            try {
+              await setDoc(doc(db, 'users', fbUser.uid), {
+                ...profile,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              });
+            } catch (err: any) {
+              console.warn('[Firebase Auth] Firestore profile write notice:', err.message);
+            }
+          }
+        }
+
+        demoStore.addUser(profile);
+        setUser(profile);
+        setIsDemoUser(false);
+        localStorage.setItem('shareplate_current_user', JSON.stringify(profile));
+        return profile;
+      }
+
+      // Offline / Demo Simulation fallback
+      const mockGoogleUser: UserProfile = {
+        id: `google-${Date.now()}`,
+        full_name: 'Verified Google Partner',
+        email: 'partner@gmail.com',
+        role: intendedRole,
+        city: 'Mumbai',
+        organization_name: 'Google Community Partner',
+        phone: '+91 98110 99887',
+        is_active: true,
+      };
+      demoStore.addUser(mockGoogleUser);
+      setUser(mockGoogleUser);
+      setIsDemoUser(true);
+      localStorage.setItem('shareplate_token', `demo-user-${intendedRole}`);
+      localStorage.setItem('shareplate_current_user', JSON.stringify(mockGoogleUser));
+      return mockGoogleUser;
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const login = async (email: string, password: string): Promise<UserProfile> => {
     setLoading(true);
@@ -596,6 +678,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loading,
         isDemoUser,
         login,
+        loginWithGoogle,
         register,
         logout,
         resetPassword,
