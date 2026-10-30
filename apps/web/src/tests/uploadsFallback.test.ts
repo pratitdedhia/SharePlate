@@ -112,4 +112,22 @@ describe('Upload Service Fallback Order & Safety Validation', () => {
     expect(result.notes).toContain('not uploaded to Cloudinary');
     expect(result.imageUrl).toBe('blob:http://localhost/mock-uuid');
   });
+
+  it('surfaces error when unsigned upload is configured but API call fails (does not hide error behind fallback)', async () => {
+    const validFile = new File(['valid'], 'meal.jpg', { type: 'image/jpeg' });
+
+    vi.spyOn(uploadService, 'getSignature').mockResolvedValue({
+      success: false,
+      isConfigured: false,
+    });
+
+    vi.spyOn(cloudinaryModule, 'isUnsignedUploadConfigured').mockReturnValue(true);
+    vi.spyOn(cloudinaryModule, 'uploadToCloudinaryUnsigned').mockRejectedValue(
+      new Error('Upload preset not found or invalid unsigned mode')
+    );
+
+    await expect(uploadService.uploadDonationImage(validFile)).rejects.toThrow(
+      /Cloudinary upload failed.*Upload preset not found/i
+    );
+  });
 });

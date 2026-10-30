@@ -611,3 +611,32 @@ Use the pre-filled fields in [docs/NOTION_SUBMISSION_CHECKLIST.md](file:///c:/Us
   - Multi-stop Google Maps directions link generation and waypoint partitioning for trips > 9 stops.
 - **Full Test Suite:** 7 test files, **90 passed, 0 failed** (88 web + 2 API).
 
+---
+
+### TIER 8: Cloudinary Unsigned Upload Configuration & Error Validation
+
+#### 1. Unsigned Upload Security & Zero Credential Exposure
+- **No Client Secrets:** Direct browser uploads to Cloudinary are performed exclusively using Cloudinary's **unsigned upload preset** via `uploadToCloudinaryUnsigned` in [`apps/web/src/lib/cloudinary.ts`](file:///c:/Users/dedhi/OneDrive/Desktop/Pratit/Hackathon/Hacktober%20HackDays/apps/web/src/lib/cloudinary.ts).
+- Private Cloudinary API secrets and keys remain strictly excluded from frontend code and build artifacts.
+- Hardened `CLOUD_NAME` and `UPLOAD_PRESET` environment sanitization to strip template placeholders (e.g. `<<FILL...>>`) and reject fake mock values (`shareplate-demo`), ensuring unconfigured states are cleanly recognized without false positives.
+
+#### 2. Robust Error Validation & UI Feedback ([`apps/web/src/services/uploads.ts`](file:///c:/Users/dedhi/OneDrive/Desktop/Pratit/Hackathon/Hacktober%20HackDays/apps/web/src/services/uploads.ts) & [`apps/web/src/components/donations/ImageUploader.tsx`](file:///c:/Users/dedhi/OneDrive/Desktop/Pratit/Hackathon/Hacktober%20HackDays/apps/web/src/components/donations/ImageUploader.tsx))
+- **Surfacing Genuine Errors:** When an unsigned preset is configured (`isUnsignedUploadConfigured()` is true) and an upload fails (e.g., misspelled preset name, unsigned mode not enabled in Cloudinary console, or network failure), the service now re-throws a descriptive error detailing the failure and recommending dashboard checks, instead of silently swallowing the error and creating an unexpected demo preview.
+- **Configured vs. Missing Preset Guidance:** The configuration warning banner in `ImageUploader.tsx` checks `!unsignedConfigured` and distinguishes between missing cloud name vs. missing upload preset, giving specific guidance on setting the preset to 'Unsigned' mode in the Cloudinary Console.
+- **Client-Side Restrictions Preserved:** Enforces 5 MB file size limit and strict image MIME types (`image/jpeg`, `image/png`, `image/webp`) on both client drop/browse and in the upload service.
+
+#### 3. Setup Documentation & Environment Placeholders ([`README.md`](file:///c:/Users/dedhi/OneDrive/Desktop/Pratit/Hackathon/Hacktober%20HackDays/README.md), [`.env.example`](file:///c:/Users/dedhi/OneDrive/Desktop/Pratit/Hackathon/Hacktober%20HackDays/.env.example), [`apps/web/.env.example`](file:///c:/Users/dedhi/OneDrive/Desktop/Pratit/Hackathon/Hacktober%20HackDays/apps/web/.env.example))
+- Added comprehensive step-by-step instructions in `README.md` for:
+  - Copying your Cloud Name from Cloudinary Dashboard.
+  - Creating an Unsigned Upload Preset under **Settings > Upload > Upload presets > Add upload preset** with **Signing Mode: Unsigned** and folder `shareplate/donations`.
+  - Configuring `VITE_CLOUDINARY_CLOUD_NAME` and `VITE_CLOUDINARY_UPLOAD_PRESET` locally in `apps/web/.env`.
+  - Configuring GitHub repository variables (under **Settings > Secrets and variables > Actions > Variables**) for automated GitHub Pages deployment.
+- Environment examples use safe placeholders (`<<FILL: your-cloudinary-cloud-name>>`, `<<FILL: your-unsigned-upload-preset>>`) with zero committed credentials.
+- Sample/demo evaluation presets and local preview behavior remain fully accessible when credentials are not yet configured.
+
+#### 4. Automated Tests & Build Verification
+- Added test in [`apps/web/src/tests/uploadsFallback.test.ts`](file:///c:/Users/dedhi/OneDrive/Desktop/Pratit/Hackathon/Hacktober%20HackDays/apps/web/src/tests/uploadsFallback.test.ts) verifying that unsigned upload errors are surfaced to the caller and UI rather than hidden behind fallback previews.
+- Full workspace test suite: **91 passed, 0 failed** (89 web + 2 API).
+- Production build: `npm run build:web` succeeds with 0 errors.
+
+

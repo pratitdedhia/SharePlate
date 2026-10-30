@@ -22,6 +22,7 @@ import {
   getCloudinaryUrl,
   getAspectRatioPreviews,
   extractAIFoodTags,
+  CLOUD_NAME,
 } from '../../lib/cloudinary';
 import { CLOUDINARY_SEED_PUBLIC_IDS } from '../../lib/mockData';
 
@@ -260,15 +261,26 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
       </div>
 
       {/* Cloudinary configuration alert banner if unconfigured */}
-      {!cloudinaryConfigured && (
+      {!unsignedConfigured && (
         <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 flex items-start gap-2.5 text-xs text-amber-900">
           <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-          <div>
-            <strong>Cloudinary Credentials Pending:</strong> Set{' '}
-            <code className="bg-amber-100 px-1 py-0.5 rounded font-mono text-[11px]">VITE_CLOUDINARY_CLOUD_NAME</code>{' '}
-            and{' '}
-            <code className="bg-amber-100 px-1 py-0.5 rounded font-mono text-[11px]">VITE_CLOUDINARY_UPLOAD_PRESET</code>{' '}
-            in your environment or repository secrets. You can test live auto-crop and AI features now via the sample seed assets below.
+          <div className="space-y-1">
+            <strong className="block">Cloudinary Live Upload Configuration Required:</strong>
+            {!cloudinaryConfigured ? (
+              <p className="leading-relaxed">
+                Live image uploads require a Cloudinary cloud name and unsigned upload preset. Configure{' '}
+                <code className="bg-amber-100 px-1 py-0.5 rounded font-mono text-[11px]">VITE_CLOUDINARY_CLOUD_NAME</code>{' '}
+                and{' '}
+                <code className="bg-amber-100 px-1 py-0.5 rounded font-mono text-[11px]">VITE_CLOUDINARY_UPLOAD_PRESET</code>{' '}
+                in your <code className="bg-amber-100 px-1 py-0.5 rounded font-mono text-[11px]">.env</code> or deployment variables. Unsigned upload presets allow secure browser uploads without exposing API secrets. You can test live auto-crop and transformations right now via the sample seed assets below, or continue uploading locally for demo preview.
+              </p>
+            ) : (
+              <p className="leading-relaxed">
+                Cloud name configured (<code className="bg-amber-100 px-1 py-0.5 rounded font-mono text-[11px]">{CLOUD_NAME}</code>), but{' '}
+                <code className="bg-amber-100 px-1 py-0.5 rounded font-mono text-[11px]">VITE_CLOUDINARY_UPLOAD_PRESET</code>{' '}
+                is missing. Create an unsigned upload preset in your Cloudinary Dashboard (<strong>Settings &gt; Upload &gt; Upload Presets &gt; Signing Mode: Unsigned</strong>) to enable live browser uploads.
+              </p>
+            )}
           </div>
         </div>
       )}
@@ -518,9 +530,12 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
       )}
 
       {errorMsg && (
-        <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 flex items-center gap-2 text-xs text-rose-800">
-          <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-          <span>{errorMsg}</span>
+        <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 flex items-start gap-2.5 text-xs text-rose-800">
+          <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+          <div className="space-y-0.5">
+            <strong className="block font-semibold">Upload Error</strong>
+            <p className="leading-relaxed">{errorMsg}</p>
+          </div>
         </div>
       )}
 

@@ -170,11 +170,15 @@ export const uploadService = {
           notes: 'Direct unsigned Cloudinary upload with auto-crop (g_auto) and format optimization (f_auto, q_auto).',
         };
       } catch (err: any) {
-        console.warn('Unsigned Cloudinary upload failed, falling back to labeled local preview:', err);
+        const errorDetail = err?.message || 'Upload request failed';
+        console.error('Cloudinary unsigned upload failed:', err);
+        throw new Error(
+          `Cloudinary upload failed: ${errorDetail}. Please check your VITE_CLOUDINARY_CLOUD_NAME and VITE_CLOUDINARY_UPLOAD_PRESET, and verify that the preset is set to 'Unsigned' in your Cloudinary Dashboard.`
+        );
       }
     }
 
-    // Attempt 3: Local preview fallback — strictly labeled
+    // Attempt 3: Local preview fallback when Cloudinary is not configured — strictly labeled
     return new Promise((resolve) => {
       let currentProgress = 0;
       const interval = setInterval(() => {

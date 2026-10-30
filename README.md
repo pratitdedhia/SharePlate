@@ -129,13 +129,40 @@ cp apps/api/.env.example apps/api/.env
 cp apps/web/.env.example apps/web/.env
 ```
 
-To enable real Cloudinary uploads in `apps/web/.env`:
-```env
-VITE_DEMO_MODE=true
-VITE_CLOUDINARY_CLOUD_NAME=your_cloud_name
-VITE_CLOUDINARY_UPLOAD_PRESET=your_unsigned_preset
-VITE_NOTION_URL=https://your-public-notion-page-url
-```
+#### Cloudinary Setup Guide (Unsigned Upload Preset for Browser Uploads)
+SharePlate supports live browser uploads directly to Cloudinary CDN using **unsigned upload presets**. This architecture allows static hosts (such as GitHub Pages) to upload food donation images securely without exposing private Cloudinary API keys or secrets in client-side code.
+
+Follow these steps in the Cloudinary Console:
+1. **Locate your Cloud Name:** Sign in to your [Cloudinary Dashboard](https://cloudinary.com/console) and copy your **Cloud Name** (shown in the Product Environment / Dashboard overview).
+2. **Create an Unsigned Preset:**
+   - In Cloudinary, click the **Settings** (gear icon) in the bottom left or top navigation.
+   - Select **Upload** from the settings menu.
+   - Scroll down to the **Upload presets** section and click **Add upload preset**.
+   - Under **Preset details**, set **Signing Mode** to **Unsigned** (crucial: signed presets reject direct browser requests).
+   - Enter an **Upload preset name** (or use the generated name, e.g., `shareplate_unsigned`).
+   - Under **Folder**, set `shareplate/donations` (or your preferred folder).
+   - *(Optional)* Under **Media analysis and AI**, enable Google Auto-Tagging if available on your add-on plan.
+   - Click **Save** in the top-right corner.
+3. **Configure Local Environment (`apps/web/.env`):**
+   ```env
+   VITE_DEMO_MODE=true
+   VITE_CLOUDINARY_CLOUD_NAME=your_actual_cloud_name
+   VITE_CLOUDINARY_UPLOAD_PRESET=your_unsigned_preset_name
+   VITE_NOTION_URL=https://your-public-notion-page-url
+   ```
+4. **Configure Deployment Environment (GitHub Pages / CI):**
+   - In your GitHub repository, navigate to **Settings > Secrets and variables > Actions > Variables** (tab: *Variables*).
+   - Click **New repository variable** and add:
+     - Name: `VITE_CLOUDINARY_CLOUD_NAME` / Value: your cloud name.
+     - Name: `VITE_CLOUDINARY_UPLOAD_PRESET` / Value: your unsigned preset name.
+   - GitHub Actions will inject these variables at build time during automated deployment.
+
+> **Zero-Config Fallback & Demo Mode:**
+> When credentials are not yet configured or left with `<<FILL...>>` placeholders:
+> - The image uploader displays a clear pending configuration banner and keeps sample presets available.
+> - Users can evaluate content-aware smart cropping (`c_fill, g_auto`) and dynamic formatting (`f_auto, q_auto`) using the pre-seeded evaluation assets.
+> - Dropping or browsing a local photo falls back safely to labeled local object previews (`local_preview`) so testing continues uninterrupted.
+> - If credentials are configured but the upload fails (e.g., misspelled preset or unsigned mode not enabled in dashboard), the UI validates and surfaces the error with actionable troubleshooting advice instead of silently hiding failures.
 
 ### 3. Launch Development Servers
 Open two terminal windows:
@@ -170,13 +197,13 @@ npm test --workspace=@shareplate/api
 ### Run Frontend Unit & Integration Tests:
 ```bash
 npm test --workspace=@shareplate/web
-# Result: 88 passed, 0 failed (App, Impact Math, Donor Rewards Ledger, Volunteer Multi-Stop Route Partitioning, Two-Party Pickup & Delivery OTP Flow, Cross-Portal Sync, Auth, Upload Fallback, Features Suite, Render Safety)
+# Result: 89 passed, 0 failed (App, Impact Math, Donor Rewards Ledger, Volunteer Multi-Stop Route Partitioning, Two-Party Pickup & Delivery OTP Flow, Cross-Portal Sync, Auth, Upload Fallback & Error Handling, Features Suite, Render Safety)
 ```
 
 ### Run All Workspace Tests:
 ```bash
 npm test
-# Total: 90 passed, 0 failed
+# Total: 91 passed, 0 failed
 ```
 
 ### Verify Production Compilation:

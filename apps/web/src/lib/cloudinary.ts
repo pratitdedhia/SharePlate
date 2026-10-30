@@ -3,10 +3,16 @@
  * Mandatory technology for Hacktober HackDays 2026 (SheBuilds Delhi, MLH)
  */
 
-const RAW_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+const sanitizeEnv = (val?: string): string => {
+  if (!val) return '';
+  const trimmed = val.trim();
+  if (trimmed === 'shareplate-demo' || trimmed.includes('<<FILL')) return '';
+  return trimmed;
+};
+
 // Do NOT default to a fake or placeholder cloud name; require genuine configuration
-export const CLOUD_NAME = (RAW_CLOUD_NAME && RAW_CLOUD_NAME !== 'shareplate-demo') ? RAW_CLOUD_NAME.trim() : '';
-export const UPLOAD_PRESET = (import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || '').trim();
+export const CLOUD_NAME = sanitizeEnv(import.meta.env.VITE_CLOUDINARY_CLOUD_NAME);
+export const UPLOAD_PRESET = sanitizeEnv(import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET);
 
 export const AUTO_TAG_ENABLED = import.meta.env.VITE_CLOUDINARY_AUTO_TAG === 'true';
 export const MODERATION_ENABLED = import.meta.env.VITE_CLOUDINARY_MODERATION === 'true';
@@ -41,14 +47,26 @@ export interface CloudinaryUploadResult {
  * Returns true if Cloudinary cloud name is configured and not a placeholder.
  */
 export const isCloudinaryConfigured = (): boolean => {
-  return Boolean(CLOUD_NAME && CLOUD_NAME.length > 0 && CLOUD_NAME !== 'shareplate-demo');
+  return Boolean(
+    CLOUD_NAME &&
+      CLOUD_NAME.length > 0 &&
+      CLOUD_NAME !== 'shareplate-demo' &&
+      !CLOUD_NAME.includes('<<FILL')
+  );
 };
 
 /**
  * Returns true if direct unsigned uploads are configured with a preset.
  */
 export const isUnsignedUploadConfigured = (): boolean => {
-  return isCloudinaryConfigured() && Boolean(UPLOAD_PRESET && UPLOAD_PRESET.length > 0);
+  return (
+    isCloudinaryConfigured() &&
+    Boolean(
+      UPLOAD_PRESET &&
+        UPLOAD_PRESET.length > 0 &&
+        !UPLOAD_PRESET.includes('<<FILL')
+    )
+  );
 };
 
 /**

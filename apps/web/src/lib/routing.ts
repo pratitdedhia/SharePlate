@@ -144,3 +144,4 @@ export function generateGoogleMapsTripSegments(
 
   return segments;
 }
+
