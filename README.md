@@ -71,15 +71,20 @@ To provide instant, zero-friction evaluation for hackathon judges without requir
 
 ---
 
-## 🏗️ Architecture Diagram
+## 📊 System Architecture & Workflow Visualizations
+
+### 1. Dual-Runtime System Architecture
+
+SharePlate operates on a resilient dual-runtime architecture: a client-side reactive frontend deployable to static hosts (GitHub Pages) with direct unsigned Cloudinary media pipelines and Google Firebase Cloud Firestore synchronization, backed by a production Express REST API and Supabase PostgreSQL with Row Level Security:
 
 ```mermaid
 graph TD
-    subgraph Client ["Frontend apps/web - GitHub Pages Deployed"]
+    subgraph Client ["Frontend apps/web (GitHub Pages & Local Dev)"]
         Browser["React 18 + Vite Web App (HashRouter)"]
         Uploader["ImageUploader Component"]
         Store["DemoStore (Browser-Local Storage)"]
         Impact["Unified Impact Math Engine"]
+        AuthCtx["Auth Context (Role Selector & Google Sign-In)"]
     end
 
     subgraph Media ["Cloudinary Media Cloud"]
@@ -87,10 +92,16 @@ graph TD
         EdgeCDN["Dynamic Delivery CDN (f_auto, q_auto, c_fill, g_auto)"]
     end
 
+    subgraph FirebaseLive ["Google Firebase Suite (Live Cloud & Auth)"]
+        FirebaseAuth["Firebase Authentication (Google & Email/Password)"]
+        Firestore["Cloud Firestore Database (Users, Donations, Claims, Reports)"]
+        LiveSync["liveUpdatesService (Real-Time onSnapshot Sync)"]
+    end
+
     subgraph ProductionServer ["Production Express API (apps/api)"]
         ExpressApp["Express Server (:5000)"]
         Signer["Upload Signature Generator (/api/uploads/signature)"]
-        Controllers["Donations & Claims Handlers"]
+        Controllers["Donations, Claims & Reports Handlers"]
     end
 
     subgraph ProductionDB ["Production PostgreSQL (supabase/)"]
@@ -104,11 +115,160 @@ graph TD
     Browser -->|Local State Mutations| Store
     Store --> Impact
     
+    AuthCtx -->|Google Popup / Credentials| FirebaseAuth
+    Browser <-->|Multi-Device Live Sync| Firestore
+    Firestore -.-> LiveSync
+
     Browser -.->|Optional Signed Upload| Signer
     Browser -.->|Fullstack Mode Mutations| Controllers
     Controllers -.-> AtomicRPC
     Controllers -.-> Tables
     Tables -.-> RLS
+```
+
+---
+
+### 2. Cloudinary Media Pipeline Flow (Unsigned vs. Signed)
+
+Food donors can upload surplus food photos directly from their browser on static deployments using an unsigned upload preset, or via cryptographic backend signatures when connected to the Express API:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Donor as Food Donor (Browser)
+    participant Cloud as Cloudinary Media Cloud
+    participant API as Express API Server (Production Path)
+
+    alt Static Hosting Path (GitHub Pages Live Demo)
+        Donor->>Donor: Validates image (JPEG/PNG/WebP, max 5MB)
+        Donor->>Cloud: POST https://api.cloudinary.com/v1_1/:cloudName/image/upload<br/>(File + upload_preset + tags: shareplate,food-donation)
+        Cloud-->>Donor: 200 OK { secure_url, public_id, format, bytes, width, height }
+        Donor->>Donor: Measures real delivered size & saves to demoStore / Firestore
+    else Full-Stack Production Path (Express Backend)
+        Donor->>API: POST /api/uploads/signature (JWT Bearer Token)
+        API-->>Donor: 200 OK { signature, timestamp, apiKey, folder, cloudName }
+        Donor->>Cloud: POST https://api.cloudinary.com/v1_1/:cloudName/image/upload<br/>(File + Cryptographic Signature)
+        Cloud-->>Donor: 200 OK { secure_url, public_id }
+    end
+```
+
+---
+
+### 3. Two-Party Zero-Trust Verification Flow (Zero-PIN Leakage)
+
+To eliminate phantom rescues and verify genuine handoffs, SharePlate implements a zero-trust two-party OTP system. Secrets are strictly isolated: **the recipient never sees the donor's pickup PIN**, and **the donor never sees the recipient's delivery PIN**:
+
+```mermaid
+flowchart LR
+    Donor["1. Donor Kitchen"] -->|"Holds Secret Pickup PIN (e.g. 4821)<br/>Only Donor & Volunteer verify at dock"| Volunteer["Volunteer in Transit"]
+    Volunteer -->|"Holds Secret Delivery PIN (e.g. 7392)<br/>Only Recipient NGO verifies at shelter"| Shelter["2. Recipient Shelter"]
+```
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Donor as Donor Kitchen Staff
+    actor Volunteer as Courier Volunteer
+    actor Recipient as Recipient NGO Coordinator
+
+    Note over Donor,Volunteer: Step 1: Loading Dock Collection
+    Donor->>Donor: Views private Pickup PIN (e.g. 4821) in Donor Portal
+    Volunteer->>Donor: Arrives at loading dock and inspects surplus meal boxes
+    Volunteer->>Donor: Shares arrival confirmation
+    Donor->>Donor: Enters Pickup PIN in portal to authorize dispatch
+    Note over Donor,Volunteer: Status: Collected · In Transit to Shelter
+
+    Note over Volunteer,Recipient: Step 2: Community Shelter Distribution
+    Recipient->>Recipient: Views private Delivery PIN (e.g. 7392) in Recipient Portal
+    Volunteer->>Recipient: Arrives at shelter with insulated meal carriers
+    Recipient->>Recipient: Inspects food quality, freshness & counts portions
+    Recipient->>Recipient: Enters Delivery PIN & verified portion count in portal
+    Note over Volunteer,Recipient: Status: Delivered · Integrity Points Awarded!
+```
+
+---
+
+### 4. State-Locked Registration & Regional Listing Isolation
+
+To prevent out-of-state claims and preserve food safety, non-admin users (Donors, Recipients, Volunteers) have their dashboards strictly isolated to their registered state. Platform Administrators retain pan-India governance access:
+
+```mermaid
+flowchart TD
+    Reg["User Registration (#/register)"] -->|"Selects State (e.g. Maharashtra, Delhi, Karnataka)"| Profile["User Profile Stored with State & City"]
+    Profile --> RoleCheck{"User Role"}
+    
+    RoleCheck -->|"Recipient / Donor / Volunteer (Non-Admin)"| StrictState["Strict State-Locked Access<br/>• Listings locked to user's registered state<br/>• State dropdown disabled & locked<br/>• Out-of-state reservations strictly blocked"]
+    
+    RoleCheck -->|"Platform Admin (role === 'admin')"| GlobalAccess["Admin Global Access<br/>• Browse & audit listings across ALL states<br/>• Filter and manage all Indian States & Cities<br/>• Safety reports & moderation oversight"]
+```
+
+---
+
+### 5. Regional Food Rescue Routing & Portal Scope
+
+Every portal in SharePlate automatically adapts its operational scope to match the user's geographical region:
+
+```mermaid
+flowchart TD
+    User["Registered User<br/>(City / State: e.g. Delhi NCR)"]
+
+    User -->|Role: Recipient| RD["Recipient Portal (#/dashboard/recipient)"]
+    RD --> R1["Feed scoped strictly to Delhi NCR listings"]
+    RD --> R2["Available count reflects only local supply"]
+    RD --> R3["Active claims isolated to Delhi organizations"]
+
+    User -->|Role: Volunteer| VD["Volunteer Portal (#/dashboard/volunteer)"]
+    VD --> V1["Auto-selects local commuter transit corridor"]
+    VD --> V2["Shows courier tasks only along local transit routes"]
+    VD --> V3["OTP handovers isolated to matching regional kitchens"]
+
+    User -->|Role: Donor| DD["Donor Portal (#/dashboard/donor)"]
+    DD --> D1["New listings pre-fill donor's City/State"]
+    DD --> D2["Incoming Claims isolated to local volunteer pick-ups"]
+
+    User -->|Browsing| BF["Browse Food Catalog (#/donations)"]
+    BF --> B1["Defaults dropdown to user's registered City/State"]
+```
+
+---
+
+### 6. Transparent Donor Rewards & Quantity Bonus Calculation
+
+Points are never granted on listing creation; they are minted **only after recipient inspection and delivery confirmation**, using a transparent, anti-inflation formula:
+
+$$\text{Points Credited} = \min(200, 30 + (\text{portions} \times 2))$$
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Donor as 1. Donor Kitchen
+    actor Recipient as 2. Recipient NGO
+    participant System as 3. SharePlate Rewards Engine
+    participant Ledger as 4. Audit & Rewards Ledger
+
+    Donor->>Donor: Notes initial points balance in Rewards Tab (e.g. 195 pts)
+    Recipient->>Recipient: In /my-claims, enters verified portions (e.g. 10) & confirms Delivery OTP
+    Recipient->>System: Submits delivery confirmation
+    System->>System: Evaluates Integrity Formula:<br/>Points = min(200, 30 + (portions * 2))
+    System->>Ledger: Credits +50 pts (30 base + 20 portion bonus)
+    Ledger-->>Donor: Total Points increases to 245 pts with audit row logged
+```
+
+---
+
+### 7. Restaurant Safety Grievance & Admin Moderation Queue Flagging
+
+Recipients and volunteers can flag issues against donor restaurants directly from their claims view, creating an immediate alert in the Platform Admin moderation queue:
+
+```mermaid
+flowchart TD
+    A["Recipient NGO or Volunteer"] -->|"Discovers Issue (Spoilage, Allergen Mismatch, Dock Delay)"| B["Filing Complaint (#/my-claims modal)"]
+    B -->|"Captures category, description & reporter role"| C["Automated Platform Moderation Service"]
+    C -->|"1. Flags Claim as 'Flagged to Admin'"| D["Visual Warning Banner on Claim Card"]
+    C -->|"2. Dispatches Incident Ticket"| E["Admin Safety & Moderation Queue"]
+    E --> F{"Platform Admin Review"}
+    F -->|"Valid Complaint"| G["Resolve with Kitchen Corrective Action or Account Suspension"]
+    F -->|"False Alarm"| H["Dismiss Report with Resolution Notes"]
 ```
 
 ---
@@ -185,8 +345,8 @@ VITE_FIREBASE_MEASUREMENT_ID=G-945TEWG4F3
 ```
 
 ##### Enabled Firebase Authentication Providers:
-- **Google Sign-In:** 1-click authentication with official Google popup and automatic Firestore user profile creation.
-- **Email & Password:** Secure credential-based sign-in and onboarding for Donors, Recipients, and Volunteers.
+- **Google Sign-In:** 1-click authentication with official Google popup, integrated role selector (`Donor`, `Recipient`, `Volunteer`), and automatic Firestore user profile creation/synchronization.
+- **Email & Password:** Secure credential-based sign-in and registration with role governance for Donors, Recipients, and Volunteers.
 
 ##### Provision Firestore & Seed Current Actual Data:
 1. Open the Firebase Console: https://console.firebase.google.com/project/shareplate-57783/firestore
@@ -218,7 +378,7 @@ Open **`http://localhost:5173`** in your browser.
 
 ## 🧪 Automated Testing & Verification
 
-All automated tests execute with 100% passing results across 100 tests:
+All automated tests execute with 100% passing results across 104 tests:
 
 ### Run Backend API Tests:
 ```bash
@@ -229,13 +389,13 @@ npm test --workspace=@shareplate/api
 ### Run Frontend Unit & Integration Tests:
 ```bash
 npm test --workspace=@shareplate/web
-# Result: 98 passed, 0 failed (App, Impact Math, Donor Rewards Ledger, Volunteer Multi-Stop Route Partitioning, Two-Party Pickup & Delivery OTP Flow, Cross-Portal Sync, State on Registration & Strict Regional State Listing Isolation, Profile City Persistence, Auth, Upload Fallback & Error Handling, Features Suite, Render Safety)
+# Result: 102 passed, 0 failed (App, Impact Math, Donor Rewards Ledger, Volunteer Multi-Stop Route Partitioning, Two-Party Pickup & Delivery OTP Flow, Cross-Portal Sync, State on Registration & Strict Regional State Listing Isolation, Restaurant Grievance & Admin Moderation Queue Flagging, Role-Based Authentication & Google Sign-In, Profile City Persistence, Upload Fallback & Error Handling, Features Suite, Render Safety)
 ```
 
 ### Run All Workspace Tests:
 ```bash
 npm test
-# Total: 100 passed, 0 failed
+# Total: 104 passed, 0 failed (100% clean)
 ```
 
 ### Verify Production Compilation:
