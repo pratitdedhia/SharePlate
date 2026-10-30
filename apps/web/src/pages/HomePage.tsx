@@ -64,7 +64,7 @@ export const HomePage: React.FC = () => {
         <div className="max-w-5xl mx-auto text-center px-4 space-y-6">
 
           <h1 className="text-4xl sm:text-6xl font-black text-stone-900 tracking-tight leading-[1.1]">
-            Rescue Food. <span className="text-forest-900 underline decoration-emerald-400 decoration-wavy">Reduce Waste.</span>
+            Rescue Food. <span className="text-forest-900">Reduce Waste.</span>
             <br />
             Feed Communities.
           </h1>
