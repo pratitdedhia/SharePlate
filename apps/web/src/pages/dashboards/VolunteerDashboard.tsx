@@ -4,8 +4,17 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { donationsService } from '../../services/donations';
 import { claimsService } from '../../services/claims';
-import { demoStore } from '../../lib/mockData';
-import { Donation, Claim } from '../../types';
+import { useLiveUpdates } from '../../hooks/useLiveUpdates';
+import { demoStore, DEMO_PROFILES } from '../../lib/mockData';
+import {
+  Donation,
+  Claim,
+  RescueTask,
+  VolunteerTripPlan,
+  VolunteerRewardsSummary,
+  REWARD_RULES,
+  calculateClaimPoints,
+} from '../../types';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { DemoAccountBanner } from '../../components/common/DemoAccountBanner';
 import {
@@ -21,69 +30,291 @@ import {
   Activity,
   Phone,
   AlertTriangle,
+  Award,
+  Gift,
+  Sparkles,
+  CheckSquare,
+  Square,
+  AlertCircle,
+  RefreshCw,
+  Compass,
+  Info,
+  ChevronRight,
+  ShieldCheck,
+  ShieldAlert,
 } from 'lucide-react';
 
 export const VolunteerDashboard: React.FC = () => {
   const { user } = useAuth();
-  const { success, error } = useToast();
+  const { success, error, info } = useToast();
 
-  const [availableDonations, setAvailableDonations] = useState<Donation[]>([]);
+  // Navigation tab state: 'planner' | 'checklist' | 'rewards'
+  const [activeTab, setActiveTab] = useState<'planner' | 'checklist' | 'rewards'>('planner');
+
+  // Trip planner state
+  const [originInput, setOriginInput] = useState('DTU Main Campus, Rohini Sector 17');
+  const [destinationInput, setDestinationInput] = useState('Connaught Place Metro Hub, Central Delhi');
+  const [selectedCorridor, setSelectedCorridor] = useState('Delhi North-West Corridor');
+  const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>(['task-delhi-01']);
+  const [availableTasks, setAvailableTasks] = useState<RescueTask[]>([]);
+  const [activeTripPlan, setActiveTripPlan] = useState<VolunteerTripPlan | null>(null);
+
+  // Active delivery & Two-party verification state
   const [activeClaims, setActiveClaims] = useState<Claim[]>([]);
+  const [rewardsSummary, setRewardsSummary] = useState<VolunteerRewardsSummary | null>(null);
   const [activityLogs, setActivityLogs] = useState<any[]>([]);
-  const [assignedRoutes, setAssignedRoutes] = useState<string[]>(['d0000000-0000-0000-0000-000000000001']);
   const [loading, setLoading] = useState(true);
 
-  const loadData = async () => {
+  // Dispute modal state
+  const [disputeModalOpen, setDisputeModalOpen] = useState(false);
+  const [disputeClaimId, setDisputeClaimId] = useState<string | null>(null);
+  const [disputeReason, setDisputeReason] = useState('');
+
+  // Partial delivery state
+  const [deliveryPortions, setDeliveryPortions] = useState<Record<string, number>>({});
+
+  const loadDashboardData = async () => {
     if (!user) return;
+    setLoading(true);
     try {
-      // 1. Available donations needing volunteer transport
-      const donationsRes = await donationsService.getDonations({ status: 'available' });
-      setAvailableDonations(donationsRes.data);
+      // 1. Load tasks for corridor
+      const tasks = await claimsService.getRescueTasks(selectedCorridor);
+      setAvailableTasks(tasks);
 
-      // 2. Claims across system needing transport
-      const claimsRes = await claimsService.getMyClaims(user.id, false);
-      setActiveClaims(claimsRes);
+      // 2. Load active trip plan
+      const plan = await claimsService.getVolunteerTripPlan(user.id);
+      setActiveTripPlan(plan);
 
-      // 3. Activity stream
-      setActivityLogs(demoStore.getActivityLogs());
+      // 3. Load active claims for this volunteer
+      const allClaims = await claimsService.getAllClaims();
+      const volClaims = allClaims.filter(
+        (c) => c.volunteer_id === user.id || c.status === 'claimed' || c.status === 'collected'
+      );
+      setActiveClaims(volClaims);
+
+      // 4. Load rewards summary
+      const rewards = await claimsService.getVolunteerRewards(user.id);
+      setRewardsSummary(rewards);
+
+      // 5. Activity stream
+      setActivityLogs(demoStore.getActivityLogs().slice(0, 8));
     } catch (err: any) {
-      console.error('Failed to load volunteer dashboard:', err);
+      console.error('Failed to load volunteer data:', err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadData();
-  }, [user]);
+    loadDashboardData();
+  }, [user?.id, selectedCorridor]);
 
-  const handleAcceptRoute = (donationId: string) => {
-    if (!assignedRoutes.includes(donationId)) {
-      setAssignedRoutes((prev) => [...prev, donationId]);
-      demoStore.addActivityLog('volunteer_assigned', {
-        volunteer: user?.full_name || 'Volunteer',
-        donation_id: donationId,
-      });
-      setActivityLogs(demoStore.getActivityLogs());
-      success('Route accepted! Pickup instructions and donor contact unlocked.');
+  useLiveUpdates(loadDashboardData);
+
+  // Handle corridor preset switch
+  const handleCorridorSelect = (corridor: string, origin: string, destination: string) => {
+    setSelectedCorridor(corridor);
+    setOriginInput(origin);
+    setDestinationInput(destination);
+    // Auto-select tasks matching the new corridor
+    const tasks = demoStore.getRescueTasks(corridor);
+    if (tasks.length > 0) {
+      setSelectedTaskIds([tasks[0].id]);
+    } else {
+      setSelectedTaskIds([]);
     }
   };
 
-  const handleCompleteDelivery = (donationId: string) => {
-    setAssignedRoutes((prev) => prev.filter((id) => id !== donationId));
-    demoStore.addActivityLog('delivery_completed', {
-      volunteer: user?.full_name || 'Volunteer',
-      donation_id: donationId,
-    });
-    setActivityLogs(demoStore.getActivityLogs());
-    success('Delivery confirmed! Thank you for rescuing surplus meals.');
+  // Toggle task checkbox
+  const toggleTaskSelection = (taskId: string) => {
+    setSelectedTaskIds((prev) =>
+      prev.includes(taskId) ? prev.filter((id) => id !== taskId) : [...prev, taskId]
+    );
   };
 
-  // Metrics from real database queries
-  const pickupOpportunitiesCount = availableDonations.length;
-  const assignedPickupsCount = assignedRoutes.length;
-  const activeDeliveriesCount = assignedRoutes.length;
-  const completedActivitiesCount = activityLogs.filter((log) => log.action === 'delivery_completed').length;
+  // Create & accept planned route
+  const handleAcceptRoute = async () => {
+    if (!user) return;
+    if (selectedTaskIds.length === 0) {
+      error('Please select at least one rescue task along your route.');
+      return;
+    }
+
+    try {
+      const selectedTasks = availableTasks.filter((t) => selectedTaskIds.includes(t.id));
+      const stops: any[] = [];
+      let seq = 1;
+
+      // Stop 1: Origin
+      stops.push({
+        id: `stop-${seq}`,
+        type: 'start',
+        name: 'Trip Origin Departure',
+        address: originInput,
+        city: user.city || 'Delhi NCR',
+        sequence: seq++,
+        completed: true,
+        completed_at: new Date().toISOString(),
+      });
+
+      // Stops: Pickups
+      for (const t of selectedTasks) {
+        stops.push({
+          id: `stop-${seq}`,
+          type: 'pickup',
+          name: t.pickup_location,
+          address: t.pickup_address,
+          city: user.city || 'Delhi NCR',
+          contact_person: t.donor_name,
+          phone: t.donor_phone,
+          instructions: t.pickup_instructions,
+          task_id: t.id,
+          portions: t.portions,
+          food_title: t.title,
+          dietary_type: t.dietary_type,
+          deadline: t.pickup_deadline,
+          sequence: seq++,
+          completed: false,
+        });
+      }
+
+      // Stops: Deliveries
+      for (const t of selectedTasks) {
+        stops.push({
+          id: `stop-${seq}`,
+          type: 'delivery',
+          name: t.dropoff_location,
+          address: t.dropoff_address,
+          city: user.city || 'Delhi NCR',
+          contact_person: t.recipient_name,
+          phone: t.recipient_phone,
+          task_id: t.id,
+          portions: t.portions,
+          food_title: t.title,
+          dietary_type: t.dietary_type,
+          sequence: seq++,
+          completed: false,
+        });
+      }
+
+      // Final stop: Destination
+      stops.push({
+        id: `stop-${seq}`,
+        type: 'destination',
+        name: 'Final Trip Destination Arrival',
+        address: destinationInput,
+        city: user.city || 'Delhi NCR',
+        sequence: seq++,
+        completed: false,
+      });
+
+      const plan = await claimsService.createTripPlan({
+        volunteer_id: user.id,
+        origin: originInput,
+        destination: destinationInput,
+        corridor_label: selectedCorridor,
+        task_ids: selectedTaskIds,
+        stops,
+        is_demo_preview: true,
+        routing_provider_note:
+          'Demo route preview using corridor stops. Live turn-by-turn routing requires Mapbox or Google Maps Directions API key.',
+      });
+
+      await claimsService.acceptTripPlan(plan.id);
+      success('Route accepted! Stop-by-stop checklist unlocked. Safe travels!');
+      setActiveTab('checklist');
+      await loadDashboardData();
+    } catch (err: any) {
+      error(err.message || 'Failed to accept trip plan');
+    }
+  };
+
+  // Complete a stop in the checklist
+  const handleCompleteStop = async (stopId: string) => {
+    if (!activeTripPlan) return;
+    try {
+      await claimsService.completeTripStop(activeTripPlan.id, stopId);
+      success('Stop completed!');
+      await loadDashboardData();
+    } catch (err: any) {
+      error(err.message || 'Failed to update stop status');
+    }
+  };
+
+  // Two-party: Volunteer initiates pickup (records arrival at dock)
+  const handleVolunteerInitiatePickup = async (claimId: string) => {
+    if (!user) return;
+    try {
+      await claimsService.initiatePickup(claimId, user.id);
+      info('Recorded pickup arrival. Please ask the donor kitchen to confirm the handover.');
+      await loadDashboardData();
+    } catch (err: any) {
+      error(err.message || 'Failed to record pickup arrival');
+    }
+  };
+
+  // Two-party: Donor confirms pickup handoff
+  const handleConfirmDonorPickup = async (claimId: string) => {
+    try {
+      await claimsService.confirmPickup(claimId, DEMO_PROFILES.donor.id);
+      success('Donor handover confirmed! Food is now officially IN TRANSIT.');
+      await loadDashboardData();
+    } catch (err: any) {
+      error(err.message || 'Failed to confirm donor handover');
+    }
+  };
+
+  // Two-party: Volunteer initiates delivery (records arrival at NGO)
+  const handleVolunteerInitiateDelivery = async (claimId: string) => {
+    if (!user) return;
+    try {
+      await claimsService.initiateDelivery(claimId, user.id);
+      info('Recorded delivery arrival. Please ask the recipient NGO coordinator to confirm portions received.');
+      await loadDashboardData();
+    } catch (err: any) {
+      error(err.message || 'Failed to record delivery arrival');
+    }
+  };
+
+  // Two-party: Recipient confirms receipt & portions received
+  const handleConfirmRecipientDelivery = async (claimId: string, claimedPortions: number) => {
+    try {
+      const portions = deliveryPortions[claimId] ?? claimedPortions;
+      const res = await claimsService.confirmDelivery(claimId, DEMO_PROFILES.recipient.id, portions);
+      success(
+        `Rescue verified by recipient NGO! ${res.pointsAwarded} volunteer reward points have been released to your ledger!`
+      );
+      await loadDashboardData();
+    } catch (err: any) {
+      error(err.message || 'Failed to confirm delivery');
+    }
+  };
+
+  // Dispute: Mark task as disputed (0 points)
+  const handleDisputeTask = async () => {
+    if (!disputeClaimId || !disputeReason.trim()) {
+      error('Please provide a reason for the dispute (e.g. food spoiled, damaged packaging, or missing portions).');
+      return;
+    }
+    try {
+      await claimsService.disputeClaim(disputeClaimId, user?.id || 'volunteer', disputeReason);
+      setDisputeModalOpen(false);
+      setDisputeReason('');
+      setDisputeClaimId(null);
+      info('Task flagged as DISPUTED. Points held at 0 pending operational review.');
+      await loadDashboardData();
+    } catch (err: any) {
+      error(err.message || 'Failed to record dispute');
+    }
+  };
+
+  // Derived metrics
+  const selectedTasks = availableTasks.filter((t) => selectedTaskIds.includes(t.id));
+  const selectedPortionsTotal = selectedTasks.reduce((sum, t) => sum + t.portions, 0);
+  const potentialPointsTotal = selectedTasks.reduce(
+    (sum, t) => sum + calculateClaimPoints(t.portions, false),
+    0
+  );
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -98,295 +329,1079 @@ export const VolunteerDashboard: React.FC = () => {
               Volunteer Logistics Dispatch
             </span>
             <span className="text-xs text-stone-500 font-medium flex items-center gap-1">
-              <MapPin className="w-3.5 h-3.5" />
+              <MapPin className="w-3.5 h-3.5 text-stone-400" />
               {user?.city || 'Delhi NCR'}
             </span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-black text-stone-900 mt-1">
-            Welcome back, {user?.full_name}!
+            Welcome back, {user?.full_name || 'Ananya Sen'}!
           </h1>
           <p className="text-xs sm:text-sm text-stone-600">
-            Active service corridor: <strong>{user?.service_area || 'Central Transit Corridor'}</strong> · Availability: <strong className="capitalize">{user?.availability || 'Flexible'}</strong>
+            Active service corridor: <strong>{selectedCorridor}</strong> · Availability:{' '}
+            <strong className="capitalize">{user?.availability || 'Flexible'}</strong>
           </p>
         </div>
 
-        <Link
-          to="/my-claims"
-          className="inline-flex items-center gap-2 px-5 py-3 rounded-xl text-xs sm:text-sm font-bold bg-forest-900 text-white hover:bg-forest-800 shadow-sm transition"
-        >
-          <Navigation className="w-4 h-4 text-emerald-300" />
-          <span>My Active Deliveries</span>
-        </Link>
+        {/* Tab Switcher */}
+        <div className="flex items-center bg-stone-100 p-1 rounded-2xl border border-stone-200 self-start sm:self-center">
+          <button
+            type="button"
+            onClick={() => setActiveTab('planner')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+              activeTab === 'planner'
+                ? 'bg-forest-900 text-white shadow-xs'
+                : 'text-stone-600 hover:text-stone-900'
+            }`}
+          >
+            <Compass className="w-4 h-4" />
+            <span>1. Trip Planner</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('checklist')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+              activeTab === 'checklist'
+                ? 'bg-forest-900 text-white shadow-xs'
+                : 'text-stone-600 hover:text-stone-900'
+            }`}
+          >
+            <CheckSquare className="w-4 h-4" />
+            <span>2. Route Checklist & Verification</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('rewards')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+              activeTab === 'rewards'
+                ? 'bg-forest-900 text-white shadow-xs'
+                : 'text-stone-600 hover:text-stone-900'
+            }`}
+          >
+            <Award className="w-4 h-4" />
+            <span>3. Points & Rewards</span>
+            {rewardsSummary && rewardsSummary.points_pending > 0 && (
+              <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+            )}
+          </button>
+        </div>
       </div>
 
-      {/* Role Mission Definition Banner */}
-      <div className="bg-gradient-to-r from-purple-950 via-forest-950 to-stone-900 text-white rounded-3xl p-6 sm:p-7 shadow-lg border border-purple-800/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-        <div className="space-y-2 max-w-2xl">
-          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-bold bg-purple-500/20 text-purple-300 border border-purple-400/30">
-            <Bike className="w-3.5 h-3.5" />
-            <span>Role Definition: Last-Mile Food Rescue Runner</span>
-          </div>
-          <h2 className="text-xl sm:text-2xl font-black">
-            What is the Volunteer's Mission in SharePlate?
-          </h2>
-          <p className="text-xs sm:text-sm text-stone-300 leading-relaxed">
-            Commercial kitchens (canteens, bakeries, caterers) have surplus food but <strong>no delivery fleet</strong>. Grassroots community kitchens and shelters need food but <strong>lack dedicated drivers</strong>. As a SharePlate Volunteer, you provide the critical link: you receive dispatch alerts, pick up packaged food from donor loading docks, verify thermal packaging, and deliver meals directly to verified shelter coordinators before food spoils.
-          </p>
-        </div>
-        <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/15 text-xs space-y-2 shrink-0 w-full md:w-auto">
-          <div className="font-bold text-emerald-300 uppercase tracking-wider text-[10px]">Volunteer 3-Step Flow:</div>
-          <div className="flex items-center gap-2 text-stone-200">
-            <span className="w-5 h-5 rounded-full bg-emerald-500/30 text-emerald-300 flex items-center justify-center font-bold text-[10px]">1</span>
-            <span>Accept route from active dispatch board</span>
-          </div>
-          <div className="flex items-center gap-2 text-stone-200">
-            <span className="w-5 h-5 rounded-full bg-amber-500/30 text-amber-300 flex items-center justify-center font-bold text-[10px]">2</span>
-            <span>Pickup at kitchen dock & verify packaging</span>
-          </div>
-          <div className="flex items-center gap-2 text-stone-200">
-            <span className="w-5 h-5 rounded-full bg-purple-500/30 text-purple-300 flex items-center justify-center font-bold text-[10px]">3</span>
-            <span>Deliver to shelter & confirm completion</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Metrics Row */}
+      {/* Quick Stats Strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Available Pickup Opportunities */}
+        {/* Available Pickup Tasks */}
         <div className="bg-white p-5 rounded-2xl border border-warm-200 shadow-xs space-y-1">
           <div className="flex items-center justify-between text-stone-500 text-xs font-semibold">
-            <span>Pickup Opportunities</span>
+            <span>Rescue Opportunities</span>
             <div className="w-8 h-8 rounded-lg bg-emerald-50 text-forest-900 flex items-center justify-center">
               <Bike className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-stone-900">{pickupOpportunitiesCount}</div>
-          <div className="text-[11px] text-stone-500">Unclaimed food batches</div>
+          <div className="text-2xl sm:text-3xl font-black text-stone-900">{availableTasks.length}</div>
+          <div className="text-[11px] text-stone-500">Tasks near your planned trip</div>
         </div>
 
-        {/* Assigned Pickups */}
+        {/* Pending Points */}
         <div className="bg-white p-5 rounded-2xl border border-warm-200 shadow-xs space-y-1">
           <div className="flex items-center justify-between text-stone-500 text-xs font-semibold">
-            <span>Assigned Pickups</span>
+            <span>Pending Points</span>
             <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-800 flex items-center justify-center">
               <Clock className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-amber-700">{assignedPickupsCount}</div>
-          <div className="text-[11px] text-stone-500">Scheduled for pickup today</div>
+          <div className="text-2xl sm:text-3xl font-black text-amber-700">
+            {rewardsSummary?.points_pending || 0} pts
+          </div>
+          <div className="text-[11px] text-stone-500">Awaiting two-party sign-off</div>
         </div>
 
-        {/* Active Deliveries */}
+        {/* Released Banked Points */}
         <div className="bg-white p-5 rounded-2xl border border-warm-200 shadow-xs space-y-1">
           <div className="flex items-center justify-between text-stone-500 text-xs font-semibold">
-            <span>Active Deliveries</span>
-            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-800 flex items-center justify-center">
-              <Navigation className="w-4 h-4" />
+            <span>Released Points</span>
+            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-800 flex items-center justify-center">
+              <ShieldCheck className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-blue-700">{activeDeliveriesCount}</div>
-          <div className="text-[11px] text-stone-500">Currently in-transit</div>
+          <div className="text-2xl sm:text-3xl font-black text-forest-900">
+            {rewardsSummary?.points_released || 0} pts
+          </div>
+          <div className="text-[11px] text-stone-500">Verified by donor & NGO</div>
         </div>
 
-        {/* Completed Activities */}
+        {/* Confirmed Rescues */}
         <div className="bg-white p-5 rounded-2xl border border-warm-200 shadow-xs space-y-1">
           <div className="flex items-center justify-between text-stone-500 text-xs font-semibold">
-            <span>Completed Rescues</span>
-            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-800 flex items-center justify-center">
+            <span>Verified Rescues</span>
+            <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-800 flex items-center justify-center">
               <PackageCheck className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-forest-900">{completedActivitiesCount}</div>
-          <div className="text-[11px] text-stone-500">Total food drops finished</div>
+          <div className="text-2xl sm:text-3xl font-black text-purple-900">
+            {rewardsSummary?.verified_deliveries_count || 0}
+          </div>
+          <div className="text-[11px] text-stone-500">
+            {rewardsSummary?.portions_transported_count || 0} portions delivered
+          </div>
         </div>
       </div>
 
-      {/* Main Grid: Active Routes & Opportunities */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column: Active Route Board & Available Opportunities (2 cols) */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Active Assigned Deliveries */}
-          <div className="bg-white rounded-3xl border border-warm-200 shadow-xs overflow-hidden">
-            <div className="p-6 border-b border-warm-100 flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-black text-stone-900">My Active Transport Routes</h2>
-                <p className="text-xs text-stone-500">Committed pickups requiring transport to recipient NGO</p>
+      {/* ============================================================== */}
+      {/* TAB 1: VOLUNTEER TRIP PLANNER ("ON-MY-WAY FOOD RESCUE")        */}
+      {/* ============================================================== */}
+      {activeTab === 'planner' && (
+        <div className="space-y-6">
+          {/* Mission Explanation Banner */}
+          <div className="bg-gradient-to-r from-forest-950 via-emerald-950 to-stone-900 text-white rounded-3xl p-6 sm:p-7 shadow-lg border border-emerald-800/30">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="space-y-2 max-w-2xl">
+                <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+                  <Compass className="w-3.5 h-3.5" />
+                  <span>On-My-Way Food Rescue · Commute Transport</span>
+                </div>
+                <h2 className="text-xl sm:text-2xl font-black">
+                  Carry food along trips you already plan to take
+                </h2>
+                <p className="text-xs sm:text-sm text-stone-300 leading-relaxed">
+                  You don't need a dedicated delivery shift. Simply enter where you are starting and where you are heading. SharePlate identifies surplus food pick-ups and community shelters along your transit corridor so you can rescue food with minimal detour.
+                </p>
               </div>
-              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900">
-                {assignedRoutes.length} in progress
+
+              {/* Corridor Quick Selectors */}
+              <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/15 text-xs space-y-2 shrink-0">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-300">
+                  Quick Corridor Presets:
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleCorridorSelect(
+                        'Delhi North-West Corridor',
+                        'DTU Main Campus, Rohini Sector 17',
+                        'Connaught Place Metro Hub, Central Delhi'
+                      )
+                    }
+                    className={`px-3 py-1.5 rounded-xl text-left text-xs font-bold transition flex items-center justify-between gap-2 cursor-pointer ${
+                      selectedCorridor === 'Delhi North-West Corridor'
+                        ? 'bg-emerald-400 text-stone-950 shadow-xs'
+                        : 'bg-white/10 text-stone-200 hover:bg-white/20'
+                    }`}
+                  >
+                    <span>Delhi: Rohini → Connaught Place</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleCorridorSelect(
+                        'Mumbai Central Transit Corridor',
+                        'BKC Commercial Hub, Bandra East',
+                        'Ghatkopar East Transit Terminus'
+                      )
+                    }
+                    className={`px-3 py-1.5 rounded-xl text-left text-xs font-bold transition flex items-center justify-between gap-2 cursor-pointer ${
+                      selectedCorridor === 'Mumbai Central Transit Corridor'
+                        ? 'bg-emerald-400 text-stone-950 shadow-xs'
+                        : 'bg-white/10 text-stone-200 hover:bg-white/20'
+                    }`}
+                  >
+                    <span>Mumbai: BKC → Kurla → Ghatkopar</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleCorridorSelect(
+                        'Pune University Corridor',
+                        'Deccan Gymkhana, FC Road',
+                        'Shivajinagar Bus Station Hub'
+                      )
+                    }
+                    className={`px-3 py-1.5 rounded-xl text-left text-xs font-bold transition flex items-center justify-between gap-2 cursor-pointer ${
+                      selectedCorridor === 'Pune University Corridor'
+                        ? 'bg-emerald-400 text-stone-950 shadow-xs'
+                        : 'bg-white/10 text-stone-200 hover:bg-white/20'
+                    }`}
+                  >
+                    <span>Pune: FC Road → Shivajinagar</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Form & Route Setup */}
+          <div className="bg-white rounded-3xl border border-warm-200 p-6 shadow-xs space-y-4">
+            <h3 className="text-base font-black text-stone-900 flex items-center gap-2">
+              <MapPin className="w-4 h-4 text-emerald-700" />
+              <span>Step 1: Enter Origin & Destination</span>
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-stone-700">Trip Starting Point (Origin)</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={originInput}
+                    onChange={(e) => setOriginInput(e.target.value)}
+                    placeholder="e.g. Home or Workplace Address"
+                    className="w-full px-4 py-2.5 rounded-xl border border-stone-200 text-xs sm:text-sm font-medium focus:border-forest-900 focus:outline-hidden"
+                  />
+                  <div className="absolute right-3 top-2.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
+                    START
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-stone-700">Trip Destination</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={destinationInput}
+                    onChange={(e) => setDestinationInput(e.target.value)}
+                    placeholder="e.g. College, Metro Station, or Central Hub"
+                    className="w-full px-4 py-2.5 rounded-xl border border-stone-200 text-xs sm:text-sm font-medium focus:border-forest-900 focus:outline-hidden"
+                  />
+                  <div className="absolute right-3 top-2.5 text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md">
+                    FINISH
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Available Rescue Tasks along Corridor */}
+          <div className="bg-white rounded-3xl border border-warm-200 p-6 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-warm-100 pb-3">
+              <div>
+                <h3 className="text-base font-black text-stone-900 flex items-center gap-2">
+                  <CheckSquare className="w-4 h-4 text-emerald-700" />
+                  <span>Step 2: Select Tasks to Carry (Checkboxes)</span>
+                </h3>
+                <p className="text-xs text-stone-500">
+                  Select one or more tasks along your corridor to bundle into your trip.
+                </p>
+              </div>
+              <span className="text-xs font-bold px-3 py-1 rounded-full bg-emerald-100 text-forest-900">
+                {selectedTaskIds.length} of {availableTasks.length} tasks selected
               </span>
             </div>
 
-            <div className="p-6 space-y-4">
-              {assignedRoutes.length === 0 ? (
-                <div className="text-center py-6 text-xs text-stone-500">
-                  No active delivery in progress. Select a pickup opportunity below to claim a route.
-                </div>
-              ) : (
-                assignedRoutes.map((routeId) => {
-                  const donation = availableDonations.find((d) => d.id === routeId);
-                  if (!donation) return null;
-                  return (
-                    <div
-                      key={routeId}
-                      className="p-5 rounded-2xl border-2 border-forest-900 bg-forest-50/30 space-y-4"
-                    >
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-warm-200 pb-3">
-                        <div>
-                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-forest-900 bg-emerald-100 px-2 py-0.5 rounded-md">
-                            Active Transport Assignment
-                          </span>
-                          <h3 className="text-base font-black text-stone-900 mt-1">{donation.title}</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {availableTasks.map((task) => {
+                const isSelected = selectedTaskIds.includes(task.id);
+                return (
+                  <div
+                    key={task.id}
+                    onClick={() => toggleTaskSelection(task.id)}
+                    className={`p-5 rounded-2xl border-2 transition cursor-pointer space-y-3 ${
+                      isSelected
+                        ? 'border-forest-900 bg-emerald-50/40 shadow-xs'
+                        : 'border-warm-200 hover:border-warm-300 bg-white'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-2.5">
+                        <div className="mt-0.5 text-forest-900">
+                          {isSelected ? (
+                            <CheckSquare className="w-5 h-5 text-forest-900" />
+                          ) : (
+                            <Square className="w-5 h-5 text-stone-400" />
+                          )}
                         </div>
-                        <span className="text-xs font-bold text-stone-700 bg-white px-3 py-1 rounded-lg border border-warm-200">
-                          {donation.quantity_total} portions
-                        </span>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md bg-stone-100 text-stone-700">
+                              {task.category.replace('_', ' ')}
+                            </span>
+                            <span className="text-[11px] font-bold text-forest-900 bg-emerald-100 px-2 py-0.5 rounded-md">
+                              {task.portions} portions
+                            </span>
+                          </div>
+                          <h4 className="text-sm font-black text-stone-900 mt-1">{task.title}</h4>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5 text-xs text-stone-600 bg-white p-3 rounded-xl border border-warm-200">
+                      <div className="flex items-start gap-1.5">
+                        <Building2 className="w-3.5 h-3.5 text-emerald-700 shrink-0 mt-0.5" />
+                        <div>
+                          <strong className="text-stone-800">Pickup:</strong> {task.pickup_location}
+                          <div className="text-[11px] text-stone-500">{task.pickup_address}</div>
+                        </div>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                        <div className="space-y-1">
-                          <span className="text-stone-400 font-bold uppercase text-[10px]">Pickup Origin:</span>
-                          <div className="font-bold text-stone-800 flex items-center gap-1.5">
-                            <Building2 className="w-3.5 h-3.5 text-stone-500" />
-                            {donation.donor?.organization_name || 'DTU Canteen'}
-                          </div>
-                          <div className="text-stone-500 text-[11px]">{donation.location_label}</div>
-                          {donation.donor?.phone && (
-                            <div className="text-forest-900 font-semibold flex items-center gap-1 text-[11px]">
-                              <Phone className="w-3 h-3" /> {donation.donor.phone}
-                            </div>
+                      <div className="flex items-start gap-1.5 pt-1 border-t border-warm-100">
+                        <MapPin className="w-3.5 h-3.5 text-blue-700 shrink-0 mt-0.5" />
+                        <div>
+                          <strong className="text-stone-800">Drop-off:</strong> {task.dropoff_location}
+                          <div className="text-[11px] text-stone-500">{task.dropoff_address}</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px] text-stone-500 pt-1">
+                      <span className="flex items-center gap-1 text-amber-800 font-semibold">
+                        <Clock className="w-3 h-3" /> Pickup by{' '}
+                        {new Date(task.pickup_deadline).toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
+                      <span className="font-bold text-forest-900">
+                        +{calculateClaimPoints(task.portions, false)} pts potential
+                      </span>
+                    </div>
+
+                    {task.pickup_instructions && (
+                      <div className="text-[11px] text-stone-600 italic bg-warm-50 p-2 rounded-lg border border-warm-200">
+                        "{task.pickup_instructions}"
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Interactive Route Stop Sequence & Map Schematic */}
+          <div className="bg-white rounded-3xl border border-warm-200 p-6 shadow-xs space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-warm-100 pb-3">
+              <div>
+                <h3 className="text-base font-black text-stone-900 flex items-center gap-2">
+                  <Navigation className="w-4 h-4 text-emerald-700" />
+                  <span>Step 3: Route Stop Order & Preview</span>
+                </h3>
+                <p className="text-xs text-stone-500">
+                  Sequential stop order starting at your origin and finishing at your destination.
+                </p>
+              </div>
+
+              {/* DEMO ROUTE PREVIEW BADGE */}
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                <Info className="w-3.5 h-3.5 text-amber-700" />
+                <span>Demo Route Preview</span>
+              </div>
+            </div>
+
+            {/* Honest Routing Disclaimer */}
+            <div className="bg-amber-50 p-3.5 rounded-2xl border border-amber-200 text-xs text-amber-900 space-y-1">
+              <div className="font-bold flex items-center gap-1.5">
+                <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0" />
+                <span>Map Provider Disclosure:</span>
+              </div>
+              <p className="text-[11px] leading-relaxed text-amber-800">
+                This schematic illustrates the sequential stop sequence along the active corridor. We do not fabricate live GPS, turn-by-turn navigation, traffic ETAs, or shortest-path calculations. Live map and distance calculation requires configuring a <strong>Mapbox</strong> or <strong>Google Maps Directions API</strong> key in environment variables.
+              </p>
+            </div>
+
+            {/* Visual Route Stop Order */}
+            <div className="space-y-3">
+              {/* Origin */}
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs">
+                <div className="w-7 h-7 rounded-lg bg-emerald-700 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                  1
+                </div>
+                <div className="flex-1">
+                  <div className="font-bold text-forest-950 uppercase text-[10px]">Trip Departure Origin</div>
+                  <div className="text-stone-800 font-semibold">{originInput}</div>
+                </div>
+                <span className="text-[10px] font-bold text-emerald-800 bg-white px-2 py-0.5 rounded-md border border-emerald-300">
+                  Start
+                </span>
+              </div>
+
+              {/* Pickups */}
+              {selectedTasks.map((t, idx) => (
+                <div
+                  key={`route-pick-${t.id}`}
+                  className="flex items-center gap-3 p-3 rounded-xl bg-warm-50 border border-warm-200 text-xs ml-4 sm:ml-6 border-l-4 border-l-amber-600"
+                >
+                  <div className="w-7 h-7 rounded-lg bg-amber-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                    {2 + idx}
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-bold text-amber-900 uppercase text-[10px]">
+                      Pickup Stop · {t.portions} portions
+                    </div>
+                    <div className="text-stone-900 font-semibold">{t.pickup_location}</div>
+                    <div className="text-stone-500 text-[11px]">{t.pickup_address}</div>
+                  </div>
+                  <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-md">
+                    Dock Pickup
+                  </span>
+                </div>
+              ))}
+
+              {/* Deliveries */}
+              {selectedTasks.map((t, idx) => (
+                <div
+                  key={`route-drop-${t.id}`}
+                  className="flex items-center gap-3 p-3 rounded-xl bg-warm-50 border border-warm-200 text-xs ml-4 sm:ml-6 border-l-4 border-l-blue-600"
+                >
+                  <div className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                    {2 + selectedTasks.length + idx}
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-bold text-blue-900 uppercase text-[10px]">
+                      Drop-off Stop · Handover to Shelter
+                    </div>
+                    <div className="text-stone-900 font-semibold">{t.dropoff_location}</div>
+                    <div className="text-stone-500 text-[11px]">{t.dropoff_address}</div>
+                  </div>
+                  <span className="text-[10px] font-bold text-blue-800 bg-blue-100 px-2 py-0.5 rounded-md">
+                    Shelter Delivery
+                  </span>
+                </div>
+              ))}
+
+              {/* Destination */}
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-blue-50 border border-blue-200 text-xs">
+                <div className="w-7 h-7 rounded-lg bg-blue-800 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                  {2 + selectedTasks.length * 2}
+                </div>
+                <div className="flex-1">
+                  <div className="font-bold text-blue-950 uppercase text-[10px]">Trip Destination Arrival</div>
+                  <div className="text-stone-800 font-semibold">{destinationInput}</div>
+                </div>
+                <span className="text-[10px] font-bold text-blue-800 bg-white px-2 py-0.5 rounded-md border border-blue-300">
+                  Finish
+                </span>
+              </div>
+            </div>
+
+            {/* Route Summary Box & Accept CTA */}
+            <div className="bg-stone-900 text-white p-5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="text-xs text-stone-400 font-semibold">Planned Route Summary:</div>
+                <div className="text-sm font-bold text-stone-100">
+                  {2 + selectedTasks.length * 2} Total Stops · {selectedPortionsTotal} Portions Rescued
+                </div>
+                <div className="text-xs text-emerald-400 font-medium">
+                  Estimated Rewards: Up to {potentialPointsTotal} points (released after two-party verification)
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleAcceptRoute}
+                disabled={selectedTaskIds.length === 0}
+                className="px-6 py-3 rounded-xl text-xs sm:text-sm font-bold text-stone-950 bg-emerald-400 hover:bg-emerald-300 transition shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span>Accept Route & Open Checklist</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* TAB 2: ROUTE CHECKLIST & TWO-PARTY VERIFICATION ENGINE         */}
+      {/* ============================================================== */}
+      {activeTab === 'checklist' && (
+        <div className="space-y-6">
+          {/* Active Trip Checklist Banner */}
+          <div className="bg-white rounded-3xl border border-warm-200 p-6 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-warm-100 pb-3">
+              <div>
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-forest-900 bg-emerald-100 px-2 py-0.5 rounded-md">
+                  Active Commute Route
+                </span>
+                <h2 className="text-lg font-black text-stone-900 mt-1">
+                  Stop-by-Stop Rescue Checklist
+                </h2>
+                <p className="text-xs text-stone-500">
+                  Follow each stop in order. Contact details and loading instructions are unlocked for accepted tasks.
+                </p>
+              </div>
+
+              <div className="text-xs font-bold text-stone-600">
+                Corridor: <strong>{activeTripPlan?.corridor_label || selectedCorridor}</strong>
+              </div>
+            </div>
+
+            {/* Checklist Stop Items */}
+            <div className="space-y-3">
+              {activeTripPlan?.stops.map((stop) => (
+                <div
+                  key={stop.id}
+                  className={`p-4 rounded-2xl border transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                    stop.completed
+                      ? 'bg-emerald-50/50 border-emerald-200 text-stone-600'
+                      : 'bg-white border-warm-200 shadow-xs'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div
+                      className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 ${
+                        stop.completed
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-forest-900 text-white'
+                      }`}
+                    >
+                      {stop.completed ? <CheckCircle2 className="w-4 h-4" /> : stop.sequence}
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-md ${
+                            stop.type === 'start'
+                              ? 'bg-stone-100 text-stone-700'
+                              : stop.type === 'pickup'
+                              ? 'bg-amber-100 text-amber-900'
+                              : stop.type === 'delivery'
+                              ? 'bg-blue-100 text-blue-900'
+                              : 'bg-purple-100 text-purple-900'
+                          }`}
+                        >
+                          {stop.type}
+                        </span>
+                        {stop.food_title && (
+                          <span className="text-xs font-bold text-stone-800">
+                            {stop.food_title} ({stop.portions} portions)
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="text-xs font-bold text-stone-900">{stop.name}</div>
+                      <div className="text-[11px] text-stone-500">{stop.address}</div>
+
+                      {/* Unlocked contact details */}
+                      {stop.contact_person && (
+                        <div className="text-[11px] text-forest-900 font-semibold flex items-center gap-2 pt-1">
+                          <span>Contact: {stop.contact_person}</span>
+                          {stop.phone && (
+                            <span className="flex items-center gap-1">
+                              <Phone className="w-3 h-3" /> {stop.phone}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Unlocked instructions */}
+                      {stop.instructions && (
+                        <div className="text-[11px] text-stone-600 italic bg-warm-50 p-2 rounded-lg border border-warm-200 mt-1">
+                          "{stop.instructions}"
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="self-end sm:self-center shrink-0">
+                    {stop.completed ? (
+                      <span className="text-xs font-bold text-emerald-800 bg-emerald-100 px-3 py-1.5 rounded-xl border border-emerald-300 flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Completed
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleCompleteStop(stop.id)}
+                        className="px-4 py-2 rounded-xl text-xs font-bold text-forest-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 transition flex items-center gap-1 cursor-pointer"
+                      >
+                        <CheckSquare className="w-3.5 h-3.5" /> Mark Stop Visited
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* TWO-PARTY VERIFICATION & HANDOVER PANELS */}
+          <div className="space-y-4">
+            <div className="border-b border-warm-200 pb-2">
+              <h2 className="text-lg font-black text-stone-900 flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-emerald-700" />
+                <span>Two-Party Verification Engine</span>
+              </h2>
+              <p className="text-xs text-stone-600">
+                <strong>Strict Verification Rule:</strong> Points are NOT released when a volunteer accepts a route or clicks complete. Release requires separate, attributable confirmations from the donor at pickup and the recipient NGO at drop-off.
+              </p>
+            </div>
+
+            {activeClaims.length === 0 ? (
+              <div className="bg-white rounded-3xl border border-warm-200 p-8 text-center text-xs text-stone-500">
+                No active delivery claims assigned. Accept a route in the Trip Planner tab to start.
+              </div>
+            ) : (
+              activeClaims.map((claim) => {
+                const isVerified = claim.verification_status === 'verified';
+                const isDisputed = claim.is_disputed || claim.verification_status === 'disputed';
+                const isPickupPending =
+                  claim.verification_status === 'pickup_pending' || claim.status === 'claimed';
+                const isInTransit =
+                  claim.verification_status === 'in_transit' || claim.status === 'collected';
+                const isDeliveryPending = claim.verification_status === 'delivery_pending';
+
+                return (
+                  <div
+                    key={claim.id}
+                    className="bg-white rounded-3xl border border-warm-200 p-6 shadow-xs space-y-5"
+                  >
+                    {/* Header with Title & Verification State */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-warm-100 pb-3">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md ${
+                              isVerified
+                                ? 'bg-emerald-100 text-forest-900'
+                                : isDisputed
+                                ? 'bg-rose-100 text-rose-900'
+                                : isInTransit
+                                ? 'bg-blue-100 text-blue-900'
+                                : 'bg-amber-100 text-amber-900'
+                            }`}
+                          >
+                            State: {claim.verification_status?.replace('_', ' ') || claim.status}
+                          </span>
+                          <span className="text-xs font-bold text-stone-800">
+                            Claim ID: {claim.id.slice(0, 12)}
+                          </span>
+                        </div>
+                        <h3 className="text-base font-black text-stone-900 mt-1">
+                          {claim.donation?.title || 'Rescued Food Batch'}
+                        </h3>
+                      </div>
+
+                      <div className="text-right">
+                        <div className="text-xs font-bold text-stone-900">
+                          {claim.quantity_claimed} portions reserved
+                        </div>
+                        <div className="text-[11px] text-stone-500">
+                          Potential reward: {calculateClaimPoints(claim.quantity_claimed, false)} pts
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* TWO STEP VERIFICATION CARDS */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* STEP 1: PICKUP VERIFICATION (DONOR HANDOVER) */}
+                      <div
+                        className={`p-4 rounded-2xl border space-y-3 ${
+                          claim.pickup_confirmed_at
+                            ? 'bg-emerald-50/50 border-emerald-300'
+                            : 'bg-warm-50 border-warm-200'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
+                            <Building2 className="w-4 h-4 text-emerald-700" />
+                            <span>1. Donor Kitchen Pickup</span>
+                          </span>
+                          {claim.pickup_confirmed_at ? (
+                            <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md">
+                              Confirmed
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-md">
+                              Pending Handover
+                            </span>
                           )}
                         </div>
 
-                        <div className="space-y-1">
-                          <span className="text-stone-400 font-bold uppercase text-[10px]">Instructions:</span>
-                          <div className="text-stone-600 text-[11px] bg-white p-2 rounded-xl border border-warm-200">
-                            {donation.pickup_instructions || 'Collect at service entrance; staff waiting.'}
+                        {/* One-Time Pickup Code */}
+                        <div className="bg-white p-3 rounded-xl border border-warm-200 space-y-1">
+                          <div className="text-[10px] font-bold uppercase tracking-wider text-stone-400">
+                            One-Time Pickup Verification Code:
                           </div>
-                          <div className="text-amber-800 font-semibold text-[11px] flex items-center gap-1">
-                            <Clock className="w-3 h-3" /> Pickup by {new Date(donation.pickup_deadline).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          <div className="text-lg font-mono font-black text-forest-900 tracking-widest">
+                            {claim.pickup_code || '4821'}
+                          </div>
+                          <div className="text-[10px] text-stone-500">
+                            Show this code to donor staff at kitchen dock to confirm handover.
                           </div>
                         </div>
+
+                        {claim.pickup_confirmed_at ? (
+                          <div className="text-xs text-emerald-900 bg-emerald-100/60 p-2.5 rounded-xl border border-emerald-200 space-y-0.5">
+                            <div className="font-bold flex items-center gap-1">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
+                              <span>Attributable Confirmation:</span>
+                            </div>
+                            <div className="text-[11px] text-stone-700">
+                              Confirmed by: <strong>{claim.pickup_confirmed_by || 'Priya Sharma (DTU Canteen)'}</strong>
+                            </div>
+                            <div className="text-[10px] text-stone-500">
+                              Time: {new Date(claim.pickup_confirmed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <p className="text-[11px] text-stone-600 leading-relaxed">
+                              Volunteer cannot confirm on behalf of donor. Donor must sign in to confirm, or click the demo simulation helper below:
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => handleConfirmDonorPickup(claim.id)}
+                              className="w-full px-3 py-2 rounded-xl text-xs font-bold text-emerald-900 bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 transition flex items-center justify-center gap-1.5 cursor-pointer"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>Simulate Donor Handover Sign-off</span>
+                            </button>
+                          </div>
+                        )}
                       </div>
 
-                      <div className="flex items-center justify-end gap-3 pt-2">
-                        <button
-                          type="button"
-                          onClick={() => handleCompleteDelivery(donation.id)}
-                          className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-forest-900 hover:bg-forest-800 transition flex items-center gap-1.5 cursor-pointer"
-                        >
-                          <CheckCircle2 className="w-4 h-4 text-emerald-300" />
-                          <span>Confirm Drop-off Completed</span>
-                        </button>
+                      {/* STEP 2: DELIVERY VERIFICATION (NGO RECEIPT) */}
+                      <div
+                        className={`p-4 rounded-2xl border space-y-3 ${
+                          claim.delivery_confirmed_at
+                            ? 'bg-emerald-50/50 border-emerald-300'
+                            : isDisputed
+                            ? 'bg-rose-50/50 border-rose-300'
+                            : 'bg-warm-50 border-warm-200'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
+                            <MapPin className="w-4 h-4 text-blue-700" />
+                            <span>2. Recipient NGO Delivery</span>
+                          </span>
+                          {claim.delivery_confirmed_at ? (
+                            <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md">
+                              Verified
+                            </span>
+                          ) : isDisputed ? (
+                            <span className="text-[10px] font-bold text-rose-800 bg-rose-100 px-2 py-0.5 rounded-md">
+                              Disputed
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-bold text-stone-500 bg-stone-200 px-2 py-0.5 rounded-md">
+                              Awaiting Delivery
+                            </span>
+                          )}
+                        </div>
+
+                        {/* One-Time Delivery Code */}
+                        <div className="bg-white p-3 rounded-xl border border-warm-200 space-y-1">
+                          <div className="text-[10px] font-bold uppercase tracking-wider text-stone-400">
+                            One-Time Delivery Verification Code:
+                          </div>
+                          <div className="text-lg font-mono font-black text-blue-900 tracking-widest">
+                            {claim.delivery_code || '7392'}
+                          </div>
+                          <div className="text-[10px] text-stone-500">
+                            Recipient coordinator checks meals and confirms receipt.
+                          </div>
+                        </div>
+
+                        {claim.delivery_confirmed_at ? (
+                          <div className="text-xs text-emerald-900 bg-emerald-100/60 p-2.5 rounded-xl border border-emerald-200 space-y-0.5">
+                            <div className="font-bold flex items-center gap-1">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
+                              <span>Attributable Confirmation:</span>
+                            </div>
+                            <div className="text-[11px] text-stone-700">
+                              Confirmed by: <strong>{claim.delivery_confirmed_by || 'Rajesh Kumar (Robin Hood Army)'}</strong>
+                            </div>
+                            <div className="text-[11px] text-stone-700">
+                              Portions received: <strong>{claim.portions_delivered_confirmed || claim.quantity_claimed} portions</strong>
+                            </div>
+                            <div className="text-[10px] text-forest-900 font-bold pt-1">
+                              ✓ Points Released: {claim.points_released || calculateClaimPoints(claim.portions_delivered_confirmed || claim.quantity_claimed, false)} pts
+                            </div>
+                          </div>
+                        ) : isDisputed ? (
+                          <div className="text-xs text-rose-900 bg-rose-100/60 p-2.5 rounded-xl border border-rose-300 space-y-0.5">
+                            <div className="font-bold flex items-center gap-1">
+                              <ShieldAlert className="w-3.5 h-3.5 text-rose-700" />
+                              <span>Disputed Delivery (0 Points):</span>
+                            </div>
+                            <div className="text-[11px] text-stone-800 italic">
+                              "{claim.dispute_reason || 'Food damaged or spoiled during transit.'}"
+                            </div>
+                            <div className="text-[10px] text-stone-500">
+                              Flagged by: {claim.disputed_by || 'Recipient NGO'} · Points Held at 0
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <label className="text-[11px] font-bold text-stone-700">
+                                Portions Received:
+                              </label>
+                              <input
+                                type="number"
+                                min={1}
+                                max={claim.quantity_claimed}
+                                value={deliveryPortions[claim.id] ?? claim.quantity_claimed}
+                                onChange={(e) =>
+                                  setDeliveryPortions({
+                                    ...deliveryPortions,
+                                    [claim.id]: parseInt(e.target.value) || 1,
+                                  })
+                                }
+                                className="w-20 px-2 py-1 rounded-lg border border-stone-300 text-xs font-bold text-stone-900 text-center"
+                              />
+                              <span className="text-[10px] text-stone-400">
+                                / {claim.quantity_claimed}
+                              </span>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleConfirmRecipientDelivery(claim.id, claim.quantity_claimed)
+                              }
+                              disabled={!claim.pickup_confirmed_at}
+                              className="w-full px-3 py-2 rounded-xl text-xs font-bold text-white bg-blue-700 hover:bg-blue-800 transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>Simulate NGO Delivery Confirmation</span>
+                            </button>
+
+                            {/* Dispute trigger button */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDisputeClaimId(claim.id);
+                                setDisputeModalOpen(true);
+                              }}
+                              className="w-full px-2 py-1.5 rounded-xl text-[11px] font-semibold text-rose-700 hover:bg-rose-50 border border-rose-200 transition cursor-pointer"
+                            >
+                              Flag Delivery Dispute / Damaged Food
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
-                  );
-                })
-              )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* TAB 3: VOLUNTEER REWARDS & POINTS LEDGER                       */}
+      {/* ============================================================== */}
+      {activeTab === 'rewards' && (
+        <div className="space-y-6">
+          {/* Milestone & Tier Progression */}
+          <div className="bg-gradient-to-r from-forest-950 via-purple-950 to-stone-900 text-white rounded-3xl p-6 sm:p-7 shadow-lg border border-purple-800/30 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-bold bg-purple-500/20 text-purple-300 border border-purple-400/30">
+                  <Award className="w-3.5 h-3.5" />
+                  <span>Verified Volunteer Recognition</span>
+                </div>
+                <h2 className="text-xl sm:text-2xl font-black">
+                  Current Rank: {rewardsSummary?.current_tier || 'Bronze Courier'}
+                </h2>
+                <p className="text-xs text-stone-300">
+                  Points are released strictly upon two-party verification. Never on task acceptance.
+                </p>
+              </div>
+
+              <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/15 text-center shrink-0">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-purple-300">
+                  Total Released Points:
+                </div>
+                <div className="text-3xl font-black text-white mt-0.5">
+                  {rewardsSummary?.points_released || 0}
+                </div>
+                <div className="text-[10px] text-stone-400">Banked in points ledger</div>
+              </div>
+            </div>
+
+            {/* Progress bar towards next tier */}
+            <div className="space-y-1.5 pt-2">
+              <div className="flex justify-between text-xs text-stone-300 font-semibold">
+                <span>Progress to Next Tier</span>
+                <span>
+                  {rewardsSummary?.points_released || 0} / {rewardsSummary?.next_tier_threshold || 600} pts
+                </span>
+              </div>
+              <div className="w-full h-3 bg-white/10 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-emerald-400 to-purple-400 rounded-full transition-all duration-500"
+                  style={{
+                    width: `${Math.min(
+                      100,
+                      ((rewardsSummary?.points_released || 0) /
+                        (rewardsSummary?.next_tier_threshold || 600)) *
+                        100
+                    )}%`,
+                  }}
+                />
+              </div>
             </div>
           </div>
 
-          {/* Available Pickup Opportunities Feed */}
+          {/* Transparent Formula Callout */}
+          <div className="bg-white rounded-3xl border border-warm-200 p-6 shadow-xs space-y-3">
+            <h3 className="text-sm font-black text-stone-900 uppercase tracking-wider flex items-center gap-2">
+              <Info className="w-4 h-4 text-emerald-700" />
+              <span>Transparent Points Formula & Rules</span>
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+              <div className="p-3.5 rounded-xl bg-warm-50 border border-warm-200 space-y-1">
+                <span className="font-bold text-stone-900">Base Award:</span>
+                <p className="text-stone-600">
+                  <strong>50 points</strong> awarded per verified completed rescue delivery.
+                </p>
+              </div>
+              <div className="p-3.5 rounded-xl bg-warm-50 border border-warm-200 space-y-1">
+                <span className="font-bold text-stone-900">Portions Rescued:</span>
+                <p className="text-stone-600">
+                  <strong>+2 points</strong> per confirmed portion received by recipient NGO.
+                </p>
+              </div>
+              <div className="p-3.5 rounded-xl bg-warm-50 border border-warm-200 space-y-1">
+                <span className="font-bold text-stone-900">Delivery Cap:</span>
+                <p className="text-stone-600">
+                  Max <strong>150 points</strong> per task to prevent system gaming via batch splitting.
+                </p>
+              </div>
+            </div>
+            <div className="text-[11px] text-stone-500 italic">
+              Disputed deliveries, expired food, or cancelled trips receive 0 points. Partial deliveries earn points strictly based on the confirmed delivered quantity.
+            </div>
+          </div>
+
+          {/* Corporate Partner Reward / Amazon Voucher Concept Disclaimer */}
+          <div className="bg-purple-50 rounded-3xl border border-purple-200 p-6 shadow-xs space-y-3">
+            <div className="flex items-start gap-3">
+              <Gift className="w-5 h-5 text-purple-700 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <h4 className="text-sm font-black text-purple-950">
+                    Potential Future Partner Rewards (Illustrative Example Only)
+                  </h4>
+                  <span className="text-[10px] font-bold uppercase bg-purple-200 text-purple-900 px-2 py-0.5 rounded-md">
+                    Future Concept
+                  </span>
+                </div>
+                <p className="text-xs text-purple-900 leading-relaxed">
+                  Amazon gift vouchers, petrol reimbursement credits, and local retail discounts represent a <strong>future corporate partner incentive program</strong>. SharePlate does not offer cash conversion, and no active Amazon voucher fulfillment contract exists. All displayed points and redemption samples are illustrative demo data.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Points History Ledger Table */}
           <div className="bg-white rounded-3xl border border-warm-200 shadow-xs overflow-hidden">
             <div className="p-6 border-b border-warm-100 flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-black text-stone-900">Available Pickup Opportunities</h2>
-                <p className="text-xs text-stone-500">Unclaimed surplus food batches needing transport</p>
+                <h3 className="text-base font-black text-stone-900">Points History & Audit Ledger</h3>
+                <p className="text-xs text-stone-500">
+                  Immutable record of two-party verified deliveries and points awarded.
+                </p>
               </div>
-              <Link
-                to="/donations"
-                className="text-xs font-bold text-forest-900 hover:text-forest-950 flex items-center gap-1"
-              >
-                Browse All <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
-            </div>
-
-            <div className="divide-y divide-warm-100">
-              {availableDonations.map((item) => (
-                <div key={item.id} className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-warm-50/50 transition">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <StatusBadge status={item.status} />
-                      <span className="text-xs font-bold text-stone-900">{item.quantity_available} {item.quantity_unit}</span>
-                      <span className="text-stone-300">•</span>
-                      <span className="text-xs text-stone-500 capitalize">{item.category.replace('_', ' ')}</span>
-                    </div>
-                    <h3 className="text-sm font-bold text-stone-900 line-clamp-1">{item.title}</h3>
-                    <div className="text-xs text-stone-500 flex items-center gap-1.5">
-                      <MapPin className="w-3.5 h-3.5 text-stone-400" />
-                      <span>{item.location_label} ({item.city})</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 self-end sm:self-center">
-                    <button
-                      type="button"
-                      onClick={() => handleAcceptRoute(item.id)}
-                      className="px-4 py-2 rounded-xl text-xs font-bold text-forest-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 transition cursor-pointer"
-                    >
-                      Accept Pickup Route
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column: Activity & Courier Guidelines */}
-        <div className="space-y-6">
-          <div className="bg-white rounded-3xl border border-warm-200 shadow-xs p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-warm-100 pb-3">
-              <div className="flex items-center gap-2">
-                <Activity className="w-4 h-4 text-emerald-600" />
-                <h2 className="text-sm font-black text-stone-900 uppercase tracking-wide">
-                  Recent Activity
-                </h2>
-              </div>
-              <span className="text-[10px] font-semibold text-stone-400 uppercase tracking-wider">
-                Logistics Log
+              <span className="text-xs font-bold text-stone-500">
+                {rewardsSummary?.history.length || 0} entries
               </span>
             </div>
 
-            <div className="space-y-4">
-              {activityLogs.map((log) => (
-                <div key={log.id} className="text-xs space-y-1 relative pl-4 border-l-2 border-warm-200">
-                  <div className="font-bold text-stone-800 capitalize">
-                    {log.action.replace('_', ' ')}
+            <div className="divide-y divide-warm-100">
+              {rewardsSummary?.history.map((record) => (
+                <div
+                  key={record.id}
+                  className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-warm-50/50 transition"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-md ${
+                          record.status === 'released'
+                            ? 'bg-emerald-100 text-forest-900'
+                            : record.status === 'forfeited'
+                            ? 'bg-rose-100 text-rose-900'
+                            : 'bg-amber-100 text-amber-900'
+                        }`}
+                      >
+                        {record.status}
+                      </span>
+                      <span className="text-xs font-bold text-stone-900">{record.donation_title}</span>
+                    </div>
+                    <div className="text-xs text-stone-600">{record.reason}</div>
+                    <div className="text-[10px] text-stone-400">
+                      {new Date(record.created_at).toLocaleDateString([], {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}{' '}
+                      · Recipient: {record.recipient_name}
+                    </div>
                   </div>
-                  <div className="text-stone-500 text-[11px]">
-                    {log.details.volunteer || log.details.title || log.details.route || 'Logistics event'}
-                  </div>
-                  <div className="text-stone-400 text-[10px]">
-                    {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+
+                  <div className="self-end sm:self-center text-right shrink-0">
+                    <div
+                      className={`text-base font-black ${
+                        record.status === 'released'
+                          ? 'text-forest-900'
+                          : record.status === 'forfeited'
+                          ? 'text-rose-700'
+                          : 'text-amber-700'
+                      }`}
+                    >
+                      {record.status === 'released' ? `+${record.points} pts` : '0 pts'}
+                    </div>
+                    <div className="text-[10px] text-stone-400 font-medium">
+                      {record.portions_confirmed} portions verified
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
           </div>
+        </div>
+      )}
 
-          {/* Transport Protocols */}
-          <div className="bg-warm-100 rounded-3xl p-6 border border-warm-200 space-y-3 text-xs">
-            <h3 className="font-bold text-stone-900 uppercase tracking-wider text-[11px]">
-              Volunteer Safety Protocols
-            </h3>
-            <ul className="space-y-2 text-stone-600">
-              <li className="flex items-start gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                <span>Keep thermal bags sealed to maintain meal temperature.</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                <span>Contact donor kitchen 15 mins prior to arrival.</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                <span>Verify seal and allergen labels upon loading.</span>
-              </li>
-            </ul>
+      {/* DISPUTE MODAL */}
+      {disputeModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/60 p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-warm-200 space-y-4">
+            <div className="flex items-center gap-2 text-rose-700">
+              <AlertTriangle className="w-5 h-5 shrink-0" />
+              <h3 className="text-base font-black text-stone-900">Report Delivery Issue / Dispute</h3>
+            </div>
+            <p className="text-xs text-stone-600 leading-relaxed">
+              If food was spoiled, packaging damaged, temperature compromised, or portions are missing, record a dispute. Disputed tasks award <strong>0 points</strong> until reviewed.
+            </p>
+
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-stone-700">Dispute Reason:</label>
+              <textarea
+                rows={3}
+                value={disputeReason}
+                onChange={(e) => setDisputeReason(e.target.value)}
+                placeholder="e.g. 10 portions leaked due to damaged container; temperature cold upon arrival."
+                className="w-full p-3 rounded-xl border border-stone-300 text-xs text-stone-900 focus:border-rose-600 focus:outline-hidden"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setDisputeModalOpen(false);
+                  setDisputeReason('');
+                  setDisputeClaimId(null);
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-stone-600 hover:bg-stone-100 transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDisputeTask}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-rose-700 hover:bg-rose-800 transition cursor-pointer"
+              >
+                Submit Dispute (0 Points)
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

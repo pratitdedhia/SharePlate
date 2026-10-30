@@ -87,11 +87,8 @@ export const Navbar: React.FC = () => {
                 <UtensilsCrossed className="w-5 h-5 text-emerald-300" />
               </div>
               <div>
-                <span className="text-xl font-extrabold tracking-tight text-forest-950 flex items-center gap-1.5">
+                <span className="text-xl font-extrabold tracking-tight text-forest-950">
                   SharePlate
-                  <span className="text-[10px] font-semibold uppercase tracking-wider bg-emerald-100 text-forest-800 px-1.5 py-0.5 rounded-md border border-emerald-200">
-                    HackDays '26
-                  </span>
                 </span>
                 <p className="text-[11px] text-stone-500 font-medium hidden sm:block">
                   Rescue Food · Feed Communities

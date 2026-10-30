@@ -34,7 +34,7 @@ export const DemoAccountBanner: React.FC = () => {
         <div className="flex items-center gap-2 shrink-0">
           <span className="text-[11px] font-semibold text-emerald-800 bg-white px-3 py-1.5 rounded-xl border border-emerald-200 flex items-center gap-1.5">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-            Seeded HackDays Persona
+            Seeded Demo Persona
           </span>
         </div>
       </div>
@@ -44,8 +44,8 @@ export const DemoAccountBanner: React.FC = () => {
         <div className="flex items-center gap-2">
           <Database className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
           <span>
-            <strong>Demo mode:</strong> State and actions are stored in your browser memory (demoStore).
-            The production backend (Express API and Supabase SQL schema with atomic claim functions) is in the repository.
+            <strong>Local Demo Environment:</strong> Actions are kept in browser memory (<code>demoStore</code>) for your active tab/session and do not persist across users or devices.
+            Production Express API and Supabase schema with concurrency-safe locking are implemented in the codebase.
           </span>
         </div>
         <Link to="/about" className="text-[11px] font-bold text-forest-900 hover:text-emerald-700 transition shrink-0">

@@ -8,12 +8,14 @@
 | :--- | :--- | :--- | :--- |
 | **Frontend Unit Tests** | `apps/web/src/App.test.tsx` | Vitest | 2 / 2 Passed |
 | **Impact Math Engine** | `apps/web/src/tests/impactMath.test.ts` | Vitest | 4 / 4 Passed |
-| **Claim Lifecycle & Expiration** | `apps/web/src/tests/claimFlow.test.ts` | Vitest | 6 / 6 Passed |
+| **Claim Lifecycle & Expiration** | `apps/web/src/tests/claimFlow.test.ts` | Vitest | 10 / 10 Passed |
 | **Cloudinary Upload & Transformations** | `apps/web/src/tests/uploadsFallback.test.ts` | Vitest | 5 / 5 Passed |
 | **Authentication & RBAC** | `apps/web/src/tests/auth.test.ts` | Vitest | 19 / 19 Passed |
-| **Frontend Subtotal** | `apps/web/` | Vitest | 36 / 36 Passed |
-| **Backend API Unit Tests** | `apps/api/tests/api.test.js` | Node.js Test Runner | 2 / 2 Passed |
-| **Total Test Suite** | Full Monorepo | Vitest + Node Runner | 38 / 38 Passed |
+| **Feature Integration & Safety Rules** | `apps/web/src/tests/features.test.ts` | Vitest | 14 / 14 Passed |
+| **Page Render Safety** | `apps/web/src/tests/renderPage.test.tsx` | Vitest | 1 / 1 Passed |
+| **Frontend Subtotal** | `apps/web/` | Vitest | 53 / 53 Passed |
+| **Backend API Unit Tests** | `apps/api/tests/health.test.js` | Node.js Test Runner | 2 / 2 Passed |
+| **Total Test Suite** | Full Monorepo | Vitest + Node Runner | 55 / 55 Passed |
 | **Backend Compilation** | `apps/api/src/` | TypeScript Compiler (`tsc`) | Clean exit code 0 |
 | **Frontend Production Build** | `apps/web/src/` | Vite + Rollup | Clean build (exit code 0) in 7.2s |
 

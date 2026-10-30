@@ -108,9 +108,6 @@
           <div class="flex flex-col justify-center">
             <div class="flex items-center gap-2">
               <span class="text-xl font-extrabold tracking-tight text-forest-950 leading-none">SharePlate</span>
-              <span class="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-forest-800 border border-emerald-200 leading-none whitespace-nowrap self-center shrink-0">
-                HackDays '26
-              </span>
             </div>
             <p class="text-[11px] text-stone-500 font-medium hidden sm:block mt-0.5">Rescue Food · Feed Communities</p>
           </div>
@@ -239,7 +236,7 @@
               Live Rescue Inventory
             </div>
             <h2 class="text-2xl sm:text-3xl font-extrabold text-stone-900 mt-1">Available Food Batches</h2>
-            <p class="text-xs text-stone-500 mt-0.5">Fresh surplus meals ready for immediate, verified NGO pickup.</p>
+            <p class="text-xs text-stone-500 mt-0.5">Fresh surplus meals ready for immediate NGO collection.</p>
           </div>
           <button onclick="navigate('donations')" class="text-xs font-bold text-forest-900 hover:text-emerald-700 flex items-center gap-1.5 bg-white px-3.5 py-2 rounded-xl border border-warm-200 shadow-2xs hover:shadow-xs transition">
             Explore All Batches <i data-lucide="chevron-right" class="w-4 h-4"></i>
@@ -296,7 +293,7 @@
                 Sign In as Recipient <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-blue-300"></i>
               </button>
               <button onclick="selectRegisterRole('recipient'); navigate('register');" class="w-full py-2.5 rounded-xl text-xs font-bold bg-blue-50 text-blue-900 hover:bg-blue-100 border border-blue-200 transition">
-                Register Verified NGO
+                Register Partner NGO
               </button>
             </div>
           </div>
@@ -348,7 +345,7 @@
           </div>
           <div class="bg-white p-6 rounded-3xl border border-warm-200 shadow-xs space-y-2">
             <div class="w-8 h-8 rounded-xl bg-emerald-50 text-forest-800 flex items-center justify-center font-bold text-xs border border-emerald-200">04</div>
-            <h3 class="text-sm font-bold text-stone-900">Verified Delivery</h3>
+            <h3 class="text-sm font-bold text-stone-900">Confirmed Delivery</h3>
             <p class="text-xs text-stone-600 leading-relaxed">Status marked Delivered; database logs real rescued meals and avoided carbon.</p>
           </div>
         </div>
@@ -764,7 +761,7 @@
           <i data-lucide="arrow-left" class="w-4 h-4"></i> Back
         </button>
         <h1 class="text-2xl sm:text-3xl font-black text-stone-900">List Surplus Food</h1>
-        <p class="text-xs sm:text-sm text-stone-600 mt-1">Provide food information to coordinate collection with verified community shelters.</p>
+        <p class="text-xs sm:text-sm text-stone-600 mt-1">Provide food information to coordinate collection with partner community shelters.</p>
       </div>
 
       <form id="create-form" onsubmit="handleCreateDonation(event)" class="bg-white p-6 sm:p-8 rounded-3xl border border-warm-200 shadow-xs space-y-6">
@@ -775,7 +772,7 @@
             <div id="upload-preview" class="hidden mb-3 aspect-16/9 max-w-sm mx-auto rounded-xl overflow-hidden shadow-xs">
               <img id="preview-img" src="" alt="Preview" class="w-full h-full object-cover" />
             </div>
-            <p class="text-xs text-stone-600 font-semibold mb-2">Choose a verified food preset or enter image URL:</p>
+            <p class="text-xs text-stone-600 font-semibold mb-2">Choose a sample food preset or enter image URL:</p>
             <div class="flex flex-wrap justify-center gap-2">
               <button type="button" onclick="selectPresetImage('https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&w=800&q=80', 'shareplate/demo/vegetable_biryani_01')" class="px-3 py-1 rounded-lg text-xs font-medium bg-warm-100 hover:bg-emerald-50 border border-warm-200">
                 🍛 Vegetable Biryani
@@ -968,7 +965,7 @@
         </div>
         <h1 class="text-2xl sm:text-4xl font-black text-stone-900">Measurable Social & Ecological Impact</h1>
         <p class="text-xs sm:text-sm text-stone-600 max-w-2xl mt-1 leading-relaxed">
-          Aggregated directly from verified donations and recipient delivery confirmations. We distinguish between food listed, reserved, and actually delivered.
+          Aggregated directly from recorded donations and recipient delivery confirmations in the demo dataset. We distinguish between food listed, reserved, and actually delivered.
         </p>
       </div>
 
@@ -2289,7 +2286,7 @@
         selectedDonation.status = 'reserved';
       }
 
-      const claimerName = `${currentUser.name} (${currentUser.organization || 'Verified Partner'})`;
+      const claimerName = `${currentUser.name} (${currentUser.organization || 'Partner NGO'})`;
 
       const newClaim = {
         id: `c_${Date.now()}`,
@@ -2342,7 +2339,7 @@
       const publicId = document.getElementById('form-public-id').value;
 
       const donorName = currentUser.name;
-      const donorOrg = currentUser.organization || 'Verified Canteen';
+      const donorOrg = currentUser.organization || 'Partner Canteen';
 
       const newD = {
         id: `d_${Date.now()}`,
@@ -2579,7 +2576,7 @@
           <div class="bg-white p-4 rounded-2xl border border-warm-200 shadow-xs">
             <span class="text-xs text-stone-500 font-semibold uppercase">Portions Received</span>
             <div class="text-2xl font-black text-emerald-700 mt-1">${deliveredPortions}</div>
-            <span class="text-[11px] text-stone-400">Verified at shelter</span>
+            <span class="text-[11px] text-stone-400">Confirmed at shelter</span>
           </div>
           <div class="bg-white p-4 rounded-2xl border border-warm-200 shadow-xs">
             <span class="text-xs text-stone-500 font-semibold uppercase">Partner Canteens</span>
@@ -2607,7 +2604,7 @@
           <div class="bg-white p-4 rounded-2xl border border-warm-200 shadow-xs">
             <span class="text-xs text-stone-500 font-semibold uppercase">Portions Transported</span>
             <div class="text-2xl font-black text-stone-900 mt-1">${deliveredPortions}</div>
-            <span class="text-[11px] text-stone-400">To verified shelters</span>
+            <span class="text-[11px] text-stone-400">To partner shelters</span>
           </div>
           <div class="bg-white p-4 rounded-2xl border border-warm-200 shadow-xs">
             <span class="text-xs text-stone-500 font-semibold uppercase">Transit Distance</span>
@@ -2748,8 +2745,8 @@
                     <td class="py-2.5 font-bold text-stone-900">Rajesh Kumar (Robin Hood Army)</td>
                     <td class="py-2.5"><span class="px-2 py-0.5 rounded bg-blue-50 text-blue-800 text-[10px] font-bold">RECIPIENT</span></td>
                     <td class="py-2.5 text-stone-500">Delhi NCR</td>
-                    <td class="py-2.5"><span class="text-emerald-700 font-bold">Verified</span></td>
-                    <td class="py-2.5 text-right"><button onclick="showToast('Recipient verified status refreshed', 'info')" class="text-stone-500 hover:text-stone-900 underline text-[11px]">Audit</button></td>
+                    <td class="py-2.5"><span class="text-emerald-700 font-bold">Active</span></td>
+                    <td class="py-2.5 text-right"><button onclick="showToast('Recipient active status refreshed', 'info')" class="text-stone-500 hover:text-stone-900 underline text-[11px]">Audit</button></td>
                   </tr>
                   <tr>
                     <td class="py-2.5 font-bold text-stone-900">Ananya Sen (Youth Relief)</td>

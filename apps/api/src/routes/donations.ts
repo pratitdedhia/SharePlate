@@ -15,7 +15,9 @@ const router = Router();
  */
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const { category, city, search, status = 'available', limit = '20', offset = '0' } = req.query;
+    const { category, city, search, status, donor_id, limit = '20', offset = '0' } = req.query;
+    // Default to 'available' only when browsing public feed without a specific donor_id
+    const effectiveStatus = status !== undefined ? status : (donor_id ? 'all' : 'available');
 
     if (!isSupabaseConfigured()) {
       // In dev fallback mode when Supabase is unconfigured, return demo dataset
@@ -40,8 +42,11 @@ router.get('/', async (req: Request, res: Response) => {
         donor:profiles!donor_id (id, full_name, organization_name, city, avatar_url)
       `, { count: 'exact' });
 
-    if (status && status !== 'all') {
-      query = query.eq('status', status as string);
+    if (donor_id) {
+      query = query.eq('donor_id', donor_id as string);
+    }
+    if (effectiveStatus && effectiveStatus !== 'all') {
+      query = query.eq('status', effectiveStatus as string);
     }
     if (category && category !== 'all') {
       query = query.eq('category', category as string);
@@ -73,6 +78,49 @@ router.get('/', async (req: Request, res: Response) => {
     res.status(500).json({ success: false, message: err.message || 'Error fetching donations' });
   }
 });
+
+/**
+ * GET /api/donations/mine
+ * Retrieves all donation listings belonging to the authenticated donor across all statuses.
+ * Includes nested claims with recipient details.
+ */
+router.get(
+  '/mine',
+  authenticateToken,
+  requireRoles(['donor', 'admin']),
+  async (req: Request, res: Response) => {
+    try {
+      const user = req.user!;
+      const supabase = getSupabaseAdmin();
+
+      const { data, error } = await supabase
+        .from('donations')
+        .select(`
+          *,
+          claims (
+            id, recipient_id, quantity_claimed, status, verification_status,
+            pickup_code, delivery_code, claimed_at, collected_at, delivered_at,
+            recipient:profiles!recipient_id (id, full_name, organization_name, phone, city)
+          )
+        `)
+        .eq('donor_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        res.status(500).json({ success: false, message: error.message });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        data: data || [],
+        total: (data || []).length,
+      });
+    } catch (err: any) {
+      res.status(500).json({ success: false, message: err.message || 'Error fetching donor listings' });
+    }
+  }
+);
 
 /**
  * GET /api/donations/:id

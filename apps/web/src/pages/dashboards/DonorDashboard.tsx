@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { donationsService } from '../../services/donations';
 import { claimsService } from '../../services/claims';
+import { useLiveUpdates } from '../../hooks/useLiveUpdates';
 import { demoStore } from '../../lib/mockData';
 import { Donation, Claim } from '../../types';
 import { StatusBadge } from '../../components/common/StatusBadge';
@@ -36,8 +37,8 @@ export const DonorDashboard: React.FC = () => {
     if (!user) return;
     try {
       // 1. Load donations for this donor
-      const allDonationsRes = await donationsService.getDonations();
-      const myDonations = allDonationsRes.data.filter((d) => d.donor_id === user.id);
+      const myDonations = await donationsService.getMyDonations(user.id);
+
       setDonations(myDonations);
 
       // 2. Load incoming claims on this donor's donations
@@ -56,6 +57,8 @@ export const DonorDashboard: React.FC = () => {
   useEffect(() => {
     loadData();
   }, [user]);
+
+  useLiveUpdates(loadData);
 
   const handleMarkCollected = async (claimId: string) => {
     try {

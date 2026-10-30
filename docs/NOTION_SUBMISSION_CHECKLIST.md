@@ -23,7 +23,7 @@
    - `07_cloudinary_implementation.md` (Mandatory Cloudinary section)
    - `08_daily_development_journal.md`
    - `09_testing_quality_assurance.md`
-   - `10_team_contributions.md` (Replace `<<FILL: ...>>` with real names)
+   - `10_team_contributions.md` (Replace bracketed role placeholders with real names)
    - `11_deployment_and_setup.md`
    - `12_final_submission.md`
 4. Notion Tip: You can drag and drop markdown files directly into Notion or use **Settings & Members > Import > Markdown & CSV**.

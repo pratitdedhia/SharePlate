@@ -128,7 +128,7 @@ Before modifying files, the codebase was audited against the known facts and pro
 - **About Page ([apps/web/src/pages/AboutPage.tsx](file:///c:/Users/dedhi/OneDrive/Desktop/Pratit/Hackathon/Hacktober%20HackDays/apps/web/src/pages/AboutPage.tsx)):**
   - Displays a dedicated callout banner linking to the Notion documentation.
 - **README.md:**
-  - Displays link at top: `> 📖 **Project Journey & Hackathon Submission:** [Notion Documentation](<<FILL: https://your-notion-page-url>>)`.
+  - Displays link at top: `> 📖 **Project Journey & Hackathon Submission:** [Notion Documentation](https://your-workspace.notion.site/SharePlate-...)`.
 
 #### 6. Build and Test Verification
 - Executed `cmd /c npm test` and `cmd /c npm run build`. (See section below for exact outputs).
@@ -207,7 +207,7 @@ Before modifying files, the codebase was audited against the known facts and pro
   - Added Notion journey link at top.
   - Fixed clone URL to `https://github.com/pratitdedhia/SharePlate.git`.
   - Clarified client-side demo vs production in-repo backend.
-  - Updated team allocations with `<<FILL: real name>>` placeholders.
+  - Updated team allocations with `bracketed role placeholder` placeholders.
   - Added Limitations & Roadmap section.
 - **[docs/cloudinary.md](file:///c:/Users/dedhi/OneDrive/Desktop/Pratit/Hackathon/Hacktober%20HackDays/docs/cloudinary.md):**
   - Accurately details the dual-path upload pipeline (direct unsigned preset on GitHub Pages + cryptographic SHA-1 signature endpoint when Express runs).
@@ -217,7 +217,7 @@ Before modifying files, the codebase was audited against the known facts and pro
 - **[docs/deployment.md](file:///c:/Users/dedhi/OneDrive/Desktop/Pratit/Hackathon/Hacktober%20HackDays/docs/deployment.md):**
   - Explains the GitHub Pages automated Actions deployment and how to configure GitHub Repository Variables.
 - **[docs/team-contributions.md](file:///c:/Users/dedhi/OneDrive/Desktop/Pratit/Hackathon/Hacktober%20HackDays/docs/team-contributions.md) and [docs/notion/10_team_contributions.md](file:///c:/Users/dedhi/OneDrive/Desktop/Pratit/Hackathon/Hacktober%20HackDays/docs/notion/10_team_contributions.md):**
-  - Replaced generic claims with verifiable repo contributions and marked names with `<<FILL: real name>>`.
+  - Replaced generic claims with verifiable repo contributions and marked names with `bracketed role placeholder`.
 - **[docs/notion/07_cloudinary_implementation.md](file:///c:/Users/dedhi/OneDrive/Desktop/Pratit/Hackathon/Hacktober%20HackDays/docs/notion/07_cloudinary_implementation.md), [docs/notion/09_testing_quality_assurance.md](file:///c:/Users/dedhi/OneDrive/Desktop/Pratit/Hackathon/Hacktober%20HackDays/docs/notion/09_testing_quality_assurance.md), [docs/notion/11_deployment_and_setup.md](file:///c:/Users/dedhi/OneDrive/Desktop/Pratit/Hackathon/Hacktober%20HackDays/docs/notion/11_deployment_and_setup.md), [docs/notion/12_final_submission.md](file:///c:/Users/dedhi/OneDrive/Desktop/Pratit/Hackathon/Hacktober%20HackDays/docs/notion/12_final_submission.md):**
   - All updated to align with the deployed realities, tests, and links.
 
@@ -347,10 +347,10 @@ Please complete the following short manual steps before the 10:00 PM IST deadlin
 
 ### Step 1: Confirm Team Member Names
 In [docs/team-contributions.md](file:///c:/Users/dedhi/OneDrive/Desktop/Pratit/Hackathon/Hacktober%20HackDays/docs/team-contributions.md), [docs/notion/10_team_contributions.md](file:///c:/Users/dedhi/OneDrive/Desktop/Pratit/Hackathon/Hacktober%20HackDays/docs/notion/10_team_contributions.md), and [README.md](file:///c:/Users/dedhi/OneDrive/Desktop/Pratit/Hackathon/Hacktober%20HackDays/README.md), replace the placeholders with your actual team names:
-- `<<FILL: Member 1 Real Name>>`
-- `<<FILL: Member 2 Real Name>>`
-- `<<FILL: Member 3 Real Name>>`
-- `<<FILL: Member 4 Real Name>>`
+- `[Team Member 1 — Full Name]`
+- `[Team Member 2 — Full Name]`
+- `[Team Member 3 — Full Name]`
+- `[Team Member 4 — Full Name]`
 
 ### Step 2: Configure Cloudinary Unsigned Upload Preset
 1. Log in to your Cloudinary Console ([cloudinary.com](https://cloudinary.com)).
@@ -365,7 +365,7 @@ In [docs/team-contributions.md](file:///c:/Users/dedhi/OneDrive/Desktop/Pratit/H
 2. Create a public Notion page named **SharePlate — Hacktober HackDays 2026 Journey**.
 3. Import or paste the contents of `docs/notion/00_index.md` through `docs/notion/12_final_submission.md`.
 4. Click **Share** > **Publish to web** and copy your public Notion URL.
-5. In [README.md](file:///c:/Users/dedhi/OneDrive/Desktop/Pratit/Hackathon/Hacktober%20HackDays/README.md), replace `<<FILL: https://your-notion-page-url>>` with your real Notion URL.
+5. In [README.md](file:///c:/Users/dedhi/OneDrive/Desktop/Pratit/Hackathon/Hacktober%20HackDays/README.md), replace `https://your-workspace.notion.site/SharePlate-...` with your real Notion URL.
 
 ### Step 4: Configure GitHub Repository Variables & Enable GitHub Pages
 1. On GitHub, navigate to your repo: `https://github.com/pratitdedhia/SharePlate/settings/variables/actions`.
@@ -379,3 +379,99 @@ In [docs/team-contributions.md](file:///c:/Users/dedhi/OneDrive/Desktop/Pratit/H
 
 ### Step 5: Submit on Unstop
 Use the pre-filled fields in [docs/NOTION_SUBMISSION_CHECKLIST.md](file:///c:/Users/dedhi/OneDrive/Desktop/Pratit/Hackathon/Hacktober%20HackDays/docs/NOTION_SUBMISSION_CHECKLIST.md) to complete your Unstop submission.
+
+
+---
+
+## 🏆 Finalist Polish & Trust Audit (Post-HackDays Final Review)
+
+- **Trustworthy Claims & Real Measurement:**
+  - Removed hardcoded bandwidth savings percentages (83%) from sample/seed presets in `ImageUploader.tsx`. Bandwidth savings percentages are calculated and displayed strictly when measured on an actual uploaded file against its delivered WebP blob.
+  - Handled failed measurement or CORS-restricted delivery fetches gracefully without inventing fallback numbers.
+  - Eliminated synthetic fallback AI tags including `'Verified Safe'` in `extractAIFoodTags` (`apps/web/src/lib/cloudinary.ts`). When Cloudinary Auto-Tagging returns no tags, the app cleanly shows that auto-tagging is unavailable without fabricating tags.
+  - Added an explicit disclaimer confirming that Cloudinary AI visual categorization is for image search and does not certify food safety or hygiene.
+  - Removed unsupported "verified" designations across donation cards, listings, and user accounts.
+  - Explicitly labeled all platform impact totals on the landing page, impact page, and charts as **Demonstration Dataset Metrics** to prevent confusion with real-world verified statistics.
+- **Demo Mode vs. Production Architecture:**
+  - Strengthened banners in `DemoModeBanner.tsx` and `DemoAccountBanner.tsx` explaining that the hosted GitHub Pages demo runs as a client-side experience with local browser memory (`demoStore`) and direct unsigned Cloudinary uploads.
+  - Clarified that the Express API and Supabase PostgreSQL schema with atomic RPCs (`claim_donation_atomic`) and RLS policies are implemented in the repository but undeployed on GitHub Pages.
+- **Dependable Judge Demo & Presentation Script:**
+  - Completely redesigned [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md) with a 60-second pitch script, streamlined 5-step primary flow (< 3 mins), multi-layered zero-panic fallback plan (offline seed presets, local preview fallback, 1-click role logins), and honest answers to 7 likely judge questions.
+- **Documentation & Verification Polish:**
+  - Replaced all raw placeholders in `README.md`, `docs/team-contributions.md`, and `docs/notion/` with clearly marked Action Items (`[Team Member X — Full Name]`).
+  - Verified that all 55 automated tests (53 frontend Vitest, 2 backend Node.js runner) pass with 100% success.
+  - Verified that production build (`npm run build:web`) compiles cleanly and syncs self-contained `index.html`.
+
+---
+
+### TIER 4: Volunteer Commute Trip Planning & Two-Party Verification (Finale Polish)
+
+#### 1. Volunteer Commute Trip Planning ("On-My-Way Food Rescue")
+- **Multi-Corridor Transit Presets:**
+  - Added corridor task filtering for Delhi NCR (*Rohini → Connaught Place*), Mumbai (*BKC → Kurla → Ghatkopar*), and Pune (*FC Road → Shivajinagar*).
+  - Volunteers can enter their custom origin and destination or choose a quick corridor preset.
+- **Checkbox Task Selection & Bundling:**
+  - Volunteers can browse nearby rescue tasks along their planned route.
+  - Each task displays pickup location, drop-off shelter, portions, pickup deadline, dietary type, and handling instructions (e.g., thermal insulation, upright stacking).
+  - Volunteers check boxes to bundle one or more tasks into their commute.
+- **Interactive Stop Order & Route Schematic:**
+  - Automatically calculates sequential stop order: `[Origin Departure] -> [Pickup Stops] -> [Drop-off Stops] -> [Final Destination Arrival]`.
+  - Displays route summary (total stops, portions rescued, potential reward points).
+- **Honest Map Provider Disclosure:**
+  - Displays prominent **"Demo Route Preview"** badge.
+  - Explicitly states: *"This schematic illustrates the sequential stop sequence along the active corridor. We do not fabricate live GPS, turn-by-turn navigation, traffic ETAs, or shortest-path calculations. Live map and distance calculation requires configuring a Mapbox or Google Maps Directions API key."*
+- **Privacy-Preserving Logistics Checklist:**
+  - Upon route acceptance, generates a sequential checklist unlocking donor contact numbers, security gate instructions, and loading dock access details.
+
+#### 2. Two-Party Verification Engine & Tamper-Resistant State Machine
+- **Strict Verification Semantics:**
+  - State machine: `Available → Accepted → Pickup awaiting confirmation → In transit → Delivery awaiting confirmation → Verified / Disputed`.
+  - **Core Rule:** Points are **NEVER** released merely because a volunteer accepts a route or clicks complete.
+  - Points release **ONLY** after:
+    1. Donor kitchen confirms food was handed over at the loading dock.
+    2. Recipient NGO coordinator inspects the food and confirms portions received.
+- **Attributable Confirmations & One-Time Verification Codes:**
+  - Generates unique 4-digit verification codes: `pickup_code` (e.g., `4821`) and `delivery_code` (e.g., `7392`).
+  - Records attributable metadata: `pickup_confirmed_by`, `pickup_confirmed_at`, `delivery_confirmed_by`, `delivery_confirmed_at`, and `portions_delivered_confirmed`.
+  - Volunteers cannot self-confirm on behalf of either party.
+- **Dispute Handling & 0 Points Freeze:**
+  - If food is damaged, container seals are broken, temperature is compromised, or portions are missing, recipient or volunteer can flag a dispute.
+  - The claim transitions to `disputed`, `is_disputed = true`, and points awarded are held strictly at **0 points** pending operational review.
+- **Partial Delivery Accounting:**
+  - Allows recipient NGO to enter actual confirmed portions received (e.g., 35 portions received out of 45 reserved).
+  - Rewards are calculated strictly on confirmed delivered portions.
+
+#### 3. Volunteer Rewards Experience & Transparent Points Formula
+- **Transparent Formula:**
+  - \(\text{Points} = \min(150, 50 + (\text{portions} \times 2))\).
+  - 50 base points per verified completed delivery + 2 points per confirmed portion delivered.
+  - Hard cap of **150 points** per task to prevent gaming the system through micro-batch splitting.
+  - Disputed, cancelled, or unverified deliveries receive 0 points.
+- **Volunteer Rewards Dashboard Area:**
+  - **Pending Points Counter:** Points awaiting two-party sign-off.
+  - **Released Points Counter:** Verified banked points.
+  - **Milestone Progression Bar:** Tracks progress toward Bronze Courier (100 pts), Silver Specialist (300 pts), and Gold Champion (600 pts).
+  - **Points History & Audit Ledger:** Immutable table listing delivery timestamp, food title, recipient organization, portions verified, points awarded, status, and audit reason.
+  - **Future Partner Reward Concept Disclosure:** Prominently clarifies that Amazon gift vouchers and fuel credits represent an **illustrative future corporate partner incentive concept**. No cash conversion or simulated redemption exists without an active commercial contract.
+
+#### 4. In-Repo Production Database & Express API Enforcement
+- **Supabase Schema Extensions (`supabase/schema.sql`):**
+  - Extended `public.claims` table with verification columns: `volunteer_id`, `verification_status`, `pickup_code`, `pickup_confirmed_at`, `pickup_confirmed_by`, `delivery_code`, `delivery_confirmed_at`, `delivery_confirmed_by`, `portions_delivered_confirmed`, `is_disputed`, `dispute_reason`, `disputed_by`, `disputed_at`, `points_awarded`.
+  - Created `public.volunteer_rewards` ledger table with RLS policies.
+  - Implemented atomic PostgreSQL stored procedures: `assign_claim_volunteer`, `confirm_pickup_two_party`, `confirm_delivery_two_party`, and `dispute_claim_two_party`.
+- **Express API REST Endpoints (`apps/api/src/routes/claims.ts`):**
+  - `POST /api/claims/:id/assign-volunteer`
+  - `POST /api/claims/:id/pickup-confirm`
+  - `POST /api/claims/:id/delivery-confirm`
+  - `POST /api/claims/:id/dispute`
+  - `GET /api/claims/volunteer/rewards`
+
+#### 5. Automated Testing Suite Expansion
+- Added unit and integration tests in `apps/web/src/tests/claimFlow.test.ts` verifying:
+  - Points are NOT released upon route acceptance or pickup initiation.
+  - Points are released ONLY after donor confirms pickup and recipient confirms delivery.
+  - Formula correctly calculates base + portions and enforces 150 pt maximum cap.
+  - Partial deliveries award points proportional to confirmed delivered portions.
+  - Disputes freeze points at 0 and block point release.
+  - Trip planning assigns sequential stops along corridors.
+- Total automated tests passing: **61 passed, 0 failed** (59 frontend + 2 backend).

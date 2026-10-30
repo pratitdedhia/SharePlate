@@ -55,13 +55,13 @@ export const ImpactPage: React.FC = () => {
       <div>
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-forest-900 border border-emerald-200 mb-2">
           <Leaf className="w-3.5 h-3.5 text-emerald-600" />
-          Live Platform Impact Metrics
+          Demonstration Dataset Metrics
         </div>
         <h1 className="text-2xl sm:text-4xl font-black text-stone-900">
           Measurable Community & Ecological Impact
         </h1>
         <p className="text-xs sm:text-sm text-stone-600 max-w-2xl mt-1 leading-relaxed">
-          Aggregated directly from verified donation batches and recipient delivery confirmations.
+          Aggregated directly from recorded donation batches and recipient delivery confirmations in the demo dataset.
           We distinguish between food listed, reserved, and actually delivered.
         </p>
       </div>
@@ -118,7 +118,7 @@ export const ImpactPage: React.FC = () => {
                     {item.action.replace('_', ' ')}
                   </span>
                   <span className="text-stone-500 ml-2">
-                    {item.details.title || (item.details.quantity && `${item.details.quantity} portions`) || 'Verified community rescue'}
+                    {item.details.title || (item.details.quantity && `${item.details.quantity} portions`) || 'Surplus community rescue'}
                   </span>
                 </div>
               </div>

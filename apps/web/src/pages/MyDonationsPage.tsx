@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { donationsService } from '../services/donations';
+import { useLiveUpdates } from '../hooks/useLiveUpdates';
 import { Donation } from '../types';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { EmptyState } from '../components/common/EmptyState';
@@ -22,9 +23,9 @@ export const MyDonationsPage: React.FC = () => {
   const fetchMyDonations = async () => {
     setLoading(true);
     try {
-      const res = await donationsService.getDonations({ limit: 50, status: 'all' });
+      const myItems = await donationsService.getMyDonations(user?.id);
       // Filter for this donor's listings
-      const myItems = res.data.filter((d) => d.donor_id === user?.id);
+
       setDonations(myItems);
     } catch (err: any) {
       error('Failed to load your donation listings');
@@ -36,6 +37,8 @@ export const MyDonationsPage: React.FC = () => {
   useEffect(() => {
     fetchMyDonations();
   }, [user?.id]);
+
+  useLiveUpdates(fetchMyDonations);
 
   const handleCancelDonation = async (donationId: string) => {
     try {

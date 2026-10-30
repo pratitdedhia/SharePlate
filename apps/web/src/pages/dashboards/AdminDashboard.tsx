@@ -5,6 +5,8 @@ import { useToast } from '../../contexts/ToastContext';
 import { donationsService } from '../../services/donations';
 import { claimsService } from '../../services/claims';
 import { demoStore } from '../../lib/mockData';
+import { adminService } from '../../services/admin';
+import { useLiveUpdates } from '../../hooks/useLiveUpdates';
 import { Donation, Claim, UserProfile } from '../../types';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { DemoAccountBanner } from '../../components/common/DemoAccountBanner';
@@ -83,9 +85,9 @@ export const AdminDashboard: React.FC = () => {
       const claimsRes = await claimsService.getAllClaims();
       setClaims(claimsRes);
 
-      setUsers(demoStore.getUsers());
-      setReports(demoStore.getReports());
-      setActivityLogs(demoStore.getActivityLogs());
+      setUsers(await adminService.getUsers());
+      setReports(await adminService.getReports());
+      setActivityLogs(await adminService.getActivityLogs());
     } catch (err: any) {
       console.error('Failed to load admin metrics:', err);
     } finally {
@@ -97,12 +99,18 @@ export const AdminDashboard: React.FC = () => {
     loadData();
   }, []);
 
+  useLiveUpdates(loadData);
+
   // User Actions
-  const handleToggleUserStatus = (userId: string) => {
-    const newStatus = demoStore.toggleUserStatus(userId);
-    setUsers(demoStore.getUsers());
-    setActivityLogs(demoStore.getActivityLogs());
-    success(`User status updated: ${newStatus ? 'ACTIVE' : 'DEACTIVATED'}`);
+  const handleToggleUserStatus = async (userId: string) => {
+    try {
+      const u = users.find((x) => x.id === userId);
+      const newStatus = await adminService.toggleUserStatus(userId, Boolean(u?.is_active));
+      await loadData();
+      success(`User status updated: ${newStatus ? 'ACTIVE' : 'DEACTIVATED'}`);
+    } catch (err: any) {
+      error(err.message || 'Failed to update user status');
+    }
   };
 
   const handleOpenAddUser = () => {
@@ -117,30 +125,27 @@ export const AdminDashboard: React.FC = () => {
     setShowAddUserModal(true);
   };
 
-  const handleCreateUser = (e: React.FormEvent) => {
+  const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!userFormData.full_name || !userFormData.email) {
       error('Name and email are required');
       return;
     }
-
-    const newUser: UserProfile = {
-      id: `usr-${Date.now()}`,
-      full_name: userFormData.full_name,
-      email: userFormData.email,
-      role: userFormData.role,
-      organization_name: userFormData.organization_name || undefined,
-      city: userFormData.city || 'Delhi NCR',
-      phone: userFormData.phone || undefined,
-      is_active: true,
-      created_at: new Date().toISOString(),
-    };
-
-    demoStore.addUser(newUser);
-    setUsers(demoStore.getUsers());
-    setActivityLogs(demoStore.getActivityLogs());
-    setShowAddUserModal(false);
-    success(`Account for ${newUser.full_name} (${newUser.role}) created successfully!`);
+    try {
+      const newUser = await adminService.createUser({
+        full_name: userFormData.full_name,
+        email: userFormData.email,
+        role: userFormData.role,
+        organization_name: userFormData.organization_name || undefined,
+        city: userFormData.city || 'Delhi NCR',
+        phone: userFormData.phone || undefined,
+      });
+      await loadData();
+      setShowAddUserModal(false);
+      success(`Account for ${newUser.full_name} (${newUser.role}) created successfully!`);
+    } catch (err: any) {
+      error(err.message || 'Failed to create user');
+    }
   };
 
   const handleOpenEditUser = (u: UserProfile) => {
@@ -156,26 +161,23 @@ export const AdminDashboard: React.FC = () => {
     setShowEditUserModal(true);
   };
 
-  const handleUpdateUser = (e: React.FormEvent) => {
+  const handleUpdateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedUser) return;
-
-    const updated = demoStore.updateUser(selectedUser.id, {
-      full_name: userFormData.full_name,
-      role: userFormData.role,
-      organization_name: userFormData.organization_name || undefined,
-      city: userFormData.city,
-      phone: userFormData.phone || undefined,
-    });
-
-    if (updated) {
-      setUsers(demoStore.getUsers());
-      setActivityLogs(demoStore.getActivityLogs());
+    try {
+      const updated = await adminService.updateUser(selectedUser.id, {
+        full_name: userFormData.full_name,
+        role: userFormData.role,
+        organization_name: userFormData.organization_name || undefined,
+        city: userFormData.city,
+        phone: userFormData.phone || undefined,
+      });
+      await loadData();
       setShowEditUserModal(false);
       setSelectedUser(null);
       success(`User ${updated.full_name} updated successfully!`);
-    } else {
-      error('Failed to update user');
+    } catch (err: any) {
+      error(err.message || 'Failed to update user');
     }
   };
 
@@ -184,24 +186,27 @@ export const AdminDashboard: React.FC = () => {
     setShowDeleteConfirmModal(true);
   };
 
-  const handleDeleteUser = () => {
+  const handleDeleteUser = async () => {
     if (!selectedUser) return;
-    const ok = demoStore.deleteUser(selectedUser.id);
-    if (ok) {
-      setUsers(demoStore.getUsers());
-      setActivityLogs(demoStore.getActivityLogs());
+    try {
+      await adminService.deleteUser(selectedUser.id);
+      await loadData();
       setShowDeleteConfirmModal(false);
       setSelectedUser(null);
-      success(`User account deleted permanently.`);
-    } else {
-      error('Could not delete user.');
+      success('User account deleted permanently.');
+    } catch (err: any) {
+      error(err.message || 'Could not delete user.');
     }
   };
 
-  const handleResolveReport = (reportId: string, resolution: 'resolved' | 'dismissed') => {
-    demoStore.resolveReport(reportId, resolution);
-    setReports(demoStore.getReports());
-    success(`Safety report marked as ${resolution}.`);
+  const handleResolveReport = async (reportId: string, resolution: 'resolved' | 'dismissed') => {
+    try {
+      await adminService.updateReport(reportId, resolution);
+      await loadData();
+      success(`Safety report marked as ${resolution}.`);
+    } catch (err: any) {
+      error(err.message || 'Failed to update report');
+    }
   };
 
   // Metrics Calculations
@@ -418,7 +423,7 @@ export const AdminDashboard: React.FC = () => {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-warm-100 pb-4">
               <div>
                 <h2 className="text-lg font-black text-stone-900">Platform Rescue Funnel & Volume</h2>
-                <p className="text-xs text-stone-500">Derived from single verified calculation engine</p>
+                <p className="text-xs text-stone-500">Derived from unified impact calculation engine</p>
               </div>
               <span className="text-xs font-extrabold px-3 py-1 rounded-full bg-emerald-100 text-forest-900 border border-emerald-300">
                 Rescue Rate: {impact.rescueRatePercent}%
@@ -452,7 +457,7 @@ export const AdminDashboard: React.FC = () => {
 
               <div className="space-y-1.5">
                 <div className="flex justify-between text-xs font-bold text-emerald-800">
-                  <span>3. Verified Rescued & Delivered to Shelters</span>
+                  <span>3. Rescued & Delivered to Shelters</span>
                   <span className="font-extrabold">{impact.portionsDelivered} Portions ({impact.rescueRatePercent}%)</span>
                 </div>
                 <div className="w-full h-4 bg-emerald-50 rounded-full overflow-hidden border border-emerald-200">
@@ -716,7 +721,7 @@ export const AdminDashboard: React.FC = () => {
                     </td>
                     <td className="p-4">
                       <div className="font-bold text-stone-900">
-                        {d.donor?.organization_name || d.donor?.full_name || 'Verified Institution'}
+                        {d.donor?.organization_name || d.donor?.full_name || 'Registered Institution'}
                       </div>
                       <div className="text-[11px] text-stone-400">{d.city}</div>
                     </td>
@@ -813,7 +818,7 @@ export const AdminDashboard: React.FC = () => {
                       </div>
                       <div className="text-[11px] text-stone-400 flex items-center gap-1 mt-0.5">
                         <Building2 className="w-3 h-3" />
-                        <span>Verified Community NGO</span>
+                        <span>Registered Community NGO</span>
                       </div>
                     </td>
                     <td className="p-4">

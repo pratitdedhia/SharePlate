@@ -142,7 +142,7 @@ export const DonationDetailPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left Column: Image & Details */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Cloudinary Optimized Banner with Verified Badges */}
+          {/* Cloudinary Optimized Banner */}
           <div className="relative rounded-3xl overflow-hidden h-72 sm:h-80 w-full bg-warm-200 border border-warm-200 shadow-xs">
             <CloudinaryImage
               publicId={donation.cloudinary_public_id}
@@ -249,8 +249,8 @@ export const DonationDetailPage: React.FC = () => {
             <div className="p-3.5 rounded-2xl bg-stone-50 border border-stone-200 flex items-start gap-3 text-xs text-stone-600">
               <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
               <p className="text-[11px] leading-relaxed">
-                <strong>Safety Guidance:</strong> SharePlate donor organizations confirm compliance with basic hygiene standards.
-                Recipient organizations inspect food freshness and temperatures upon collection.
+                <strong>Food Safety Guidance:</strong> Donor organizations certify preparation time, allergens, and hygienic holding.
+                Cloudinary images aid visual inspection but do not verify food safety. Receiving organizations must physically inspect food quality, temperature, and odor at collection.
               </p>
             </div>
           </div>
@@ -321,7 +321,7 @@ export const DonationDetailPage: React.FC = () => {
               </button>
             ) : isDonor ? (
               <div className="text-center p-3 rounded-2xl bg-emerald-50 text-forest-950 text-xs font-medium border border-emerald-200">
-                Donor Account: Only verified Recipient NGOs can reserve surplus food portions.
+                Donor Account: Only recipient accounts (NGOs and community shelters) can reserve surplus food portions.
               </div>
             ) : isVolunteer ? (
               <div className="text-center p-3 rounded-2xl bg-purple-50 text-purple-900 text-xs font-medium border border-purple-200">
@@ -345,7 +345,7 @@ export const DonationDetailPage: React.FC = () => {
                   <span className="font-bold text-stone-800 block">
                     {donation.donor?.organization_name || donation.donor?.full_name}
                   </span>
-                  <span className="text-[11px] text-stone-400">Verified Donor Account</span>
+                  <span className="text-[11px] text-stone-400">Registered Donor Organization</span>
                 </div>
               </div>
 

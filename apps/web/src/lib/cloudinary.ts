@@ -184,8 +184,8 @@ export const getAspectRatioPreviews = (
 /**
  * Extracts and cleans AI food tags from raw Cloudinary tags and categorizations.
  */
-export const extractAIFoodTags = (rawTags: string[] = [], contextHint?: string): string[] => {
-  const internalFilter = new Set(['shareplate', 'food-donation', 'social-good']);
+export const extractAIFoodTags = (rawTags: string[] = []): string[] => {
+  const internalFilter = new Set(['shareplate', 'food-donation', 'social-good', 'local-preview']);
   const cleaned: string[] = [];
 
   for (const t of rawTags) {
@@ -199,20 +199,6 @@ export const extractAIFoodTags = (rawTags: string[] = [], contextHint?: string):
     if (!cleaned.includes(formatted)) {
       cleaned.push(formatted);
     }
-  }
-
-  // If no AI tags were returned by Cloudinary auto-tagging (or demo preset), supply contextual tags
-  if (cleaned.length === 0) {
-    if (contextHint && /biryani|rice|pulao/i.test(contextHint)) {
-      return ['Cooked Meal', 'Rice & Grains', 'Warm Dish', 'High Portion', 'Perishable'];
-    }
-    if (contextHint && /roti|bread|sabzi|curry/i.test(contextHint)) {
-      return ['Fresh Cooked', 'Vegetarian', 'Nutritious', 'Local Cuisine', 'Ready to Eat'];
-    }
-    if (contextHint && /bakery|loaf|cake|pastry/i.test(contextHint)) {
-      return ['Bakery', 'Baked Goods', 'Carbohydrates', 'Packaged Safe', 'Ambient'];
-    }
-    return ['Cooked Food', 'Fresh Surplus', 'Nutritious', 'Ready to Eat', 'Verified Safe'];
   }
 
   return cleaned;
@@ -292,7 +278,7 @@ export const uploadToCloudinary = async (
             rawTags = Array.from(new Set([...rawTags, ...gTags]));
           }
 
-          const aiTags = extractAIFoodTags(rawTags, file.name);
+          const aiTags = extractAIFoodTags(rawTags);
 
           resolve({
             secure_url: response.secure_url,
@@ -375,7 +361,7 @@ export const uploadToCloudinaryUnsigned = async (
             rawTags = Array.from(new Set([...rawTags, ...gTags]));
           }
 
-          const aiTags = extractAIFoodTags(rawTags, file.name);
+          const aiTags = extractAIFoodTags(rawTags);
 
           resolve({
             secure_url: response.secure_url,

@@ -350,7 +350,7 @@ export const CreateDonationPage: React.FC = () => {
 
           <div className="sm:col-span-2">
             <label className="block font-bold text-stone-700 mb-1">
-              Exact Pickup Instructions (Revealed ONLY after verified reservation)
+              Exact Pickup Instructions (Revealed ONLY after confirmed reservation)
             </label>
             <textarea
               name="pickup_instructions"

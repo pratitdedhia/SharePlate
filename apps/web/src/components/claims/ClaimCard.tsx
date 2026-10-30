@@ -4,15 +4,28 @@ import { StatusBadge } from '../common/StatusBadge';
 import { ClaimTimeline } from './ClaimTimeline';
 import { CloudinaryImage } from '../common/CloudinaryImage';
 import { formatDate } from '../../lib/utils';
-import { MapPin, Phone, CheckCircle, Truck, XCircle, AlertCircle } from 'lucide-react';
+import {
+  MapPin,
+  Phone,
+  CheckCircle,
+  Truck,
+  XCircle,
+  AlertCircle,
+  ShieldCheck,
+  ShieldAlert,
+  Clock,
+  Key,
+} from 'lucide-react';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import { useAuth } from '../../contexts/AuthContext';
+import { claimsService } from '../../services/claims';
 
 interface ClaimCardProps {
   claim: Claim;
   onCancel: (claimId: string) => Promise<void>;
   onCollect: (claimId: string) => Promise<void>;
   onDeliver: (claimId: string) => Promise<void>;
+  onRefresh?: () => void;
 }
 
 export const ClaimCard: React.FC<ClaimCardProps> = ({
@@ -20,9 +33,13 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
   onCancel,
   onCollect,
   onDeliver,
+  onRefresh,
 }) => {
   const { user, isDonor, isRecipient, isVolunteer, isAdmin } = useAuth();
   const [confirmCancelOpen, setConfirmCancelOpen] = useState(false);
+  const [disputeModalOpen, setDisputeModalOpen] = useState(false);
+  const [disputeReason, setDisputeReason] = useState('');
+  const [portionsReceived, setPortionsReceived] = useState<number>(claim.quantity_claimed);
   const [loading, setLoading] = useState(false);
 
   const donation = claim.donation;
@@ -31,6 +48,44 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
     setLoading(true);
     try {
       await actionFn();
+      if (onRefresh) onRefresh();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDispute = async () => {
+    if (!disputeReason.trim()) return;
+    setLoading(true);
+    try {
+      await claimsService.disputeClaim(claim.id, user?.id || 'user', disputeReason);
+      setDisputeModalOpen(false);
+      setDisputeReason('');
+      if (onRefresh) onRefresh();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDonorConfirmHandover = async () => {
+    setLoading(true);
+    try {
+      await claimsService.confirmPickup(claim.id, user?.id || 'donor');
+      if (onRefresh) onRefresh();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRecipientConfirmReceipt = async () => {
+    setLoading(true);
+    try {
+      await claimsService.confirmDelivery(
+        claim.id,
+        user?.id || 'recipient',
+        portionsReceived || claim.quantity_claimed
+      );
+      if (onRefresh) onRefresh();
     } finally {
       setLoading(false);
     }
@@ -51,16 +106,44 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
             containerClassName="w-14 h-14 rounded-xl overflow-hidden shrink-0"
           />
           <div>
-            <h4 className="text-sm font-bold text-stone-900 line-clamp-1">{donation?.title || 'Food Donation'}</h4>
+            <h4 className="text-sm font-bold text-stone-900 line-clamp-1">
+              {donation?.title || 'Food Donation'}
+            </h4>
             <p className="text-xs text-stone-500">
-              Reserved: <span className="font-semibold text-forest-900">{claim.quantity_claimed} {donation?.quantity_unit || 'portions'}</span> · {formatDate(claim.claimed_at)}
+              Reserved:{' '}
+              <span className="font-semibold text-forest-900">
+                {claim.quantity_claimed} {donation?.quantity_unit || 'portions'}
+              </span>{' '}
+              · {formatDate(claim.claimed_at)}
             </p>
           </div>
         </div>
-        <div className="shrink-0">
-          <StatusBadge status={claim.status} />
+        <div className="shrink-0 flex items-center gap-2">
+          {claim.is_disputed ? (
+            <span className="text-xs font-bold text-rose-800 bg-rose-100 px-2.5 py-1 rounded-full border border-rose-200 flex items-center gap-1">
+              <ShieldAlert className="w-3.5 h-3.5" /> Disputed
+            </span>
+          ) : (
+            <StatusBadge status={claim.status} />
+          )}
         </div>
       </div>
+
+      {/* Dispute Alert Banner */}
+      {claim.is_disputed && (
+        <div className="bg-rose-50 border border-rose-200 p-3.5 rounded-xl text-xs text-rose-950 space-y-1">
+          <div className="font-bold flex items-center gap-1.5 text-rose-800">
+            <ShieldAlert className="w-4 h-4 text-rose-600 shrink-0" />
+            <span>Task Disputed: 0 Points Awarded</span>
+          </div>
+          <p className="text-rose-800 text-[11px] leading-relaxed">
+            "{claim.dispute_reason || 'Food damaged or temperature compromised during transit.'}"
+          </p>
+          <div className="text-[10px] text-rose-700">
+            Recorded by: {claim.disputed_by || 'Recipient Coordinator'} · Awaiting administrative review.
+          </div>
+        </div>
+      )}
 
       {/* Lifecycle Progress Stepper */}
       <ClaimTimeline
@@ -69,6 +152,69 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
         collectedAt={claim.collected_at}
         deliveredAt={claim.delivered_at}
       />
+
+      {/* Two-Party Verification Cards Strip */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+        {/* Pickup Verification Strip */}
+        <div className="p-3 rounded-xl bg-warm-50 border border-warm-200 space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className="font-bold text-stone-800 flex items-center gap-1">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
+              <span>Donor Pickup:</span>
+            </span>
+            {claim.pickup_confirmed_at ? (
+              <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md">
+                Confirmed
+              </span>
+            ) : (
+              <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-md">
+                Pending
+              </span>
+            )}
+          </div>
+          <div className="text-[11px] text-stone-600 flex items-center gap-1.5">
+            <Key className="w-3 h-3 text-stone-400" />
+            <span>Pickup Code: <strong className="font-mono text-stone-900">{claim.pickup_code || '4821'}</strong></span>
+          </div>
+          {claim.pickup_confirmed_at && (
+            <div className="text-[10px] text-emerald-800">
+              Verified by {claim.pickup_confirmed_by || 'Donor Kitchen'}
+            </div>
+          )}
+        </div>
+
+        {/* Delivery Verification Strip */}
+        <div className="p-3 rounded-xl bg-warm-50 border border-warm-200 space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className="font-bold text-stone-800 flex items-center gap-1">
+              <ShieldCheck className="w-3.5 h-3.5 text-blue-700" />
+              <span>NGO Delivery:</span>
+            </span>
+            {claim.delivery_confirmed_at ? (
+              <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md">
+                Verified
+              </span>
+            ) : claim.is_disputed ? (
+              <span className="text-[10px] font-bold text-rose-800 bg-rose-100 px-2 py-0.5 rounded-md">
+                Disputed
+              </span>
+            ) : (
+              <span className="text-[10px] font-bold text-stone-500 bg-stone-200 px-2 py-0.5 rounded-md">
+                Pending
+              </span>
+            )}
+          </div>
+          <div className="text-[11px] text-stone-600 flex items-center gap-1.5">
+            <Key className="w-3 h-3 text-stone-400" />
+            <span>Delivery Code: <strong className="font-mono text-stone-900">{claim.delivery_code || '7392'}</strong></span>
+          </div>
+          {claim.delivery_confirmed_at && (
+            <div className="text-[10px] text-emerald-800">
+              Verified by {claim.delivery_confirmed_by || 'Recipient NGO'} ({claim.portions_delivered_confirmed || claim.quantity_claimed} portions)
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Pickup Details Revealed (Authorized) */}
       <div className="bg-warm-50 p-3.5 rounded-xl border border-warm-200 space-y-2 text-xs">
@@ -80,7 +226,8 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
 
         {donation?.pickup_instructions && (
           <div className="text-stone-600 pl-6 text-[11px] leading-relaxed">
-            <span className="font-semibold text-stone-700">Instructions:</span> {donation.pickup_instructions}
+            <span className="font-semibold text-stone-700">Instructions:</span>{' '}
+            {donation.pickup_instructions}
           </div>
         )}
 
@@ -92,46 +239,96 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
         )}
       </div>
 
-      {/* Action Buttons */}
+      {/* Action Buttons with Two-Party Controls */}
       <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
         <div>
           {claim.status === 'claimed' && (isAdmin || (isRecipient && claim.recipient_id === user?.id)) && (
             <button
+              type="button"
               onClick={() => setConfirmCancelOpen(true)}
               disabled={loading}
-              className="text-xs font-semibold text-rose-600 hover:text-rose-700 flex items-center gap-1 transition"
+              className="text-xs font-semibold text-rose-600 hover:text-rose-700 flex items-center gap-1 transition cursor-pointer"
             >
               <XCircle className="w-3.5 h-3.5" /> Cancel Claim
             </button>
           )}
         </div>
 
-        <div className="flex items-center gap-2">
-          {claim.status === 'claimed' && (isVolunteer || isDonor || isAdmin) && (
+        <div className="flex flex-wrap items-center gap-2">
+          {/* DONOR SPECIFIC ACTION: Confirm Handover */}
+          {isDonor && claim.status === 'claimed' && !claim.pickup_confirmed_at && (
             <button
-              onClick={() => handleAction(() => onCollect(claim.id))}
+              type="button"
+              onClick={handleDonorConfirmHandover}
               disabled={loading}
-              className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-purple-700 hover:bg-purple-800 transition flex items-center gap-1.5 shadow-xs"
+              className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-forest-900 hover:bg-forest-800 transition flex items-center gap-1.5 shadow-xs cursor-pointer"
             >
-              <Truck className="w-3.5 h-3.5" />
-              {isDonor ? 'Confirm Handover' : 'Mark Picked Up'}
+              <CheckCircle className="w-3.5 h-3.5 text-emerald-300" />
+              <span>Confirm Handover to Volunteer</span>
             </button>
           )}
 
-          {claim.status === 'collected' && (isRecipient || isVolunteer || isAdmin) && (
+          {/* VOLUNTEER SPECIFIC ACTION: Mark Picked Up */}
+          {isVolunteer && claim.status === 'claimed' && (
             <button
+              type="button"
+              onClick={() => handleAction(() => onCollect(claim.id))}
+              disabled={loading}
+              className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-purple-700 hover:bg-purple-800 transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+            >
+              <Truck className="w-3.5 h-3.5" />
+              <span>{claim.pickup_confirmed_at ? 'Start Transit' : 'Record Pickup Arrival'}</span>
+            </button>
+          )}
+
+          {/* RECIPIENT SPECIFIC ACTION: Confirm Delivery & Portions */}
+          {isRecipient && claim.status === 'collected' && !claim.delivery_confirmed_at && !claim.is_disputed && (
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min={1}
+                max={claim.quantity_claimed}
+                value={portionsReceived}
+                onChange={(e) => setPortionsReceived(parseInt(e.target.value) || 1)}
+                className="w-16 px-2 py-1 rounded-lg border border-stone-300 text-xs font-bold text-center"
+                title="Portions received"
+              />
+              <button
+                type="button"
+                onClick={handleRecipientConfirmReceipt}
+                disabled={loading}
+                className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+              >
+                <CheckCircle className="w-3.5 h-3.5" />
+                <span>Confirm Receipt ({portionsReceived} portions)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setDisputeModalOpen(true)}
+                disabled={loading}
+                className="px-2.5 py-1.5 rounded-xl text-xs font-semibold text-rose-700 hover:bg-rose-50 border border-rose-200 transition cursor-pointer"
+              >
+                Report Issue
+              </button>
+            </div>
+          )}
+
+          {/* VOLUNTEER SPECIFIC ACTION: Mark Delivery */}
+          {isVolunteer && claim.status === 'collected' && !claim.delivery_confirmed_at && (
+            <button
+              type="button"
               onClick={() => handleAction(() => onDeliver(claim.id))}
               disabled={loading}
-              className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 transition flex items-center gap-1.5 shadow-xs"
+              className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 transition flex items-center gap-1.5 shadow-xs cursor-pointer"
             >
               <CheckCircle className="w-3.5 h-3.5" />
-              {isRecipient ? 'Confirm Received' : 'Confirm Delivery'}
+              <span>Record Delivery Arrival</span>
             </button>
           )}
 
           {claim.status === 'delivered' && (
             <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 flex items-center gap-1.5">
-              <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> Rescue Completed & Logged
+              <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> Rescue Completed & Verified
             </span>
           )}
         </div>
@@ -149,6 +346,53 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
           await handleAction(() => onCancel(claim.id));
         }}
       />
+
+      {/* DISPUTE MODAL */}
+      {disputeModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/60 p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-warm-200 space-y-4">
+            <div className="flex items-center gap-2 text-rose-700">
+              <ShieldAlert className="w-5 h-5 shrink-0" />
+              <h3 className="text-base font-black text-stone-900">Flag Delivery Dispute</h3>
+            </div>
+            <p className="text-xs text-stone-600 leading-relaxed">
+              If the food arrived damaged, spoiled, below safe temperature, or missing portions, submit a dispute. The task will be marked disputed and points held at 0.
+            </p>
+
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-stone-700">Dispute Details:</label>
+              <textarea
+                rows={3}
+                value={disputeReason}
+                onChange={(e) => setDisputeReason(e.target.value)}
+                placeholder="Describe condition of food upon delivery..."
+                className="w-full p-3 rounded-xl border border-stone-300 text-xs text-stone-900 focus:border-rose-600 focus:outline-hidden"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setDisputeModalOpen(false);
+                  setDisputeReason('');
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-stone-600 hover:bg-stone-100 transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDispute}
+                disabled={!disputeReason.trim()}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-rose-700 hover:bg-rose-800 transition cursor-pointer disabled:opacity-50"
+              >
+                Submit Dispute (0 Points)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

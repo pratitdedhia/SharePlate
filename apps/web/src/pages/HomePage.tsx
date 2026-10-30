@@ -134,9 +134,11 @@ export const HomePage: React.FC = () => {
             )}
           </div>
 
-          {/* Live Trust Metrics Strip */}
+          {/* Demonstration Trust Metrics Strip */}
           {impactMetrics && (
-            <div className="pt-4 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl mx-auto">
+            <div>
+              <p className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider mb-2 text-center">Demonstration Dataset Metrics · Calculated in Real Time</p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl mx-auto">
               <div className="bg-white/90 backdrop-blur-xs p-4 rounded-2xl border border-warm-200 shadow-xs text-center">
                 <div className="text-2xl font-black text-stone-900">{impactMetrics.portionsDelivered}</div>
                 <div className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider">Portions Delivered</div>
@@ -154,6 +156,7 @@ export const HomePage: React.FC = () => {
                 <div className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider">CO₂e Avoided</div>
               </div>
             </div>
+          </div>
           )}
         </div>
       </section>
@@ -167,7 +170,7 @@ export const HomePage: React.FC = () => {
               Live Rescue Inventory
             </div>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-stone-900 mt-1">Available Food Batches</h2>
-            <p className="text-xs text-stone-500 mt-0.5">Fresh surplus meals ready for immediate, verified NGO pickup.</p>
+            <p className="text-xs text-stone-500 mt-0.5">Fresh surplus meals ready for immediate NGO collection.</p>
           </div>
           <Link
             to="/donations"
@@ -243,7 +246,7 @@ export const HomePage: React.FC = () => {
                   to="/register"
                   className="w-full py-2.5 rounded-xl text-xs font-bold bg-blue-50 text-blue-900 hover:bg-blue-100 border border-blue-200 transition text-center block"
                 >
-                  Register Verified NGO
+                  Register Partner NGO
                 </Link>
               </div>
             </div>
@@ -307,7 +310,7 @@ export const HomePage: React.FC = () => {
             </div>
             <h3 className="text-base font-bold text-stone-900">NGO Reserves Portions</h3>
             <p className="text-xs text-stone-600 leading-relaxed">
-              Nearby verified recipient claims needed portions atomically. Concurrency-safe reservations prevent overselling.
+              Nearby recipient NGO reserves needed portions atomically. Concurrency-safe reservations prevent overselling.
             </p>
           </div>
 
@@ -325,9 +328,9 @@ export const HomePage: React.FC = () => {
             <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-forest-800 flex items-center justify-center font-bold text-sm border border-emerald-200">
               04
             </div>
-            <h3 className="text-base font-bold text-stone-900">Verified Delivery</h3>
+            <h3 className="text-base font-bold text-stone-900">Confirmed Delivery</h3>
             <p className="text-xs text-stone-600 leading-relaxed">
-              Recipient verifies distribution. Live platform metrics update with actual rescued meals and carbon offsets.
+              Recipient confirms receipt upon handoff. Live platform metrics update with actual rescued meals and carbon offsets.
             </p>
           </div>
         </div>

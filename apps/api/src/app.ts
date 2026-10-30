@@ -11,6 +11,8 @@ import claimRoutes from './routes/claims.js';
 import impactRoutes from './routes/impact.js';
 import profileRoutes from './routes/profile.js';
 import reportRoutes from './routes/reports.js';
+import adminRoutes from './routes/admin.js';
+import volunteerRoutes from './routes/volunteer.js';
 
 export const createApp = (): Express => {
   const app = express();
@@ -51,6 +53,8 @@ export const createApp = (): Express => {
   app.use('/api/impact', impactRoutes);
   app.use('/api/profile', profileRoutes);
   app.use('/api/reports', reportRoutes);
+  app.use('/api/admin', adminRoutes);
+  app.use('/api/volunteer', volunteerRoutes);
 
   // 404 handler for undefined API routes
   app.use('/api/*', (req: Request, res: Response) => {

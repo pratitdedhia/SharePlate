@@ -126,7 +126,7 @@ export const DonationCard: React.FC<DonationCardProps> = ({ donation }) => {
             <div className="flex items-center gap-1.5">
               <Building className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
               <span className="truncate font-medium text-stone-700">
-                {donation.donor?.organization_name || donation.donor?.full_name || 'Verified Community Donor'}
+                {donation.donor?.organization_name || donation.donor?.full_name || 'Community Donor'}
               </span>
             </div>
 

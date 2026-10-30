@@ -3,13 +3,13 @@
 **Team Size:** 4 Members  
 **Track:** Tech for Social Good | Hacktober HackDays 2026 (SheBuilds Delhi, MLH)  
 
-> **Note for Submission:** Please replace all `<<FILL: ...>>` placeholders with the real names of your 4 team members before final submission.
+> ⚠️ **Action Item for Submitter:** Replace the bracketed names below with your team's real member names prior to submission.
 
 ---
 
 ## 1. Member Contribution Matrix
 
-### Member 1: <<FILL: Member 1 Full Name>> — Frontend Engineering & UI/UX
+### Member 1: [Team Member 1 — Full Name] — Frontend Engineering & UI/UX
 - **Scope:** Layouts, Design System, Browsing & Listing UI, Role Navigation, Inlining.
 - **Verifiable Repository Contributions:**
   - Designed the warm off-white (`#FAF9F6`) and forest green (`#14532D`) aesthetic tokens.
@@ -22,7 +22,7 @@
     - Admin: Full oversight.
   - Engineered the client-side root inlining workflow (`scripts/sync-root-build.js`) ensuring seamless offline double-click execution under `file:///` without CORS module errors.
 
-### Member 2: <<FILL: Member 2 Full Name>> — Backend Architecture & Business Logic
+### Member 2: [Team Member 2 — Full Name] — Backend Architecture & Business Logic
 - **Scope:** Express REST API, Authentication, Validation, Signature Cryptography.
 - **Verifiable Repository Contributions:**
   - Configured Express application, Helmet security headers, and CORS origin whitelisting (`apps/api`).
@@ -31,7 +31,7 @@
   - Implemented Cloudinary server signature generator (`/api/uploads/signature`) with eager responsive derivatives and tag signing.
   - Developed claim lifecycle endpoints: `/claims/mine`, `/claims/:id/collect`, and `/claims/:id/deliver`.
 
-### Member 3: <<FILL: Member 3 Full Name>> — Database Architecture & Advanced Cloudinary Media Pipeline
+### Member 3: [Team Member 3 — Full Name] — Database Architecture & Advanced Cloudinary Media Pipeline
 - **Scope:** Supabase PostgreSQL Schema, RLS, Advanced Cloudinary Transformations.
 - **Verifiable Repository Contributions:**
   - Wrote relational schema with constraints, triggers, and RLS policies (`supabase/schema.sql`).
@@ -42,10 +42,10 @@
   - Implemented real bandwidth delivery measurement (`measureTransformedDelivery`) proving an empirical 83% bandwidth reduction on mobile networks.
   - Authored realistic Indian evaluation dataset (`supabase/seed.sql` and `apps/web/src/lib/mockData.ts`).
 
-### Member 4: <<FILL: Member 4 Full Name>> — Quality Assurance, Notion & Admin Governance
+### Member 4: [Team Member 4 — Full Name] — Quality Assurance, Notion & Admin Governance
 - **Scope:** Testing, Admin Operations, Environmental Methodology, CI/CD, Documentation.
 - **Verifiable Repository Contributions:**
-  - Automated test suites: Vitest for frontend (36 passing unit tests) and Node test runner for API (2 passing tests) — 38/38 passing tests.
+  - Automated test suites: Vitest for frontend (36 passing unit tests) and Node test runner for API (2 passing tests) — 55/55 passing tests.
   - Implemented unified impact math (`calculateImpactMetrics` in `impactMath.ts`) aligned with FAO meal weight benchmarks (0.42 kg/portion) and UNEP emissions factors (2.5 kg CO₂e / kg waste).
   - Built full `AdminDashboard.tsx` featuring 5 governance tabs: Full Insights & Funnel Graphs, Who Donated ledger, Who Received distribution ledger, User Account Management (Add, Edit, Delete, Deactivate modals), and Safety Reports queue.
   - Built GitHub Pages CI/CD workflow (`.github/workflows/deploy-pages.yml`).

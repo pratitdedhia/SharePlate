@@ -78,12 +78,23 @@ export interface Donation {
 
 export type ClaimStatus = 'claimed' | 'collected' | 'delivered' | 'cancelled';
 
+export type VerificationStatus =
+  | 'unassigned'
+  | 'accepted'
+  | 'pickup_pending'
+  | 'in_transit'
+  | 'delivery_pending'
+  | 'verified'
+  | 'disputed';
+
 export interface Claim {
   id: string;
   donation_id: string;
   recipient_id: string;
+  volunteer_id?: string | null;
   quantity_claimed: number;
   status: ClaimStatus;
+  verification_status?: VerificationStatus;
   claimed_at: string;
   collected_at?: string | null;
   delivered_at?: string | null;
@@ -91,6 +102,116 @@ export interface Claim {
   notes?: string | null;
   donation?: Donation;
   recipient?: UserProfile;
+  volunteer?: UserProfile | null;
+  // Two-party verification fields
+  pickup_code?: string;
+  pickup_confirmed_by?: string | null;
+  pickup_confirmed_at?: string | null;
+  delivery_code?: string;
+  delivery_confirmed_by?: string | null;
+  delivery_confirmed_at?: string | null;
+  portions_delivered_confirmed?: number | null;
+  is_disputed?: boolean;
+  dispute_reason?: string | null;
+  disputed_by?: string | null;
+  disputed_at?: string | null;
+  points_pending?: number;
+  points_released?: number;
+}
+
+export interface TripStop {
+  id: string;
+  type: 'start' | 'pickup' | 'delivery' | 'destination';
+  name: string;
+  address: string;
+  city: string;
+  contact_person?: string;
+  phone?: string;
+  instructions?: string;
+  task_id?: string;
+  portions?: number;
+  food_title?: string;
+  dietary_type?: string;
+  deadline?: string;
+  completed: boolean;
+  completed_at?: string;
+  sequence: number;
+}
+
+export interface VolunteerTripPlan {
+  id: string;
+  volunteer_id: string;
+  origin: string;
+  destination: string;
+  corridor_label: string;
+  task_ids: string[];
+  stops: TripStop[];
+  status: 'draft' | 'accepted' | 'in_progress' | 'completed' | 'cancelled';
+  created_at: string;
+  accepted_at?: string;
+  completed_at?: string;
+  is_demo_preview: boolean;
+  routing_provider_note?: string;
+}
+
+export interface RescueTask {
+  id: string;
+  donation_id: string;
+  claim_id?: string;
+  title: string;
+  category: DonationCategory | string;
+  dietary_type?: string;
+  portions: number;
+  pickup_location: string;
+  pickup_address: string;
+  pickup_deadline: string;
+  pickup_instructions?: string;
+  donor_name: string;
+  donor_phone?: string;
+  dropoff_location: string;
+  dropoff_address: string;
+  recipient_name: string;
+  recipient_phone?: string;
+  corridor: string;
+  status: 'available' | 'claimed' | 'in_transit' | 'verified';
+}
+
+export interface VolunteerRewardRecord {
+  id: string;
+  volunteer_id: string;
+  claim_id: string;
+  donation_title: string;
+  recipient_name: string;
+  points: number;
+  status: 'pending' | 'released' | 'forfeited';
+  portions_confirmed: number;
+  verified_at?: string;
+  created_at: string;
+  reason: string;
+}
+
+export interface VolunteerRewardsSummary {
+  points_pending: number;
+  points_released: number;
+  verified_deliveries_count: number;
+  portions_transported_count: number;
+  current_tier: string;
+  next_tier_threshold: number;
+  history: VolunteerRewardRecord[];
+}
+
+export const REWARD_RULES = {
+  BASE_POINTS_PER_DELIVERY: 50,
+  POINTS_PER_PORTION: 2,
+  MAX_POINTS_PER_DELIVERY: 150,
+} as const;
+
+export function calculateClaimPoints(portionsDelivered: number, isDisputed = false): number {
+  if (isDisputed || portionsDelivered <= 0) return 0;
+  return Math.min(
+    REWARD_RULES.MAX_POINTS_PER_DELIVERY,
+    REWARD_RULES.BASE_POINTS_PER_DELIVERY + portionsDelivered * REWARD_RULES.POINTS_PER_PORTION
+  );
 }
 
 export interface ImpactMetrics {

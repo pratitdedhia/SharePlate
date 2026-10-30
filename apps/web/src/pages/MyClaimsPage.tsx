@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { claimsService } from '../services/claims';
+import { useLiveUpdates } from '../hooks/useLiveUpdates';
 import { Claim } from '../types';
 import { ClaimCard } from '../components/claims/ClaimCard';
 import { EmptyState } from '../components/common/EmptyState';
@@ -30,6 +31,8 @@ export const MyClaimsPage: React.FC = () => {
   useEffect(() => {
     fetchClaims();
   }, [user?.id, isDonor]);
+
+  useLiveUpdates(fetchClaims);
 
   const handleCancelClaim = async (claimId: string) => {
     try {
@@ -69,8 +72,8 @@ export const MyClaimsPage: React.FC = () => {
         </h1>
         <p className="text-xs sm:text-sm text-stone-600 mt-1">
           {isDonor
-            ? 'Monitor which NGOs have reserved your surplus batches and track collection progress.'
-            : 'Access pickup instructions, manage collection status, and confirm meal delivery to beneficiaries.'}
+            ? 'Monitor which NGOs have reserved your surplus batches, review verification codes, and confirm handover.'
+            : 'Access pickup instructions, manage collection status, verify portions received, and confirm meal delivery to beneficiaries.'}
         </p>
       </div>
 
@@ -97,6 +100,7 @@ export const MyClaimsPage: React.FC = () => {
               onCancel={handleCancelClaim}
               onCollect={handleCollect}
               onDeliver={handleDeliver}
+              onRefresh={fetchClaims}
             />
           ))}
         </div>

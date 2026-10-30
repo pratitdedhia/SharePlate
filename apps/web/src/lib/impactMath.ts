@@ -55,6 +55,6 @@ export function calculateImpactMetrics(
     estimatedFoodRescuedKg,
     estimatedCo2eSavedKg,
     methodologyNote:
-      'Verified delivery impact derived strictly from delivered portion records. Calculations use FAO average meal weights (400g/portion) and UNEP food waste emissions factor (2.5 kg CO2e / kg food avoided).',
+      'Calculated from completed delivery records in the current dataset. Environmental conversions reference FAO average meal weights (400g/portion) and UNEP food waste emissions factors (2.5 kg CO2e / kg food avoided). In this demo instance, values reflect the seeded sample dataset.',
   };
 }

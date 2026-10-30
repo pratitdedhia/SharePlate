@@ -12,8 +12,8 @@ export const DemoModeBanner: React.FC<{ className?: string }> = ({ className = '
           <Database className="w-3.5 h-3.5" />
         </div>
         <p className="leading-relaxed">
-          <strong className="text-stone-900 font-bold">Demo mode active:</strong> Actions update state in your browser memory.
-          The production backend (Express API + Supabase PostgreSQL with atomic RPC claims) is in the repo.
+          <strong className="text-stone-900 font-bold">Demo mode (Client-Only):</strong> Actions update state in your local browser session. Data is not shared across devices or other users.
+          The production architecture (Express API + Supabase PostgreSQL with atomic RPC claims and RLS) is included in the repository.
         </p>
       </div>
       <Link

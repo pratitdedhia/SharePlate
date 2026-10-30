@@ -8,7 +8,7 @@
 [![Deploy Target](https://img.shields.io/badge/Deploy-GitHub_Pages-22C55E?style=for-the-badge)](https://pratitdedhia.github.io/SharePlate/)
 
 > 🌐 **Live Deployed Demo:** [https://pratitdedhia.github.io/SharePlate/](https://pratitdedhia.github.io/SharePlate/)  
-> 📖 **Project Journey & Hackathon Submission:** [Notion Documentation](<<FILL: https://your-notion-page-url>>)  
+> 📖 **Project Journey & Hackathon Submission:** [Notion Documentation Workspace *(Pre-built in docs/notion/)*](docs/notion/00_index.md) *(Action Item: Replace with your public Notion URL before final submission)*  
 > 📂 **GitHub Repository:** [https://github.com/pratitdedhia/SharePlate](https://github.com/pratitdedhia/SharePlate)
 
 **SharePlate** is a full-stack, community-driven food rescue web application built for **Hacktober HackDays 2026** (organized by the SheBuilds Delhi Chapter and powered by Major League Hacking) under the **Tech for Social Good** track.
@@ -32,7 +32,10 @@ To provide instant, zero-friction evaluation for hackathon judges without requir
 - **🛡️ Strict Role-Based Dashboards & Dynamic RBAC Navigation:** Purpose-built workflows with tailored navigation for all personas:
   - **Donor:** Dashboard & My Listings (`/my-donations`); Browse Food, Impact, and About links are strictly hidden.
   - **Recipient:** Dashboard, Browse Food (`/donations`), and My Claims (`/my-claims`); Impact and About links are hidden.
-  - **Volunteer:** Dedicated *Last-Mile Food Rescue Runner* dispatch board with active route commitments, dock packaging checks, and delivery confirmations.
+  - **Volunteer:** Dedicated 3-Tab *Last-Mile Food Rescue & Rewards Hub*:
+    - **1. "On-My-Way" Commute Trip Planner:** Enter origin and destination, browse nearby rescue tasks along transit corridors (Delhi NCR, Mumbai, Pune presets), select tasks with checkboxes, review sequential stop orders, and accept planned routes.
+    - **2. Stop-by-Stop Checklist & Two-Party Verification:** Step-by-step navigation checklist with unlocked contact/dock notes. Enforces a strict two-party verification state machine (`Available → Accepted → Pickup awaiting confirmation → In transit → Delivery awaiting confirmation → Verified / Disputed`). Separate attributable confirmations for donor pickup and recipient NGO delivery using one-time verification codes. Points are never released on volunteer self-claim.
+    - **3. Volunteer Rewards & Points Ledger:** Transparent capped rewards formula (\(\min(150, 50 + 2 \times \text{portions})\)), pending vs. released points counters, milestone progression (Bronze Courier → Silver → Gold Champion), immutable audit history, and clear disclosure of future corporate sponsor voucher concepts.
   - **Admin:** Comprehensive 5-tab Command Center: real-time analytics graphs, user account CRUD & activation controls, "Who Donated" surplus ledger with detail inspection, "Who Received" distribution ledger with status filters, and safety/allergen moderation queue.
 - **🔍 Interactive Click-to-Inspect Food Cards:** Seamless navigation to listing details from card images, titles, and action buttons, presenting Cloudinary meal banners, ingredient disclosures, allergen tags, and real-time pickup countdown timers.
 - **📋 Food Safety & Expiration Controls:** Prepared-at timestamps, consume-within hours, storage instructions, and veg/non-veg tags. Donations past pickup deadlines are automatically greyed out and protected against claims.
@@ -41,7 +44,7 @@ To provide instant, zero-friction evaluation for hackathon judges without requir
   - Server-signed upload endpoint ready when Express runs.
   - Dynamic transformations: `c_fill, g_auto, f_auto, q_auto`, responsive `srcset` (400w, 800w, 1200w), and `loading="lazy"`.
   - Real bandwidth savings measurement comparing original file size against the delivered transformed WebP blob.
-  - Verified badges displayed strictly on images actually served from `res.cloudinary.com`.
+  - Cloudinary provenance badge displayed strictly on images genuinely served from `res.cloudinary.com`.
 - **🔒 Over-Claim & Expiration Protection:** In the deployed demo, `demoStore` prevents over-claiming and claiming expired batches. In the production backend, PostgreSQL stored procedures (`claim_donation_atomic` with `SELECT ... FOR UPDATE`) guarantee ACID concurrency safety.
 - **🛡️ Privacy-Preserving Logistics:** Sensitive loading-dock access instructions and personal donor phone numbers are masked in public queries and revealed strictly to confirmed claimants.
 - **📊 Unified Impact Math:** A single pure calculation engine (`apps/web/src/lib/impactMath.ts`) derives hero statistics, impact charts, and rescue rates (`delivered / listed * 100`). The funnel never contradicts the metrics.
@@ -56,7 +59,7 @@ To provide instant, zero-friction evaluation for hackathon judges without requir
 | **Media Cloud** | Cloudinary | Direct client upload preset, server signatures, auto-format (`f_auto`), smart crop (`g_auto`) |
 | **Production Backend** | Node.js 24 LTS, Express, TypeScript | REST API, Zod schema validation, Helmet security headers, CORS |
 | **Production Database** | PostgreSQL 15+ (Supabase) | Multi-tenant Row Level Security (RLS), atomic stored procedures (`claim_donation_atomic`) |
-| **Testing** | Vitest, Node.js Test Runner | 53 frontend tests (impact math, claim flows, upload fallback, features suite, render verification), 2 backend tests (55 total) |
+| **Testing** | Vitest, Node.js Test Runner | 59 frontend tests (impact math, two-party claim flows, volunteer trip planning, rewards rules, auth, upload fallback, features suite, render verification), 2 backend tests (61 total) |
 | **Documentation** | Notion (Mandatory Hackathon Platform) | 12 structured markdown guides under `docs/notion/` |
 
 ---
@@ -156,24 +159,24 @@ Open **`http://localhost:5173`** in your browser.
 
 ## 🧪 Automated Testing & Verification
 
-All automated tests execute with 100% passing results across 55 tests:
+All automated tests execute with 100% passing results across 61 tests:
 
 ### Run Backend API Tests:
 ```bash
 npm test --workspace=@shareplate/api
-# Result: 2 passed, 0 failed
+# Result: 2 passed, 0 failed (Health endpoint verification)
 ```
 
 ### Run Frontend Unit & Integration Tests:
 ```bash
 npm test --workspace=@shareplate/web
-# Result: 53 passed, 0 failed (App, Impact Math, Claim Flow, Auth, Upload Fallback, Features Suite, Render Safety)
+# Result: 59 passed, 0 failed (App, Impact Math, Two-Party Claim Flow, Trip Planning, Rewards Rules, Auth, Upload Fallback, Features Suite, Render Safety)
 ```
 
 ### Run All Workspace Tests:
 ```bash
 npm test
-# Total: 55 passed, 0 failed
+# Total: 61 passed, 0 failed
 ```
 
 ### Verify Production Compilation:
@@ -186,12 +189,11 @@ npm run build:web
 
 ## 🎬 Recommended 2–3 Minute Evaluation Demo Script
 
-1. **Homepage:** Open `https://pratitdedhia.github.io/SharePlate/`. Review the mission statement, live trust metrics (derived via single calculation engine), and food safety guidance.
-2. **List Surplus Food (Donor):** Switch to the **Canteen / Donor** persona using the top navigation role switcher. Click **+ Donate Food** (`#/donations/new`). Upload a photo via the real Cloudinary uploader or select a verified preset. Notice the real measured bandwidth savings. Enter 45 portions of *Vegetable Pulao*, set dietary tag *Veg*, allergen tags, and a 4-hour pickup deadline.
-3. **Reserve Portions (NGO):** Switch persona to **NGO / Recipient** (Robin Hood Army). Browse `#/donations`. Claim 20 portions. Observe the available count drop from 45 to 25.
-4. **Over-Claim & Expiration Defense:** Try claiming 30 portions on a 25-portion item to verify the over-claim guard. Notice expired listings are disabled.
-5. **Pickup & Delivery Progression:** Open **My Claims** (`#/my-claims`). View the revealed private pickup instructions. Click **Mark Picked Up**, then **Confirm Delivery**.
-6. **Impact Dashboard:** Open `#/impact`. Show the real-time portion funnel updating and the CO₂e avoided metric recalculating dynamically.
+1. **Homepage & Mission Context:** Open `https://pratitdedhia.github.io/SharePlate/`. Review the mission statement, demonstration trust metrics (derived via single calculation engine), and food safety guidance.
+2. **List Surplus Food (Donor):** Switch to the **Canteen / Donor** persona using the top navigation role switcher. Click **+ Donate Food** (`#/donations/new`). Upload a photo via Cloudinary or select a preloaded sample. Observe the smart auto-crop preview (`g_auto` across 4:3, 16:9, and 1:1) and real measured bandwidth savings on live upload. Enter 45 portions of *Vegetable Pulao*, set dietary tag *Veg*, allergen tags, and a 4-hour pickup deadline.
+3. **Reserve Portions (NGO):** Switch persona to **NGO / Recipient** (Robin Hood Army). Browse `#/donations`. Claim 20 portions. Observe the available count drop from 45 to 25 immediately.
+4. **Protected Logistics & Delivery:** Open **My Claims** (`#/my-claims`). View the revealed private pickup instructions and donor contact. Advance status: **Mark Picked Up** (`collected`), then **Confirm Delivery** (`delivered`).
+5. **Impact Dashboard:** Open `#/impact`. Show the real-time portion funnel updating and the CO₂e avoided metric recalculating dynamically based on FAO/UNEP factors.
 
 ---
 
@@ -268,17 +270,17 @@ SharePlate is a community coordination technology platform. **SharePlate does no
 
 ## 👥 Team Task Allocation
 
-*(Note: Real names are subject to final confirmation before submission. See [docs/team-contributions.md](docs/team-contributions.md) for detailed task tracking.)*
+> ⚠️ **Action Item for Submitter:** Replace the bracketed role placeholders below with your team's real full names prior to final form submission. (See [docs/team-contributions.md](docs/team-contributions.md) for full task breakdown.)
 
-- **<<FILL: Member 1 Real Name>> (Frontend Engineering & Cloudinary Integration):**
+- **[Team Member 1 — Full Name] (Frontend Engineering & Cloudinary Integration):**
   - Architecture of React 18 + Vite frontend, responsive layouts, and Tailwind design system.
   - Integration of Cloudinary upload component, unsigned preset support, dynamic transformations, and real bandwidth savings computation.
-- **<<FILL: Member 2 Real Name>> (Backend Architecture & Security):**
+- **[Team Member 2 — Full Name] (Backend Architecture & Security):**
   - Node.js/Express REST API (`apps/api`), Zod request validation, role-based access control (RBAC), and cryptographic signature endpoint.
-- **<<FILL: Member 3 Real Name>> (Database Engineering & Concurrency):**
+- **[Team Member 3 — Full Name] (Database Engineering & Concurrency):**
   - PostgreSQL schema design (`supabase/`), Row Level Security policies, atomic reservation stored procedures (`claim_donation_atomic`).
-- **<<FILL: Member 4 Real Name>> (QA, Documentation & Notion Journey):**
-  - Unit test authoring (38 automated tests), unified impact calculation math, Notion documentation portfolio (`docs/notion/`), and demo walkthrough.
+- **[Team Member 4 — Full Name] (QA, Documentation & Notion Journey):**
+  - Automated test authoring (55 automated tests), unified impact calculation math, complete Notion documentation portfolio (`docs/notion/`), and judge demo walkthrough.
 
 ---
 

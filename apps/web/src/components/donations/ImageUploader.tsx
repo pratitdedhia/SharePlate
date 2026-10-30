@@ -101,22 +101,19 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
 
   const samplePresets = [
     {
-      name: 'Fresh Biryani (Seed)',
+      name: 'Fresh Biryani (Sample)',
       publicId: CLOUDINARY_SEED_PUBLIC_IDS[0],
       url: getCloudinaryUrl(CLOUDINARY_SEED_PUBLIC_IDS[0], { width: 800, height: 600, crop: 'fill', gravity: 'auto' }),
-      tags: ['Dum Biryani', 'Rice & Grains', 'Warm Cooked Meal', 'Perishable', 'High Portion'],
     },
     {
-      name: 'Roti & Sabzi (Seed)',
+      name: 'Roti & Sabzi (Sample)',
       publicId: CLOUDINARY_SEED_PUBLIC_IDS[1],
       url: getCloudinaryUrl(CLOUDINARY_SEED_PUBLIC_IDS[1], { width: 800, height: 600, crop: 'fill', gravity: 'auto' }),
-      tags: ['Fresh Chapati', 'Vegetarian Curry', 'Local Cuisine', 'Ready to Eat', 'Nutritious'],
     },
     {
-      name: 'Bakery Loaves (Seed)',
+      name: 'Bakery Loaves (Sample)',
       publicId: CLOUDINARY_SEED_PUBLIC_IDS[2],
       url: getCloudinaryUrl(CLOUDINARY_SEED_PUBLIC_IDS[2], { width: 800, height: 600, crop: 'fill', gravity: 'auto' }),
-      tags: ['Bakery Loaves', 'Whole Wheat', 'Carbohydrates', 'Packaged Safe', 'Ambient Storage'],
     },
   ];
 
@@ -150,7 +147,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
       setPreviewUrl(result.imageUrl);
       setAspectPreviews(result.aspectRatios || null);
 
-      const aiTags = result.aiTags || extractAIFoodTags(result.tags || [], file.name);
+      const aiTags = result.aiTags || extractAIFoodTags(result.tags || []);
       setDetectedTags(aiTags);
 
       onUploadComplete(result.imageUrl, result.publicId, aiTags);
@@ -163,8 +160,8 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
 
         const delivered = measured?.deliveredBytes;
         const savingsPct =
-          delivered && file.size > 0
-            ? Math.max(0, Math.round(((file.size - delivered) / file.size) * 100))
+          delivered && file.size > 0 && delivered < file.size
+            ? Math.round(((file.size - delivered) / file.size) * 100)
             : undefined;
 
         setSavingsInfo({
@@ -194,19 +191,19 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
     setCurrentPublicId(preset.publicId);
     setPreviewUrl(preset.url);
     setAspectPreviews(getAspectRatioPreviews(preset.publicId));
-    setDetectedTags(preset.tags);
+    setDetectedTags([]);
     setErrorMsg(null);
     setCopiedTag(null);
     setSavingsInfo({
-      originalBytes: 245000,
-      deliveredBytes: 42000,
-      savingsPercent: 83,
+      originalBytes: 0,
+      deliveredBytes: undefined,
+      savingsPercent: undefined,
       format: 'image/webp',
       dimensions: '800×600px',
       uploadType: 'seed_asset',
       isCloudinary: isCloudinaryConfigured(),
     });
-    onUploadComplete(preset.url, preset.publicId, preset.tags);
+    onUploadComplete(preset.url, preset.publicId, []);
   };
 
   const handleAspectChange = (mode: AspectRatioMode) => {
@@ -345,7 +342,12 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
 
             {/* Hosting Provenance Badge */}
             <div className="absolute bottom-2 left-2 px-2.5 py-1 rounded-md bg-forest-950/85 text-[10px] text-emerald-300 font-semibold flex items-center gap-1.5 backdrop-blur-xs border border-emerald-500/20">
-              {savingsInfo?.isCloudinary ? (
+              {savingsInfo?.uploadType === 'seed_asset' ? (
+                <>
+                  <Sparkles className="w-3 h-3 text-emerald-400" />
+                  <span>Preloaded Sample Asset (Cloudinary CDN)</span>
+                </>
+              ) : savingsInfo?.isCloudinary ? (
                 <>
                   <Sparkles className="w-3 h-3 text-emerald-400" />
                   <span>Cloudinary Live ({savingsInfo.uploadType.replace('_', ' ')})</span>
@@ -360,12 +362,12 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
           </div>
 
           {/* AI Food Tagging Assistant Component */}
-          {detectedTags.length > 0 && (
+          {detectedTags.length > 0 ? (
             <div className="p-3 rounded-2xl bg-amber-50/70 border border-amber-200 text-xs space-y-2">
               <div className="flex items-center justify-between font-bold text-amber-950">
                 <span className="flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                  Cloudinary AI Food Recognition Tags:
+                  Cloudinary AI Visual Tags:
                 </span>
                 <span className="text-[10px] font-normal text-amber-700">Click to copy tag</span>
               </div>
@@ -395,43 +397,64 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
                   );
                 })}
               </div>
+              <p className="text-[10px] text-amber-800/80 italic pt-1 border-t border-amber-200/60">
+                Note: AI tags are generated for image cataloging and search. They do not certify food safety or hygiene; all food safety information is donor-provided and must be inspected upon handoff.
+              </p>
             </div>
-          )}
+          ) : savingsInfo?.isCloudinary && savingsInfo?.uploadType !== 'seed_asset' ? (
+            <div className="p-2.5 rounded-xl bg-warm-50 border border-warm-200 text-[11px] text-stone-500">
+              <span className="font-semibold text-stone-700">AI Food Recognition:</span> No automatic tags returned by Cloudinary API (requires Google Auto-Tagging add-on). Food condition and safety must be verified in person at handoff.
+            </div>
+          ) : null}
 
           {/* Genuine Measured Savings Strip */}
-          {savingsInfo && savingsInfo.isCloudinary && savingsInfo.deliveredBytes && (
-            <div className="p-3 rounded-2xl bg-emerald-50/70 border border-emerald-200 text-xs space-y-1.5 text-forest-950">
-              <div className="flex items-center justify-between font-bold text-emerald-900">
-                <span className="flex items-center gap-1.5">
-                  <Zap className="w-3.5 h-3.5 text-emerald-600" /> Real Cloudinary Optimization Measured:
-                </span>
-                {savingsInfo.savingsPercent !== undefined && (
+          {savingsInfo && savingsInfo.isCloudinary && (
+            savingsInfo.uploadType === 'seed_asset' ? (
+              <div className="p-3 rounded-2xl bg-emerald-50/70 border border-emerald-200 text-xs text-forest-950 space-y-1">
+                <div className="flex items-center gap-1.5 font-bold text-emerald-900">
+                  <Zap className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Preloaded Cloudinary Evaluation Asset:</span>
+                </div>
+                <p className="text-[11px] text-stone-600 leading-relaxed">
+                  Delivered dynamically via Cloudinary CDN with automatic format transcoding (<code className="font-mono text-emerald-700">f_auto, q_auto</code>) and smart content-aware crop (<code className="font-mono text-emerald-700">g_auto</code>). Bandwidth savings percentages are calculated only on live uploaded files.
+                </p>
+              </div>
+            ) : savingsInfo.deliveredBytes && savingsInfo.savingsPercent !== undefined ? (
+              <div className="p-3 rounded-2xl bg-emerald-50/70 border border-emerald-200 text-xs space-y-1.5 text-forest-950">
+                <div className="flex items-center justify-between font-bold text-emerald-900">
+                  <span className="flex items-center gap-1.5">
+                    <Zap className="w-3.5 h-3.5 text-emerald-600" /> Measured Cloudinary Optimization:
+                  </span>
                   <span className="px-2 py-0.5 rounded-full bg-emerald-200 text-forest-900 font-extrabold text-[11px]">
                     {savingsInfo.savingsPercent}% Bandwidth Saved
                   </span>
-                )}
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-[11px] text-stone-600">
+                  <div>
+                    <span className="block text-stone-400">Original File:</span>
+                    <strong className="text-stone-800">{(savingsInfo.originalBytes / 1024).toFixed(1)} KB</strong>
+                  </div>
+                  <div>
+                    <span className="block text-stone-400">Delivered (WebP):</span>
+                    <strong className="text-emerald-800 font-black">
+                      {(savingsInfo.deliveredBytes / 1024).toFixed(1)} KB
+                    </strong>
+                  </div>
+                  <div>
+                    <span className="block text-stone-400">Target Format:</span>
+                    <strong className="text-stone-800">{savingsInfo.format || 'image/webp'}</strong>
+                  </div>
+                  <div>
+                    <span className="block text-stone-400">Aspect & Focus:</span>
+                    <strong className="text-stone-800">{currentAspectConfig.label} (g_auto)</strong>
+                  </div>
+                </div>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-[11px] text-stone-600">
-                <div>
-                  <span className="block text-stone-400">Original Size:</span>
-                  <strong className="text-stone-800">{(savingsInfo.originalBytes / 1024).toFixed(1)} KB</strong>
-                </div>
-                <div>
-                  <span className="block text-stone-400">Delivered Size:</span>
-                  <strong className="text-emerald-800 font-black">
-                    {(savingsInfo.deliveredBytes / 1024).toFixed(1)} KB
-                  </strong>
-                </div>
-                <div>
-                  <span className="block text-stone-400">Target Format:</span>
-                  <strong className="text-stone-800">{savingsInfo.format || 'image/webp'}</strong>
-                </div>
-                <div>
-                  <span className="block text-stone-400">Aspect & Gravity:</span>
-                  <strong className="text-stone-800">{currentAspectConfig.label} (g_auto)</strong>
-                </div>
+            ) : (
+              <div className="p-2.5 rounded-xl bg-warm-100 border border-warm-200 text-xs text-stone-600">
+                <span className="font-semibold text-stone-800">Transformed delivery active:</span> Cloudinary dynamic delivery enabled (<code className="font-mono">f_auto, q_auto</code>). Bandwidth savings calculation unavailable (measurement fetch prevented by network or CORS).
               </div>
-            </div>
+            )
           )}
 
           {savingsInfo && !savingsInfo.isCloudinary && (
@@ -504,7 +527,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
       {/* Seed sample preset selector */}
       <div className="pt-1">
         <span className="text-[11px] font-semibold text-stone-500 block mb-1.5">
-          Or select an evaluation seed asset with Cloudinary auto-crop & AI tagging:
+          Or select an evaluation seed asset with Cloudinary auto-crop (g_auto) & responsive delivery:
         </span>
         <div className="flex flex-wrap gap-2">
           {samplePresets.map((preset) => (

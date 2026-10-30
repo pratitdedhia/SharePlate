@@ -178,7 +178,13 @@ export const measureTransformedDelivery = async (url: string) => {
 };
 ```
 
-### Empirical Bandwidth Benchmark Table
+### Illustrative Bandwidth Benchmark Example
+
+> 💡 **Illustrative Example Note:** The benchmark values below illustrate typical measured reductions for 800×600 WebP transforms on sample food photos. In the live web application, bandwidth savings are calculated dynamically only when a user uploads a live file.
+
+> ⚠️ **Food Safety & Media Boundary:** Cloudinary media transformations provide visual inspection and bandwidth efficiency. Cloudinary does NOT verify food safety or hygiene. All food safety declarations (preparation time, allergens, storage temperature) are donor-certified and must be verified in person by receiving organizations at physical handoff.
+
+### Empirical Bandwidth Benchmark Table (Sample Assets)
 
 | Asset Tested | Original File Size | Cloudinary Delivered Size | Savings (%) | Transformed Format | Crop & Gravity |
 | :--- | :--- | :--- | :--- | :--- | :--- |

@@ -65,16 +65,84 @@ CREATE TABLE IF NOT EXISTS public.claims (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     donation_id UUID NOT NULL REFERENCES public.donations(id) ON DELETE CASCADE,
     recipient_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    volunteer_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
     quantity_claimed INTEGER NOT NULL CHECK (quantity_claimed > 0),
     status TEXT NOT NULL DEFAULT 'claimed' CHECK (status IN ('claimed', 'collected', 'delivered', 'cancelled')),
+    verification_status TEXT NOT NULL DEFAULT 'unassigned' CHECK (verification_status IN ('unassigned', 'accepted', 'pickup_pending', 'in_transit', 'delivery_pending', 'verified', 'disputed')),
     claimed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     collected_at TIMESTAMPTZ,
     delivered_at TIMESTAMPTZ,
     cancelled_at TIMESTAMPTZ,
     notes TEXT,
+    pickup_code TEXT,
+    pickup_confirmed_at TIMESTAMPTZ,
+    pickup_confirmed_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    delivery_code TEXT,
+    delivery_confirmed_at TIMESTAMPTZ,
+    delivery_confirmed_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    portions_delivered_confirmed INTEGER,
+    is_disputed BOOLEAN NOT NULL DEFAULT FALSE,
+    dispute_reason TEXT,
+    disputed_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    disputed_at TIMESTAMPTZ,
+    points_awarded INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- 5b. VOLUNTEER REWARDS LEDGER TABLE
+CREATE TABLE IF NOT EXISTS public.volunteer_rewards (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    volunteer_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    claim_id UUID REFERENCES public.claims(id) ON DELETE SET NULL,
+    points INTEGER NOT NULL CHECK (points >= 0),
+    status TEXT NOT NULL DEFAULT 'released' CHECK (status IN ('pending', 'released', 'forfeited')),
+    portions_confirmed INTEGER NOT NULL DEFAULT 0,
+    reason TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 5c. VOLUNTEER TRIP PLANS TABLE
+CREATE TABLE IF NOT EXISTS public.volunteer_trip_plans (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    volunteer_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    origin TEXT NOT NULL,
+    destination TEXT NOT NULL,
+    corridor_label TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'accepted' CHECK (status IN ('draft', 'accepted', 'in_progress', 'completed', 'cancelled')),
+    task_ids TEXT[] DEFAULT '{}',
+    is_demo_preview BOOLEAN NOT NULL DEFAULT FALSE,
+    routing_provider_note TEXT,
+    accepted_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 5d. VOLUNTEER TRIP STOPS TABLE
+CREATE TABLE IF NOT EXISTS public.volunteer_trip_stops (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    plan_id UUID NOT NULL REFERENCES public.volunteer_trip_plans(id) ON DELETE CASCADE,
+    sequence INTEGER NOT NULL,
+    type TEXT NOT NULL CHECK (type IN ('start', 'pickup', 'delivery', 'destination')),
+    name TEXT NOT NULL,
+    address TEXT NOT NULL,
+    city TEXT NOT NULL,
+    contact_person TEXT,
+    phone TEXT,
+    instructions TEXT,
+    task_id TEXT,
+    portions INTEGER,
+    food_title TEXT,
+    dietary_type TEXT,
+    deadline TIMESTAMPTZ,
+    completed BOOLEAN NOT NULL DEFAULT FALSE,
+    completed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_trip_plans_volunteer_id ON public.volunteer_trip_plans(volunteer_id);
+CREATE INDEX IF NOT EXISTS idx_trip_stops_plan_id ON public.volunteer_trip_stops(plan_id);
 
 -- 6. REPORTS TABLE
 CREATE TABLE IF NOT EXISTS public.reports (
@@ -595,6 +663,8 @@ CREATE POLICY "Users can view related claims"
     USING (
         auth.uid() = recipient_id 
         OR auth.uid() IN (SELECT donor_id FROM public.donations WHERE id = donation_id)
+        OR auth.uid() = volunteer_id
+        OR public.is_admin()
     );
 
 -- Recipients can insert claims (normally via atomic RPC function)
@@ -608,6 +678,8 @@ CREATE POLICY "Participants can update claims"
     USING (
         auth.uid() = recipient_id 
         OR auth.uid() IN (SELECT donor_id FROM public.donations WHERE id = donation_id)
+        OR auth.uid() = volunteer_id
+        OR public.is_admin()
     );
 
 -- REPORTS POLICIES
@@ -616,9 +688,13 @@ CREATE POLICY "Authenticated users can submit reports"
     ON public.reports FOR INSERT 
     WITH CHECK (auth.uid() = reporter_id);
 
-CREATE POLICY "Reporters can view their own reports" 
+CREATE POLICY "Reporters and Admins can view reports" 
     ON public.reports FOR SELECT 
-    USING (auth.uid() = reporter_id);
+    USING (auth.uid() = reporter_id OR public.is_admin());
+
+CREATE POLICY "Admins can update reports" 
+    ON public.reports FOR UPDATE 
+    USING (public.is_admin());
 
 -- ACTIVITY LOGS POLICIES
 -- Read-only public activity stream
@@ -629,3 +705,48 @@ CREATE POLICY "Activity logs are viewable"
 -- ==============================================================================
 -- Schema creation complete
 -- ==============================================================================
+
+
+-- Volunteer rewards ledger permissions
+ALTER TABLE public.volunteer_rewards ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Volunteers can view their own rewards"
+    ON public.volunteer_rewards FOR SELECT
+    USING (volunteer_id = auth.uid() OR public.is_admin());
+
+-- Volunteer Trip Plans and Stops RLS
+ALTER TABLE public.volunteer_trip_plans ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.volunteer_trip_stops ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Volunteers can view own trip plans"
+    ON public.volunteer_trip_plans FOR SELECT
+    USING (volunteer_id = auth.uid() OR public.is_admin());
+
+CREATE POLICY "Volunteers can insert own trip plans"
+    ON public.volunteer_trip_plans FOR INSERT
+    WITH CHECK (volunteer_id = auth.uid() OR public.is_admin());
+
+CREATE POLICY "Volunteers can update own trip plans"
+    ON public.volunteer_trip_plans FOR UPDATE
+    USING (volunteer_id = auth.uid() OR public.is_admin());
+
+CREATE POLICY "Trip stops are viewable by assigned volunteer or admin"
+    ON public.volunteer_trip_stops FOR SELECT
+    USING (EXISTS (
+        SELECT 1 FROM public.volunteer_trip_plans p
+        WHERE p.id = plan_id AND (p.volunteer_id = auth.uid() OR public.is_admin())
+    ));
+
+CREATE POLICY "Trip stops can be inserted by plan owner"
+    ON public.volunteer_trip_stops FOR INSERT
+    WITH CHECK (EXISTS (
+        SELECT 1 FROM public.volunteer_trip_plans p
+        WHERE p.id = plan_id AND (p.volunteer_id = auth.uid() OR public.is_admin())
+    ));
+
+CREATE POLICY "Trip stops can be updated by plan owner"
+    ON public.volunteer_trip_stops FOR UPDATE
+    USING (EXISTS (
+        SELECT 1 FROM public.volunteer_trip_plans p
+        WHERE p.id = plan_id AND (p.volunteer_id = auth.uid() OR public.is_admin())
+    ));

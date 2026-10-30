@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { donationsService } from '../../services/donations';
 import { claimsService } from '../../services/claims';
+import { useLiveUpdates } from '../../hooks/useLiveUpdates';
 import { Donation, Claim } from '../../types';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { DemoAccountBanner } from '../../components/common/DemoAccountBanner';
@@ -49,6 +50,8 @@ export const RecipientDashboard: React.FC = () => {
   useEffect(() => {
     loadData();
   }, [user]);
+
+  useLiveUpdates(loadData);
 
   const handleUpdateClaimStatus = async (claimId: string, newStatus: 'collected' | 'delivered') => {
     try {

@@ -89,7 +89,7 @@ export const ImpactCharts: React.FC<ImpactChartsProps> = ({ metrics }) => {
           </h3>
           <p className="text-xs text-emerald-100/80 leading-relaxed">
             When food rots in landfills, it emits methane—a greenhouse gas 28× more potent than carbon dioxide.
-            Every verified delivery prevents food waste at the source.
+            Every completed delivery prevents surplus food from reaching landfills.
           </p>
         </div>
 

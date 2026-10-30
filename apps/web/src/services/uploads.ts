@@ -120,7 +120,7 @@ export const uploadService = {
           format: res.format,
           isCloudinaryHosted: true,
           tags: res.tags || [],
-          aiTags: res.aiTags || extractAIFoodTags(res.tags || [], file.name),
+          aiTags: res.aiTags || extractAIFoodTags(res.tags || []),
           aspectRatios,
           notes: 'Signed Cloudinary upload with auto-crop (g_auto) and AI food tagging.',
         };
@@ -165,7 +165,7 @@ export const uploadService = {
           format: res.format,
           isCloudinaryHosted: true,
           tags: res.tags || [],
-          aiTags: res.aiTags || extractAIFoodTags(res.tags || [], file.name),
+          aiTags: res.aiTags || extractAIFoodTags(res.tags || []),
           aspectRatios,
           notes: 'Direct unsigned Cloudinary upload with auto-crop (g_auto) and format optimization (f_auto, q_auto).',
         };
@@ -183,7 +183,6 @@ export const uploadService = {
         if (currentProgress >= 100) {
           clearInterval(interval);
           const localUrl = URL.createObjectURL(file);
-          const mockAiTags = extractAIFoodTags([], file.name);
           resolve({
             imageUrl: localUrl,
             publicId: `local-preview-${Date.now()}`,
@@ -191,7 +190,7 @@ export const uploadService = {
             originalBytes: file.size,
             isCloudinaryHosted: false,
             tags: ['local-preview'],
-            aiTags: mockAiTags,
+            aiTags: [],
             aspectRatios: {
               card: localUrl,
               banner: localUrl,
