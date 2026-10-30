@@ -22,6 +22,7 @@ import { Donation, ImpactMetrics, UserRole } from '../types';
 import { DonationGrid } from '../components/donations/DonationGrid';
 import { LoadingSkeleton } from '../components/common/LoadingSkeleton';
 import { useAuth } from '../contexts/AuthContext';
+import { useLiveUpdates } from '../hooks/useLiveUpdates';
 
 export const HomePage: React.FC = () => {
   const { user, loginDemoRole } = useAuth();

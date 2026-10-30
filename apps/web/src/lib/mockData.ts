@@ -564,6 +564,7 @@ const DEMO_STORAGE_KEYS = {
   TRIP_PLANS: 'shareplate_demo_trip_plans_v3',
   VOL_REWARDS: 'shareplate_demo_rewards_vol_v3',
   DONOR_REWARDS: 'shareplate_demo_rewards_donor_v3',
+  USERS: 'shareplate_demo_users_v3',
 };
 
 function loadDemoStorage<T>(key: string, fallback: T): T {
@@ -718,6 +719,7 @@ class DemoStore {
     saveDemoStorage(DEMO_STORAGE_KEYS.TRIP_PLANS, this.tripPlans);
     saveDemoStorage(DEMO_STORAGE_KEYS.VOL_REWARDS, this.rewardRecords);
     saveDemoStorage(DEMO_STORAGE_KEYS.DONOR_REWARDS, this.donorRewardRecords);
+    saveDemoStorage(DEMO_STORAGE_KEYS.USERS, this.users);
   }
 
   private reloadFromStorage() {
@@ -727,6 +729,7 @@ class DemoStore {
     this.tripPlans = loadDemoStorage(DEMO_STORAGE_KEYS.TRIP_PLANS, this.tripPlans);
     this.rewardRecords = loadDemoStorage(DEMO_STORAGE_KEYS.VOL_REWARDS, this.rewardRecords);
     this.donorRewardRecords = loadDemoStorage(DEMO_STORAGE_KEYS.DONOR_REWARDS, this.donorRewardRecords);
+    this.users = loadDemoStorage(DEMO_STORAGE_KEYS.USERS, this.users);
   }
 
   /**
@@ -745,6 +748,7 @@ class DemoStore {
   }
 
   getDonations(params?: { category?: string; city?: string; search?: string; status?: string; donor_id?: string }): Donation[] {
+    this.reloadFromStorage();
     this.checkExpiredDonations();
     let results = [...this.donations];
     if (params?.donor_id) {
@@ -780,31 +784,41 @@ class DemoStore {
   }
 
   getDonationById(id: string): Donation | undefined {
+    this.reloadFromStorage();
     this.checkExpiredDonations();
     return this.donations.find((d) => d.id === id);
   }
 
   createDonation(donation: Omit<Donation, 'id' | 'created_at' | 'quantity_available' | 'status'>): Donation {
     this.reloadFromStorage();
+    const donorUser = this.users.find((u) => u.id === donation.donor_id) || DEMO_PROFILES.donor;
+    const donor_name =
+      donation.donor?.organization_name ||
+      donation.donor?.full_name ||
+      donorUser?.organization_name ||
+      donorUser?.full_name ||
+      'Registered Donor Kitchen';
+    const donor_phone = donation.donor?.phone || donorUser?.phone || '+91 98110 12345';
+    const donor_city = donation.city || donorUser?.city || 'Delhi NCR';
+
     const newDonation: Donation = {
       ...donation,
       id: `demo-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       created_at: new Date().toISOString(),
       quantity_available: donation.quantity_total,
       status: 'available',
+      donor: {
+        id: donation.donor_id || donorUser.id,
+        full_name: donorUser.full_name || donor_name,
+        organization_name: donorUser.organization_name || donor_name,
+        city: donor_city,
+        phone: donor_phone,
+      },
     };
     this.donations.unshift(newDonation);
 
     // Automatically create a corresponding RescueTask for the volunteer route planner
     const corridorInfo = determineCorridor(newDonation.city, newDonation.location_label);
-    const donorUser = this.users.find((u) => u.id === newDonation.donor_id) || DEMO_PROFILES.donor;
-    const donor_name =
-      newDonation.donor?.organization_name ||
-      newDonation.donor?.full_name ||
-      donorUser?.organization_name ||
-      donorUser?.full_name ||
-      'Registered Donor Kitchen';
-    const donor_phone = newDonation.donor?.phone || donorUser?.phone || '+91 98110 12345';
 
     const rescueTask: RescueTask = {
       id: `task-${newDonation.id}`,
@@ -972,6 +986,7 @@ class DemoStore {
   }
 
   getUserClaims(userId: string, roleOrIsDonor: boolean | string = false): Claim[] {
+    this.reloadFromStorage();
     const user = this.users.find((u) => u.id === userId);
     const detectedRole = typeof roleOrIsDonor === 'string' ? roleOrIsDonor : user?.role;
     const isDonor = roleOrIsDonor === true || detectedRole === 'donor';
@@ -1010,6 +1025,7 @@ class DemoStore {
   }
 
   getImpactMetrics(): ImpactMetrics {
+    this.reloadFromStorage();
     this.checkExpiredDonations();
     return calculateImpactMetrics(this.donations, this.claims, 4, 3);
   }
@@ -1069,12 +1085,14 @@ class DemoStore {
   }
 
   addUser(user: UserProfile) {
+    this.reloadFromStorage();
     this.users.unshift(user);
     this.addActivityLog('admin_user_created', {
       user: user.full_name,
       role: user.role,
       email: user.email,
     });
+    this.persist();
   }
 
   updateUser(userId: string, updates: Partial<UserProfile>): UserProfile | null {
@@ -1103,6 +1121,7 @@ class DemoStore {
   }
 
   getAllClaims(): Claim[] {
+    this.reloadFromStorage();
     return [...this.claims];
   }
 

@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { donationsService, DonationFilterParams } from '../services/donations';
 import { Donation } from '../types';
 import { DonationFilters } from '../components/donations/DonationFilters';
+import { useLiveUpdates } from '../hooks/useLiveUpdates';
 import { DonationGrid } from '../components/donations/DonationGrid';
 import { LoadingSkeleton } from '../components/common/LoadingSkeleton';
 
@@ -48,6 +49,8 @@ export const DonationsPage: React.FC = () => {
   useEffect(() => {
     fetchDonations();
   }, [search, category, city, status]);
+
+  useLiveUpdates(fetchDonations);
 
   const handleReset = () => {
     setSearch('');
