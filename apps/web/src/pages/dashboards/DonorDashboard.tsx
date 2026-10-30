@@ -22,7 +22,6 @@ import {
   MapPin,
   Calendar,
   Layers,
-  Activity,
   Award,
   Sparkles,
   Gift,
@@ -37,7 +36,6 @@ export const DonorDashboard: React.FC = () => {
   const [donations, setDonations] = useState<Donation[]>([]);
   const [incomingClaims, setIncomingClaims] = useState<Claim[]>([]);
   const [rewardsSummary, setRewardsSummary] = useState<DonorRewardsSummary | null>(null);
-  const [activityLogs, setActivityLogs] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'listings' | 'rewards'>('listings');
   const [loading, setLoading] = useState(true);
   const [pickupCodeInput, setPickupCodeInput] = useState<Record<string, string>>({});
@@ -57,9 +55,6 @@ export const DonorDashboard: React.FC = () => {
       // 3. Load donor rewards ledger
       const rewards = await claimsService.getDonorRewards(user.id);
       setRewardsSummary(rewards);
-
-      // 4. Load activity logs
-      setActivityLogs(demoStore.getActivityLogs());
     } catch (err: any) {
       console.error('Failed to load donor dashboard data:', err);
     } finally {
@@ -420,38 +415,8 @@ export const DonorDashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Right Column: Recent Activity Feed (1 col) */}
+          {/* Right Column: Food Safety & Guidelines (1 col) */}
           <div className="space-y-6">
-            <div className="bg-white rounded-3xl border border-warm-200 shadow-xs p-6 space-y-4">
-              <div className="flex items-center justify-between border-b border-warm-100 pb-3">
-                <div className="flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-emerald-600" />
-                  <h2 className="text-sm font-black text-stone-900 uppercase tracking-wide">
-                    Recent Activity
-                  </h2>
-                </div>
-                <span className="text-[10px] font-semibold text-stone-400 uppercase tracking-wider">
-                  Live Audit Stream
-                </span>
-              </div>
-
-              <div className="space-y-4">
-                {activityLogs.slice(0, 5).map((log) => (
-                  <div key={log.id} className="text-xs space-y-1 relative pl-4 border-l-2 border-warm-200">
-                    <div className="font-bold text-stone-800 capitalize">
-                      {log.action.replace('_', ' ')}
-                    </div>
-                    <div className="text-stone-500 text-[11px]">
-                      {log.details.title || log.details.recipient || log.details.route || 'Batch update'}
-                    </div>
-                    <div className="text-stone-400 text-[10px]">
-                      {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
             {/* Quick Guidance Card */}
             <div className="bg-forest-900 text-white rounded-3xl p-6 shadow-sm space-y-3">
               <div className="text-xs font-bold uppercase tracking-wider text-emerald-300">
