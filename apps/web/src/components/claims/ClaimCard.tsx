@@ -15,6 +15,7 @@ import {
   ShieldAlert,
   Clock,
   Key,
+  Lock,
 } from 'lucide-react';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import { useAuth } from '../../contexts/AuthContext';
@@ -175,13 +176,31 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
               </span>
             )}
           </div>
-          <div className="text-[11px] text-stone-600 flex items-center gap-1.5">
-            <Key className="w-3 h-3 text-stone-400" />
-            <span>Pickup Code: <strong className="font-mono text-stone-900">{claim.pickup_code || '4821'}</strong></span>
-          </div>
-          {claim.pickup_confirmed_at && (
-            <div className="text-[10px] text-emerald-800">
-              Verified by {claim.pickup_confirmed_by || 'Donor Kitchen'}
+
+          {claim.pickup_confirmed_at ? (
+            <div className="text-[11px] text-emerald-800 flex items-center gap-1.5 font-medium">
+              <CheckCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <span>Verified by {claim.pickup_confirmed_by || 'Donor Kitchen'}</span>
+            </div>
+          ) : isDonor || isAdmin ? (
+            <div className="space-y-0.5">
+              <div className="text-[11px] text-stone-700 flex items-center gap-1.5">
+                <Key className="w-3 h-3 text-emerald-600" />
+                <span>Pickup Code: <strong className="font-mono text-stone-900 bg-warm-100 px-1.5 py-0.5 rounded border border-warm-300">{claim.pickup_code || '4821'}</strong></span>
+              </div>
+              <p className="text-[10px] text-stone-500">
+                Share with volunteer during kitchen loading dock handover.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-0.5">
+              <div className="text-[11px] text-stone-600 flex items-center gap-1.5 font-medium">
+                <Lock className="w-3 h-3 text-amber-600 shrink-0" />
+                <span>Protected PIN (Held by Donor Kitchen)</span>
+              </div>
+              <p className="text-[10px] text-stone-400">
+                Donor kitchen verifies volunteer upon arrival to release food.
+              </p>
             </div>
           )}
         </div>
@@ -207,13 +226,33 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
               </span>
             )}
           </div>
-          <div className="text-[11px] text-stone-600 flex items-center gap-1.5">
-            <Key className="w-3 h-3 text-stone-400" />
-            <span>Delivery Code: <strong className="font-mono text-stone-900">{claim.delivery_code || '7392'}</strong></span>
-          </div>
-          {claim.delivery_confirmed_at && (
-            <div className="text-[10px] text-emerald-800">
-              Verified by {claim.delivery_confirmed_by || 'Recipient NGO'} ({claim.portions_delivered_confirmed || claim.quantity_claimed} portions)
+
+          {claim.delivery_confirmed_at ? (
+            <div className="text-[11px] text-emerald-800 flex items-center gap-1.5 font-medium">
+              <CheckCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <span>
+                Verified by {claim.delivery_confirmed_by || 'Recipient NGO'} ({claim.portions_delivered_confirmed || claim.quantity_claimed} portions)
+              </span>
+            </div>
+          ) : isRecipient || isAdmin ? (
+            <div className="space-y-0.5">
+              <div className="text-[11px] text-stone-700 flex items-center gap-1.5">
+                <Key className="w-3 h-3 text-blue-600" />
+                <span>Delivery Code: <strong className="font-mono text-stone-900 bg-warm-100 px-1.5 py-0.5 rounded border border-warm-300">{claim.delivery_code || '7392'}</strong></span>
+              </div>
+              <p className="text-[10px] text-blue-700 font-medium">
+                Your authorization code. Verify meals and confirm receipt upon drop-off.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-0.5">
+              <div className="text-[11px] text-stone-600 flex items-center gap-1.5 font-medium">
+                <Lock className="w-3 h-3 text-blue-600 shrink-0" />
+                <span>Protected PIN (Held by Recipient Shelter)</span>
+              </div>
+              <p className="text-[10px] text-stone-400">
+                Recipient NGO verifies portions and confirms arrival at destination.
+              </p>
             </div>
           )}
         </div>
