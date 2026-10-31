@@ -729,29 +729,26 @@ export const DonorDashboard: React.FC = () => {
                 </>
               )}
 
-              {/* Section: My Food Donations (Filtered) */}
-              <div className="bg-white rounded-3xl border border-warm-200 shadow-xs overflow-hidden">
-                <div className="p-6 border-b border-warm-100 flex items-center justify-between">
-                  <div>
-                    <h2 className="text-lg font-black text-stone-900">
-                      {statusFilter === 'available'
-                        ? 'Available Surplus Food Batches'
-                        : statusFilter === 'claimed'
-                        ? 'Food Batches in Dispatch / Transit'
-                        : statusFilter === 'completed'
-                        ? 'Delivered & Shelter-Verified Batches'
-                        : 'My Food Donations'}
-                    </h2>
-                    <p className="text-xs text-stone-500">
-                      {statusFilter === 'available'
-                        ? 'Open surplus batches ready for NGO pickup'
-                        : statusFilter === 'claimed'
-                        ? 'Surplus meal batches reserved and en-route'
-                        : statusFilter === 'completed'
-                        ? 'Safely delivered batches confirmed by recipient shelters'
-                        : 'Live inventory of surplus meal batches'}
-                    </p>
-                  </div>
+              {/* Section: My Food Donations (Filtered) - Hidden on Completed filter */}
+              {statusFilter !== 'completed' && (
+                <div className="bg-white rounded-3xl border border-warm-200 shadow-xs overflow-hidden">
+                  <div className="p-6 border-b border-warm-100 flex items-center justify-between">
+                    <div>
+                      <h2 className="text-lg font-black text-stone-900">
+                        {statusFilter === 'available'
+                          ? 'Available Surplus Food Batches'
+                          : statusFilter === 'claimed'
+                          ? 'Food Batches in Dispatch / Transit'
+                          : 'My Food Donations'}
+                      </h2>
+                      <p className="text-xs text-stone-500">
+                        {statusFilter === 'available'
+                          ? 'Open surplus batches ready for NGO pickup'
+                          : statusFilter === 'claimed'
+                          ? 'Surplus meal batches reserved and en-route'
+                          : 'Live inventory of surplus meal batches'}
+                      </p>
+                    </div>
                   <div className="flex items-center gap-3">
                     <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-warm-100 text-stone-700">
                       {filteredDonations.length} {filteredDonations.length === 1 ? 'batch' : 'batches'}
@@ -773,8 +770,6 @@ export const DonorDashboard: React.FC = () => {
                           ? 'No active surplus batches available right now.'
                           : statusFilter === 'claimed'
                           ? 'No food batches are currently claimed or in-transit.'
-                          : statusFilter === 'completed'
-                          ? 'No completed deliveries matching current filters.'
                           : 'No food donations found matching your criteria.'}
                       </div>
                       {statusFilter === 'available' && (
@@ -825,11 +820,6 @@ export const DonorDashboard: React.FC = () => {
                         </div>
 
                         <div className="flex items-center gap-2 self-end sm:self-center">
-                          {d.status === 'delivered' && (
-                            <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200 flex items-center gap-1">
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Delivered
-                            </span>
-                          )}
                           <Link
                             to={`/donations/${d.id}`}
                             className="px-3 py-1.5 rounded-lg text-xs font-semibold text-forest-900 bg-warm-100 hover:bg-warm-200 transition"
@@ -842,6 +832,7 @@ export const DonorDashboard: React.FC = () => {
                   )}
                 </div>
               </div>
+              )}
 
               {/* Section: Incoming Claims (Rendered below Donations when statusFilter is NOT 'claimed') */}
               {statusFilter !== 'claimed' && statusFilter !== 'available' && (
