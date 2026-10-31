@@ -45,9 +45,9 @@
 1. **GitHub Repository Variables:**
    - Go to your repository on GitHub: **Settings > Secrets and variables > Actions > Variables**.
    - Add or update the variable:  
-     `VITE_NOTION_URL` = `https://your-workspace.notion.site/SharePlate-...`
+     `VITE_NOTION_URL` = `https://app.notion.com/p/SharePlate-Hacktober-HackDays-2026-Report-40471fac0e5c813cb0d3de560f29a8aa?source=copy_link`
 2. **Local / Build Environment:**
-   - Add `VITE_NOTION_URL=https://your-workspace.notion.site/SharePlate-...` into `apps/web/.env`.
+   - Add `VITE_NOTION_URL=https://app.notion.com/p/SharePlate-Hacktober-HackDays-2026-Report-40471fac0e5c813cb0d3de560f29a8aa?source=copy_link` into `apps/web/.env`.
 3. When set, a prominent **"Project Journey (Notion)"** button will automatically appear in the top Navbar, on `/about`, and in the Footer!
 
 ---
@@ -70,7 +70,7 @@
 `https://github.com/pratitdedhia/SharePlate`
 
 ### 6. Notion Project Journey URL
-*(Paste your public Notion page URL generated in Step 2)*
+`https://app.notion.com/p/SharePlate-Hacktober-HackDays-2026-Report-40471fac0e5c813cb0d3de560f29a8aa?source=copy_link`
 
 ### 7. Cloudinary Tech Stack Evidence
 *(Paste this exact paragraph)*:

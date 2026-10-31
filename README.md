@@ -9,7 +9,7 @@
 [![Deploy Target](https://img.shields.io/badge/Deploy-GitHub_Pages-22C55E?style=for-the-badge)](https://pratitdedhia.github.io/SharePlate/)
 
 > 🌐 **Live Deployed Demo:** [https://pratitdedhia.github.io/SharePlate/](https://pratitdedhia.github.io/SharePlate/)  
-> 📖 **Project Journey & Hackathon Report (Notion):** [SharePlate — Hacktober HackDays 2026 Report](https://app.notion.com/p/SharePlate-Hacktober-HackDays-2026-Report-40471fac0e5c813cb0d3de560f29a8aa) · Markdown source mirrored in [`docs/notion/`](docs/notion/00_index.md)  
+> 📖 **Project Journey & Hackathon Report (Notion):** [SharePlate — Hacktober HackDays 2026 Report](https://app.notion.com/p/SharePlate-Hacktober-HackDays-2026-Report-40471fac0e5c813cb0d3de560f29a8aa?source=copy_link) · Markdown source mirrored in [`docs/notion/`](docs/notion/00_index.md)  
 > 📂 **GitHub Repository:** [https://github.com/pratitdedhia/SharePlate](https://github.com/pratitdedhia/SharePlate)
 
 **SharePlate** is a full-stack, community-driven food rescue web application built for **Hacktober HackDays 2026** (organized by the SheBuilds Delhi Chapter and powered by Major League Hacking) under the **Tech for Social Good** track.
@@ -426,7 +426,7 @@ Follow these steps in the Cloudinary Console:
    VITE_DEMO_MODE=true
    VITE_CLOUDINARY_CLOUD_NAME=your_actual_cloud_name
    VITE_CLOUDINARY_UPLOAD_PRESET=your_unsigned_preset_name
-   VITE_NOTION_URL=https://your-public-notion-page-url
+   VITE_NOTION_URL=https://app.notion.com/p/SharePlate-Hacktober-HackDays-2026-Report-40471fac0e5c813cb0d3de560f29a8aa?source=copy_link
    ```
 4. **Configure Deployment Environment (GitHub Pages / CI):**
    - In your GitHub repository, navigate to **Settings > Secrets and variables > Actions > Variables** (tab: *Variables*).

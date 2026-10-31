@@ -24,7 +24,8 @@ export const Navbar: React.FC = () => {
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const notionUrl = (import.meta.env.VITE_NOTION_URL || '').trim();
+  const defaultNotionUrl = 'https://app.notion.com/p/SharePlate-Hacktober-HackDays-2026-Report-40471fac0e5c813cb0d3de560f29a8aa?source=copy_link';
+  const notionUrl = (import.meta.env.VITE_NOTION_URL || defaultNotionUrl).trim();
   const hasNotionUrl = Boolean(notionUrl && !notionUrl.includes('<<FILL'));
 
   const isActive = (path: string) => location.pathname === path;
