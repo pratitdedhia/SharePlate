@@ -19,6 +19,7 @@ import { StatusBadge } from '../../components/common/StatusBadge';
 import { DemoAccountBanner } from '../../components/common/DemoAccountBanner';
 import {
   Bike,
+  XCircle,
   Navigation,
   MapPin,
   Clock,
@@ -447,6 +448,46 @@ export const VolunteerDashboard: React.FC = () => {
     }
   };
 
+  // Cancel / Abandon active route (release items back to feed)
+  const handleCancelRoute = async () => {
+    if (!user) return;
+    const confirmCancel = window.confirm(
+      'Are you sure you want to cancel and remove this active delivery? Any incomplete items will be returned to the rescue feed.'
+    );
+    if (!confirmCancel) return;
+    try {
+      await claimsService.cancelVolunteerTripPlan(user.id, activeTripPlan?.id);
+      setActiveTripPlan(null);
+      success('Active delivery route has been cancelled and cleared.');
+      setActiveTab('planner');
+      await loadDashboardData();
+    } catch (err: any) {
+      error(err.message || 'Failed to cancel active delivery route');
+    }
+  };
+
+  // Demo helper: simulate donor kitchen releasing food
+  const handleSimulateDonorPickup = async (claimId: string) => {
+    try {
+      await claimsService.simulateDonorPickup(claimId);
+      success('Food handover confirmed by donor kitchen! Food is now in transit.');
+      await loadDashboardData();
+    } catch (err: any) {
+      error(err.message || 'Failed to simulate donor handover confirmation');
+    }
+  };
+
+  // Demo helper: simulate shelter confirming receipt and releasing points
+  const handleSimulateRecipientDelivery = async (claimId: string, portions?: number) => {
+    try {
+      const res = await claimsService.simulateRecipientDelivery(claimId, portions);
+      success(`Delivery verified by recipient shelter! +${res.pointsAwarded} pts released to your account.`);
+      await loadDashboardData();
+    } catch (err: any) {
+      error(err.message || 'Failed to simulate recipient delivery verification');
+    }
+  };
+
   // Dispute: Mark task as disputed (0 points)
   const handleDisputeTask = async () => {
     if (!disputeClaimId || !disputeReason.trim()) {
@@ -466,6 +507,34 @@ export const VolunteerDashboard: React.FC = () => {
   };
 
   // Derived metrics
+  const completedStopsCount = activeTripPlan && activeTripPlan.stops
+    ? activeTripPlan.stops.filter((s) => {
+        const linked = activeClaims.find((c) => c.id === s.claim_id || c.donation_id === s.task_id);
+        const isDone =
+          s.completed ||
+          (s.type === 'pickup' && (linked?.status === 'collected' || linked?.status === 'delivered')) ||
+          (s.type === 'delivery' && (linked?.status === 'delivered' || linked?.verification_status === 'verified')) ||
+          ((s.type === 'start' || s.type === 'destination') && s.completed);
+        return isDone;
+      }).length
+    : 0;
+
+  const nextPendingStop = activeTripPlan && activeTripPlan.stops
+    ? activeTripPlan.stops.find((s) => {
+        const linked = activeClaims.find((c) => c.id === s.claim_id || c.donation_id === s.task_id);
+        const isDone =
+          s.completed ||
+          (s.type === 'pickup' && (linked?.status === 'collected' || linked?.status === 'delivered')) ||
+          (s.type === 'delivery' && (linked?.status === 'delivered' || linked?.verification_status === 'verified')) ||
+          ((s.type === 'start' || s.type === 'destination') && s.completed);
+        return !isDone;
+      })
+    : null;
+
+  const nextPendingClaim = nextPendingStop
+    ? activeClaims.find((c) => c.id === nextPendingStop.claim_id || c.donation_id === nextPendingStop.task_id)
+    : null;
+
   const selectedTasks = availableTasks.filter((t) => selectedTaskIds.includes(t.id));
   const selectedPortionsTotal = selectedTasks.reduce((sum, t) => sum + t.portions, 0);
   const potentialPointsTotal = selectedTasks.reduce(
@@ -524,6 +593,11 @@ export const VolunteerDashboard: React.FC = () => {
           >
             <CheckSquare className="w-4 h-4" />
             <span>2. Route Checklist & Verification</span>
+            {activeTripPlan && (activeTripPlan.status === 'accepted' || activeTripPlan.status === 'in_progress') && (
+              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-400 text-stone-950 animate-pulse">
+                Live
+              </span>
+            )}
           </button>
           <button
             type="button"
@@ -542,6 +616,135 @@ export const VolunteerDashboard: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* ACTIVE LIVE DELIVERY MISSION HERO BANNER */}
+      {activeTripPlan && (activeTripPlan.status === 'accepted' || activeTripPlan.status === 'in_progress') && (
+        <div className="bg-gradient-to-r from-forest-950 via-emerald-950 to-stone-900 text-white rounded-3xl p-6 sm:p-7 shadow-xl border-2 border-emerald-500/50 space-y-5 animate-in fade-in duration-300">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-emerald-800/40 pb-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-emerald-400 text-stone-950 shadow-xs">
+                  <span className="w-2 h-2 rounded-full bg-forest-950 animate-pulse"></span>
+                  Live Delivery In Progress
+                </span>
+                <span className="text-xs text-emerald-300 font-bold">
+                  Corridor: {activeTripPlan.corridor_label}
+                </span>
+              </div>
+              <h2 className="text-xl sm:text-2xl font-black text-white mt-1">
+                Active Food Rescue Route
+              </h2>
+              <p className="text-xs text-stone-300">
+                {completedStopsCount} of {activeTripPlan.stops.length} stops completed ·{' '}
+                {activeTripPlan.stops.reduce((sum, s) => sum + (s.portions || 0), 0) / 2} portions in rescue transit
+              </p>
+            </div>
+
+            {/* Quick Actions Header */}
+            <div className="flex items-center gap-2 flex-wrap shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('checklist');
+                  setTimeout(() => {
+                    const el = document.getElementById(nextPendingStop?.id || 'checklist');
+                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }, 100);
+                }}
+                className="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-stone-950 bg-emerald-400 hover:bg-emerald-300 transition shadow-md flex items-center gap-2 cursor-pointer"
+              >
+                <CheckSquare className="w-4 h-4" />
+                <span>Open Checklist & OTP Page</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCancelRoute}
+                className="px-4 py-2.5 rounded-xl text-xs font-bold text-rose-300 bg-rose-950/60 hover:bg-rose-900/80 border border-rose-500/50 transition flex items-center gap-1.5 cursor-pointer"
+                title="Get rid of this delivery route and release items back to feed"
+              >
+                <XCircle className="w-4 h-4 text-rose-400" />
+                <span>Cancel / Reset Route</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Immediate Next Action Spotlight */}
+          {nextPendingStop && (
+            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 sm:p-5 border border-white/15 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-start gap-3.5">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500 text-stone-950 flex items-center justify-center font-black text-sm shrink-0 mt-0.5 shadow-xs">
+                  #{nextPendingStop.sequence}
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-emerald-300 text-forest-950">
+                      Immediate Next Action: {nextPendingStop.type === 'pickup' ? 'Donor Kitchen Pickup' : nextPendingStop.type === 'delivery' ? 'Recipient Shelter Delivery' : 'Commute Leg'}
+                    </span>
+                    {nextPendingStop.portions && (
+                      <span className="text-xs font-bold text-stone-200">
+                        {nextPendingStop.food_title} ({nextPendingStop.portions} portions)
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-base font-bold text-white">{nextPendingStop.name}</div>
+                  <div className="text-xs text-stone-300 flex items-center gap-1">
+                    <MapPin className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                    <span>{nextPendingStop.address}</span>
+                  </div>
+                  {nextPendingStop.contact_person && (
+                    <div className="text-xs text-emerald-200 pt-0.5">
+                      Contact: <strong>{nextPendingStop.contact_person}</strong>
+                      {nextPendingStop.phone && <span> ({nextPendingStop.phone})</span>}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Next Action Right Column: OTP & Maps Link */}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 shrink-0 self-start md:self-center">
+                {nextPendingClaim && (nextPendingClaim.pickup_code || nextPendingClaim.delivery_code) && (
+                  <div className="bg-stone-950/80 px-3.5 py-2 rounded-xl border border-emerald-500/40 text-center">
+                    <div className="text-[10px] uppercase font-bold text-stone-400">
+                      {nextPendingStop.type === 'pickup' ? 'Pickup OTP' : 'Delivery OTP'}:
+                    </div>
+                    <div className="font-mono text-xl font-black text-emerald-300 tracking-wider">
+                      {nextPendingStop.type === 'pickup' ? (nextPendingClaim.pickup_code || '4821') : (nextPendingClaim.delivery_code || '7392')}
+                    </div>
+                  </div>
+                )}
+
+                <a
+                  href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(nextPendingStop.address)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3.5 py-2.5 rounded-xl text-xs font-bold bg-white text-stone-900 hover:bg-stone-100 transition shadow-xs flex items-center justify-center gap-1.5"
+                >
+                  <Compass className="w-4 h-4 text-emerald-700" />
+                  <span>Google Maps</span>
+                  <ExternalLink className="w-3 h-3 text-stone-400" />
+                </a>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('checklist');
+                    setTimeout(() => {
+                      const el = document.getElementById(nextPendingStop.id);
+                      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 100);
+                  }}
+                  className="px-3.5 py-2.5 rounded-xl text-xs font-bold bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 border border-emerald-400/40 transition flex items-center justify-center gap-1"
+                >
+                  <span>View in Checklist</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Quick Stats Strip (Interactive Clickable Triggers) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -707,6 +910,40 @@ export const VolunteerDashboard: React.FC = () => {
       {/* ============================================================== */}
       {activeTab === 'planner' && (
         <div className="space-y-6">
+          {/* Active Route Notice in Planner */}
+          {activeTripPlan && (activeTripPlan.status === 'accepted' || activeTripPlan.status === 'in_progress') && (
+            <div className="bg-amber-50 rounded-3xl p-5 border border-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
+              <div className="flex items-start gap-3">
+                <Clock className="w-5 h-5 text-amber-700 shrink-0 mt-0.5 animate-pulse" />
+                <div>
+                  <h4 className="text-sm font-bold text-amber-950">
+                    You already have an active rescue delivery route in progress
+                  </h4>
+                  <p className="text-xs text-amber-800 mt-0.5">
+                    Route along <strong>{activeTripPlan.corridor_label}</strong> ({activeTripPlan.stops.length} stops). Open the checklist to view OTPs and Google Maps navigation, or cancel to plan a new corridor trip.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('checklist')}
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-forest-900 text-white hover:bg-forest-800 transition shadow-xs flex items-center gap-1.5 cursor-pointer"
+                >
+                  <span>Go to Active Checklist</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCancelRoute}
+                  className="px-3 py-2 rounded-xl text-xs font-bold text-rose-700 bg-white hover:bg-rose-50 border border-rose-300 transition cursor-pointer"
+                >
+                  Cancel Route
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Mission Explanation Banner */}
           <div className="bg-gradient-to-r from-forest-950 via-emerald-950 to-stone-900 text-white rounded-3xl p-6 sm:p-7 shadow-lg border border-emerald-800/30">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -1139,8 +1376,19 @@ export const VolunteerDashboard: React.FC = () => {
                   </p>
                 </div>
 
-                <div className="text-xs font-bold text-stone-600">
-                  Corridor: <strong>{activeTripPlan?.corridor_label || selectedCorridor}</strong>
+                <div className="flex items-center gap-3">
+                  <div className="text-xs font-bold text-stone-600">
+                    Corridor: <strong>{activeTripPlan?.corridor_label || selectedCorridor}</strong>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCancelRoute}
+                    className="px-3 py-1.5 rounded-xl text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition flex items-center gap-1 cursor-pointer"
+                    title="Cancel active delivery route and release tasks"
+                  >
+                    <XCircle className="w-3.5 h-3.5" />
+                    <span>Cancel / Reset Route</span>
+                  </button>
                 </div>
               </div>
 
@@ -1381,13 +1629,24 @@ export const VolunteerDashboard: React.FC = () => {
                                     </strong>{' '}
                                     to verify & release the food.
                                   </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleVolunteerInitiatePickup(claimId)}
-                                    className="text-[11px] font-bold text-forest-900 hover:underline cursor-pointer shrink-0"
-                                  >
-                                    Re-generate Pickup Code
-                                  </button>
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleSimulateDonorPickup(claimId)}
+                                      className="px-2.5 py-1 rounded-lg text-[11px] font-bold text-white bg-amber-800 hover:bg-amber-900 transition flex items-center gap-1 cursor-pointer shadow-2xs"
+                                      title="Simulate donor kitchen typing this OTP and clicking Verify & Release"
+                                    >
+                                      <CheckCircle2 className="w-3 h-3 text-amber-300" />
+                                      <span>Simulate Donor Release (Demo)</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleVolunteerInitiatePickup(claimId)}
+                                      className="text-[11px] font-bold text-forest-900 hover:underline cursor-pointer shrink-0"
+                                    >
+                                      Re-generate OTP
+                                    </button>
+                                  </div>
                                 </div>
                               </div>
                             ) : (
@@ -1472,14 +1731,25 @@ export const VolunteerDashboard: React.FC = () => {
                                     </strong>{' '}
                                     to confirm delivery and release your reward points.
                                   </div>
-                                  <div className="flex items-center justify-between pt-1">
-                                    <button
-                                      type="button"
-                                      onClick={() => handleVolunteerInitiateDelivery(claimId)}
-                                      className="text-[11px] font-bold text-blue-900 hover:underline cursor-pointer"
-                                    >
-                                      Re-generate Delivery Code
-                                    </button>
+                                  <div className="flex items-center justify-between pt-1 flex-wrap gap-2">
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleSimulateRecipientDelivery(claimId, stop.portions)}
+                                        className="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-blue-700 hover:bg-blue-800 transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                                        title="Simulate shelter coordinator typing this OTP and clicking Confirm Delivery"
+                                      >
+                                        <CheckCircle2 className="w-3.5 h-3.5 text-blue-200" />
+                                        <span>Simulate Shelter Receipt (Demo)</span>
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleVolunteerInitiateDelivery(claimId)}
+                                        className="text-[11px] font-bold text-blue-900 hover:underline cursor-pointer"
+                                      >
+                                        Re-generate OTP
+                                      </button>
+                                    </div>
                                     <button
                                       type="button"
                                       onClick={() => {

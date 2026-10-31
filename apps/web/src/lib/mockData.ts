@@ -1638,6 +1638,77 @@ class DemoStore {
     return plan;
   }
 
+  cancelVolunteerTripPlan(volunteerId: string, planId?: string): boolean {
+    this.reloadFromStorage();
+    let cancelledAny = false;
+    for (const plan of this.tripPlans) {
+      if (
+        plan.volunteer_id === volunteerId &&
+        (!planId || plan.id === planId) &&
+        (plan.status === 'accepted' || plan.status === 'in_progress' || plan.status === 'draft')
+      ) {
+        plan.status = 'cancelled';
+        plan.cancelled_at = new Date().toISOString();
+        cancelledAny = true;
+
+        // Release any associated uncompleted claims and rescue tasks
+        for (const taskId of (plan.task_ids || [])) {
+          const task = this.rescueTasks.find((t) => t.id === taskId);
+          if (task && task.status === 'claimed') {
+            task.status = 'available';
+            task.claim_id = undefined;
+          }
+          const claim = this.claims.find(
+            (c) =>
+              c.id === task?.claim_id ||
+              c.donation_id === task?.donation_id ||
+              (plan.stops && plan.stops.some((s) => s.claim_id === c.id))
+          );
+          if (
+            claim &&
+            claim.volunteer_id === volunteerId &&
+            claim.status !== 'delivered' &&
+            claim.verification_status !== 'verified'
+          ) {
+            claim.volunteer_id = undefined;
+            claim.volunteer = undefined;
+            if (claim.verification_status === 'accepted' || claim.verification_status === 'pickup_pending') {
+              claim.status = 'claimed';
+              claim.verification_status = 'unassigned';
+            }
+          }
+        }
+      }
+    }
+
+    if (cancelledAny) {
+      this.addActivityLog('volunteer_trip_cancelled', {
+        volunteer_id: volunteerId,
+        plan_id: planId || 'all_active',
+      });
+      this.persist();
+    }
+    return cancelledAny;
+  }
+
+  simulateDonorPickupConfirmation(claimId: string): Claim {
+    this.reloadFromStorage();
+    const claim = this.claims.find((c) => c.id === claimId);
+    if (!claim) throw new Error('Claim not found');
+    const donation = this.donations.find((d) => d.id === claim.donation_id) || claim.donation;
+    const donorId = donation?.donor_id || DEMO_PROFILES.donor.id;
+    return this.confirmPickup(claimId, donorId, claim.pickup_code);
+  }
+
+  simulateRecipientDeliveryConfirmation(claimId: string, portions?: number): { claim: Claim; pointsAwarded: number } {
+    this.reloadFromStorage();
+    const claim = this.claims.find((c) => c.id === claimId);
+    if (!claim) throw new Error('Claim not found');
+    const recipientId = claim.recipient_id || DEMO_PROFILES.recipient.id;
+    const count = portions || claim.quantity_claimed || 10;
+    return this.confirmDelivery(claimId, recipientId, count, claim.delivery_code);
+  }
+
   completeTripStop(planId: string, stopId: string): VolunteerTripPlan {
     this.reloadFromStorage();
     const plan = this.tripPlans.find((p) => p.id === planId);
@@ -1765,6 +1836,18 @@ class DemoStore {
       donation.status = 'collected';
     }
 
+    // Synchronize stops in trip plans
+    for (const p of this.tripPlans) {
+      if (p.status === 'accepted' || p.status === 'in_progress') {
+        for (const s of p.stops) {
+          if ((s.claim_id === claimId || (claim.donation_id && s.task_id === `task-${claim.donation_id}`)) && s.type === 'pickup') {
+            s.completed = true;
+            s.completed_at = claim.pickup_confirmed_at;
+          }
+        }
+      }
+    }
+
     this.addActivityLog('donor_pickup_confirmed', {
       claim_id: claimId,
       confirmed_by: claim.pickup_confirmed_by,
@@ -1885,6 +1968,22 @@ class DemoStore {
         created_at: new Date().toISOString(),
         reason: `Two-party verified rescue: ${claim.portions_delivered_confirmed} portions delivered (${REWARD_RULES.BASE_POINTS_PER_DELIVERY} base + ${claim.portions_delivered_confirmed * REWARD_RULES.POINTS_PER_PORTION} pts, capped at ${REWARD_RULES.MAX_POINTS_PER_DELIVERY})`,
       });
+    }
+
+    // Synchronize stops in trip plans
+    for (const p of this.tripPlans) {
+      if (p.status === 'accepted' || p.status === 'in_progress') {
+        for (const s of p.stops) {
+          if ((s.claim_id === claimId || (claim.donation_id && s.task_id === `task-${claim.donation_id}`)) && s.type === 'delivery') {
+            s.completed = true;
+            s.completed_at = claim.delivery_confirmed_at;
+          }
+        }
+        if (p.stops.every((s) => s.completed)) {
+          p.status = 'completed';
+          p.completed_at = new Date().toISOString();
+        }
+      }
     }
 
     // Record in donor rewards ledger ONLY upon verified NGO delivery

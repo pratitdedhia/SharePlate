@@ -174,6 +174,7 @@ export interface VolunteerTripPlan {
   created_at: string;
   accepted_at?: string;
   completed_at?: string;
+  cancelled_at?: string;
   is_demo_preview?: boolean;
   routing_provider_note?: string;
 }

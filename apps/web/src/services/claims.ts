@@ -360,4 +360,22 @@ export const claimsService = {
     liveUpdatesService.notifyChange('claims', 'UPDATE', updated);
     return updated;
   },
+
+  async cancelVolunteerTripPlan(volunteerId: string, planId?: string): Promise<boolean> {
+    const success = demoStore.cancelVolunteerTripPlan(volunteerId, planId);
+    liveUpdatesService.notifyChange('claims', 'UPDATE', { volunteer_id: volunteerId });
+    return success;
+  },
+
+  async simulateDonorPickup(claimId: string): Promise<Claim> {
+    const claim = demoStore.simulateDonorPickupConfirmation(claimId);
+    liveUpdatesService.notifyChange('claims', 'UPDATE', claim);
+    return claim;
+  },
+
+  async simulateRecipientDelivery(claimId: string, portions?: number): Promise<{ claim: Claim; pointsAwarded: number }> {
+    const result = demoStore.simulateRecipientDeliveryConfirmation(claimId, portions);
+    liveUpdatesService.notifyChange('claims', 'UPDATE', result.claim);
+    return result;
+  },
 };

@@ -1536,5 +1536,51 @@ describe('Volunteer Routing & Personal Travel Segregation Regression', () => {
       const afterDeliveryTasks = demoStore.getRescueTasks('Delhi North-West Corridor', 'Delhi NCR', true);
       expect(afterDeliveryTasks).toHaveLength(0);
     });
+
+    it('cancels active volunteer trip plan and releases assigned tasks so volunteer is never stuck', () => {
+      const volunteerId = 'c0000000-0000-0000-0000-000000000001';
+      const plan = demoStore.createTripPlan({
+        volunteer_id: volunteerId,
+        origin: 'DTU Rohini',
+        destination: 'Shalimar Bagh',
+        corridor_label: 'Delhi North-West Corridor',
+        task_ids: ['task-test-cancel-1'],
+        stops: [
+          { id: 's1', type: 'start', name: 'Start', address: 'DTU', city: 'Delhi', sequence: 1, completed: true },
+          { id: 's2', type: 'pickup', name: 'Pickup Kitchen', address: 'Rohini Sec 16', city: 'Delhi', sequence: 2, completed: false, task_id: 'task-test-cancel-1' },
+          { id: 's3', type: 'delivery', name: 'Drop Shelter', address: 'Shalimar', city: 'Delhi', sequence: 3, completed: false, task_id: 'task-test-cancel-1' },
+          { id: 's4', type: 'destination', name: 'Dest', address: 'Metro', city: 'Delhi', sequence: 4, completed: false },
+        ],
+      });
+      demoStore.acceptTripPlan(plan.id);
+
+      expect(demoStore.getVolunteerTripPlan(volunteerId)).not.toBeNull();
+
+      const cancelled = demoStore.cancelVolunteerTripPlan(volunteerId, plan.id);
+      expect(cancelled).toBe(true);
+      expect(demoStore.getVolunteerTripPlan(volunteerId)).toBeNull();
+    });
+
+    it('simulates donor pickup and recipient delivery smoothly for volunteer testing', () => {
+      const donationId = 'd0000000-0000-0000-0000-000000000001';
+      const recipientId = 'b0000000-0000-0000-0000-000000000001';
+      const volunteerId = 'c0000000-0000-0000-0000-000000000001';
+
+      const claim = demoStore.claimDonation(donationId, recipientId, 10);
+      demoStore.assignVolunteerToClaim(claim.id, volunteerId);
+      demoStore.initiatePickup(claim.id, volunteerId);
+
+      // Simulate donor pickup
+      const pickedUp = demoStore.simulateDonorPickupConfirmation(claim.id);
+      expect(pickedUp.status).toBe('collected');
+      expect(pickedUp.verification_status).toBe('in_transit');
+
+      // Initiate delivery & simulate recipient delivery
+      demoStore.initiateDelivery(claim.id, volunteerId);
+      const deliveryResult = demoStore.simulateRecipientDeliveryConfirmation(claim.id, 10);
+      expect(deliveryResult.claim.status).toBe('delivered');
+      expect(deliveryResult.claim.verification_status).toBe('verified');
+      expect(deliveryResult.pointsAwarded).toBeGreaterThan(0);
+    });
   });
 });
