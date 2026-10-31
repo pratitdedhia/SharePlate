@@ -639,4 +639,46 @@ Use the pre-filled fields in [docs/NOTION_SUBMISSION_CHECKLIST.md](file:///c:/Us
 - Full workspace test suite: **91 passed, 0 failed** (89 web + 2 API).
 - Production build: `npm run build:web` succeeds with 0 errors.
 
+---
+
+### TIER 9: Regional State Isolation, Two-Party Zero-PIN Leakage, Grievance Escalation, Volunteer Order Filtering & Executive Admin Command Center
+
+#### 1. Regional State Registration & Strict State Listing Isolation
+- **Registration Enhancement:** User registration captures both Indian State and City (e.g. Maharashtra → Mumbai/Pune; Delhi → Delhi NCR).
+- **Strict Regional Isolation:** Non-admin dashboards (Recipient and Donor) filter surplus listings strictly by the user's registered state. Prevents cross-state claims (e.g., Delhi recipients claiming Pune listings).
+- **Admin Global Override:** Platform Administrators (`role === 'admin'`) retain pan-India governance access to inspect and audit listings across all Indian states.
+
+#### 2. Two-Party Verification PIN Secrecy (Zero-PIN Leakage)
+- Strict separation of verification secrets:
+  - Donor kitchen holds a private 4-digit **Pickup PIN** (e.g. `4821`).
+  - Recipient shelter holds a private 4-digit **Delivery PIN** (e.g. `7392`).
+- Recipient dashboard never reveals the donor's Pickup PIN, preventing unauthorized self-collection or dock tampering.
+
+#### 3. Safety Grievance & Issue Reporting with Admin Moderation Queue
+- Recipients can lodge complaints and report issues against donor kitchens directly from delivered claims.
+- Captures category (*Food Temperature/Hygiene*, *Spoilage*, *Portion Mismatch*, *Dock Delay*, *Misconduct*).
+- Flags the claim visually with a warning alert and immediately escalates the incident ticket to the Superadmin Moderation Queue for review, warning, or sanction.
+
+#### 4. Volunteer Active Orders Courier Dispatch Board
+- Volunteer route planners and dispatch lists strictly filter for active recipient claims (`claimed` or `collected`), eliminating unreserved ghost orders.
+- Interactive transit corridor routing with multi-stop waypoint partitioning (<= 9 waypoints per leg).
+
+#### 5. Unified Navigation & Superadmin Executive Command Center
+- Removed duplicate navbar buttons (`Admin Ops & Users` and `Admin Ops`), standardizing on a single unified `Dashboard` link.
+- Overhauled Admin Dashboard:
+  - Dark gradient executive command strip with live Firestore sync status badge.
+  - Interactive KPI stat cards with deep-links to audit tables.
+  - 1-click role filter pills (`All`, `Donors`, `Recipients`, `Volunteers`, `Admins`).
+  - Urgent safety alert banner notifying admins of pending restaurant grievances.
+  - Complete safety incident moderation queue (actions: Dismiss, Resolve, Sanction).
+
+#### 6. Resilient Hybrid Authentication & Domain Authorization Error Handling
+- Firebase Auth integration with intelligent `auth/unauthorized-domain` error handling for deployed domains (like GitHub Pages `pratitdedhia.github.io`).
+- Surfaces actionable setup guidance and provides 1-click Quick Demo Presets (`Donor`, `Recipient`, `Volunteer`, `Admin`).
+
+#### 7. Automated Test Suite Verification
+- Added automated test cases across [`claimFlow.test.ts`](file:///c:/Users/dedhi/OneDrive/Desktop/Pratit/Hackathon/Hacktober%20HackDays/apps/web/src/tests/claimFlow.test.ts), [`features.test.ts`](file:///c:/Users/dedhi/OneDrive/Desktop/Pratit/Hackathon/Hacktober%20HackDays/apps/web/src/tests/features.test.ts), and [`renderPage.test.tsx`](file:///c:/Users/dedhi/OneDrive/Desktop/Pratit/Hackathon/Hacktober%20HackDays/apps/web/src/tests/renderPage.test.tsx).
+- Full workspace test suite: **105 passed, 0 failed** (103 web + 2 API).
+- Production build: `npm run build:web` compiles cleanly and synchronizes to root `index.html`.
+
 

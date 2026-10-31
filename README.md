@@ -30,18 +30,20 @@ To provide instant, zero-friction evaluation for hackathon judges without requir
 ## 📸 Overview & Key Features
 
 - **🔐 Role-Based Food Rescue Access:** Professional authentication flows with session persistence, inline error handling, and role-based redirects.
-- **🔑 Dual Authentication (Google Sign-In & Email/Password):** Integrated Firebase Authentication supporting 1-click **Continue with Google** (via official Google Auth Provider popup) alongside traditional Email & Password with automatic Firestore profile creation and role assignment.
+- **🔑 Dual Authentication (Google Sign-In & Email/Password):** Integrated Firebase Authentication supporting 1-click **Continue with Google** (via official Google Auth Provider popup) alongside traditional Email & Password with automatic Firestore profile creation and role assignment. Features intelligent `auth/unauthorized-domain` detection with setup guidance for deployed domains (like GitHub Pages) and zero-blockage fallbacks.
 - **⚡ 1-Click Quick Demo Access:** Instant evaluation buttons for Judges on `/login` to continue immediately as Donor, Recipient, Volunteer, or Admin with seeded personas.
 - **🛡️ Strict Role-Based Dashboards & Dynamic RBAC Navigation:** Purpose-built workflows with tailored navigation for all personas:
   - **Donor:** Dashboard, My Listings (`/my-donations`), and **Donor Rewards Ledger**; Browse Food, Impact, and About links are strictly hidden.
-  - **Recipient:** Dashboard, Browse Food (`/donations`), and My Claims (`/my-claims`); Impact and About links are hidden.
+  - **Recipient:** Dashboard, Browse Food (`/donations`), and My Claims (`/my-claims`); Impact and About links are hidden. Claims view enforces zero-trust PIN secrecy: recipients see only their secret Delivery PIN and never the donor's Pickup PIN.
   - **Volunteer:** Dedicated 3-Tab *Last-Mile Food Rescue & Rewards Hub*:
-    - **1. "On-My-Way" Commute Trip Planner:** Enter origin and destination, browse nearby rescue tasks along transit corridors (Delhi NCR, Mumbai, Pune presets), select tasks with checkboxes, review sequential stop orders, generate multi-stop Google Maps directions with waypoint partitioning (<= 9 waypoints per leg), and accept planned routes.
+    - **1. "On-My-Way" Commute Trip Planner:** Enter origin and destination, browse nearby rescue tasks along transit corridors (Delhi NCR, Mumbai, Pune presets), select tasks with checkboxes, review sequential stop orders, generate multi-stop Google Maps directions with waypoint partitioning (<= 9 waypoints per leg), and accept planned routes. Task board filters strictly for active recipient claims (`claimed` | `collected`), eliminating phantom or unreserved orders.
     - **2. Stop-by-Stop Checklist & Two-Party OTP Verification:** Step-by-step navigation checklist with unlocked dock instructions. Enforces strict two-party verification (`Available → Accepted → Pickup awaiting confirmation → In transit → Delivery awaiting confirmation → Delivered / Disputed`). 4-digit one-time codes generated upon arrival with 15-minute expiration and 3-attempt lockout. The donor restaurant verifies handover at pickup, and the recipient NGO confirms portions at delivery. Volunteer self-confirmation is strictly rejected.
     - **3. Volunteer Rewards & Points Ledger:** Transparent capped rewards formula (\(\min(150, 50 + 2 \times \text{portions})\)), pending vs. released points counters, milestone progression (Bronze Courier → Silver → Gold Champion), immutable audit history, and clear disclosure of future corporate sponsor voucher concepts.
   - **Donor Rewards System:** Persisted rewards ledger for food donors, awarded strictly upon verified NGO delivery confirmation (\(\min(200, 30 + 2 \times \text{portions})\)). Zero rewards for listings, reservations, pickups, cancellations, or disputes. Donors view points balance and verifiable delivery history.
-  - **Admin:** Comprehensive 5-tab Command Center: real-time analytics graphs, user account CRUD & activation controls, "Who Donated" surplus ledger with detail inspection, "Who Received" distribution ledger with status filters, and safety/allergen moderation queue.
+  - **Superadmin Executive Command Center:** Overhauled, unified executive dashboard eliminating redundant navbar links. Features a dark gradient executive command strip, real-time Firestore sync status, interactive KPI stat cards with deep-links, 1-click role filter pills (`All`, `Donors`, `Recipients`, `Volunteers`, `Admins`), pan-India state oversight bypass, an urgent food safety alert banner, surplus inventory ledger, distribution claims with courier attribution, and complete safety reports moderation.
+- **🏛️ State-Locked Registration & Strict Regional State Isolation:** User registration captures both Indian State and City (e.g. Maharashtra → Mumbai/Pune; Delhi → Delhi NCR). Recipient and Donor listings and active claims are strictly isolated by state, preventing out-of-state cross-claiming (e.g., Delhi recipients cannot claim Pune surplus). Platform Administrators hold strict global override access to audit and govern across all Indian states.
 - **🚩 Restaurant Grievance & Issue Reporting with Admin Escalation:** Recipients and volunteers can file complaints directly from claim cards (covering food freshness/spoilage, portion mismatch, refused handover, unsanitary hygiene, or staff misconduct). Submitting immediately flags the claim and restaurant to platform administrators, displaying a prominent alert banner on the claim card and pushing an incident record into the Admin Safety Moderation Queue for investigation and formal warning issuance.
+- **🔒 Two-Party Zero-Trust Verification (Zero-PIN Leakage):** Enforces strict two-party verification PIN separation: the donor kitchen holds a private 4-digit Pickup PIN (e.g. 4821) and the recipient shelter holds a private 4-digit Delivery PIN (e.g. 7392). The recipient portal never displays the donor PIN, and the donor never sees the recipient PIN. Volunteer couriers verify at each dock to finalize handovers.
 - **🔍 Interactive Click-to-Inspect Food Cards:** Seamless navigation to listing details from card images, titles, and action buttons, presenting Cloudinary meal banners, ingredient disclosures, allergen tags, and real-time pickup countdown timers.
 - **📋 Food Safety & Expiration Controls:** Prepared-at timestamps, consume-within hours, storage instructions, and veg/non-veg tags. Donations past pickup deadlines are automatically greyed out and protected against claims.
 - **📸 Real Cloudinary Pipeline:**
@@ -67,7 +69,7 @@ To provide instant, zero-friction evaluation for hackathon judges without requir
 | **Cloud & Realtime Backend** | Google Firebase | Cloud Firestore live database, multi-device `onSnapshot` real-time sync, Firebase Auth & Storage |
 | **Production Backend** | Node.js 24 LTS, Express, TypeScript | REST API, Zod schema validation, Helmet security headers, CORS |
 | **Production Database** | PostgreSQL 15+ (Supabase) | Multi-tenant Row Level Security (RLS), atomic stored procedures (`claim_donation_atomic`) |
-| **Testing** | Vitest, Node.js Test Runner | 102 frontend tests (restaurant complaints & admin moderation queue, role-based OTP protection, state registration isolation, donor rewards ledger, volunteer trip routing, two-party OTP verification, cross-portal sync, profile city persistence, impact math, auth, upload fallback & error handling, features suite, render safety), 2 backend tests (104 total passed) |
+| **Testing** | Vitest, Node.js Test Runner | 103 frontend tests (restaurant complaints & admin moderation queue, role-based OTP protection & zero-PIN leakage, state registration isolation & admin pan-India access, volunteer active orders filtering, donor rewards ledger, volunteer trip routing, two-party OTP verification, cross-portal sync, profile city persistence, impact math, auth & authorized domain fallback, upload fallback & error handling, features suite, render safety), 2 backend tests (105 total passed) |
 | **Documentation** | Notion (Mandatory Hackathon Platform) | 12 structured markdown guides under `docs/notion/` |
 
 ---
@@ -274,6 +276,114 @@ flowchart TD
 
 ---
 
+### 8. Volunteer Last-Mile Corridor Dispatch & Waypoint Routing Lifecycle
+
+Volunteer couriers bundle multiple food rescue collections along their everyday commute corridors. The system enforces strict scoping: only genuine active recipient claims (`claimed` or `collected`) are surfaced, eliminating unreserved ghost orders:
+
+```mermaid
+flowchart TD
+    subgraph RecipientAction ["1. Recipient Reservation"]
+        Claim["Recipient Claims Surplus Batch<br/>(Status: 'claimed')"]
+    end
+
+    subgraph VolunteerPlanning ["2. Volunteer Corridor Matching"]
+        Commute["Enter Commuter Route<br/>(e.g. Origin: DTU Rohini → Dest: Connaught Place)"]
+        Filter["Corridor Filter Engine<br/>• Filters strictly Active Orders ('claimed')<br/>• Scopes to Local State (e.g. Delhi NCR)"]
+        TaskList["Interactive Task Selection<br/>• Checkboxes along commute<br/>• Waypoint preview & distance calculation"]
+    end
+
+    subgraph Execution ["3. Waypoint Route Execution"]
+        Maps["Google Maps Multi-Stop Directions<br/>• Partitioned into legs of ≤ 9 waypoints"]
+        DockPickup["Donor Loading Dock<br/>• Inspects insulated boxes<br/>• Donor verifies Pickup PIN"]
+        InTransit["In Transit to Shelter<br/>(Status: 'collected')"]
+        ShelterHandoff["Recipient Community Shelter<br/>• Inspects portions & freshness<br/>• Recipient verifies Delivery PIN"]
+    end
+
+    subgraph Ledger ["4. Settlement & Integrity Points"]
+        Award["Delivery Verified<br/>(Status: 'delivered')"]
+        Points["Points Minted via Integrity Formula<br/>• Volunteer: min(150, 50 + 2*portions)<br/>• Donor: min(200, 30 + 2*portions)"]
+    end
+
+    Claim --> Filter
+    Commute --> Filter
+    Filter --> TaskList
+    TaskList --> Maps
+    Maps --> DockPickup
+    DockPickup --> InTransit
+    InTransit --> ShelterHandoff
+    ShelterHandoff --> Award
+    Award --> Points
+```
+
+---
+
+### 9. Superadmin Executive Command Center & Governance Workflow
+
+The redesigned Superadmin Command Center unifies platform operations under a single, non-redundant dashboard navigation bar, empowering administrators to audit user roles, govern cross-state inventory, and moderate food safety disputes in real time:
+
+```mermaid
+flowchart TD
+    subgraph Superadmin ["Superadmin Central Command (#/dashboard/admin)"]
+        Nav["Unified Executive Bar<br/>• Single 'Dashboard' link<br/>• Live sync status badge"]
+        KPIs["Interactive KPI Command Strip<br/>• Total User Accounts (Deep-link to Users)<br/>• Portions Listed vs. Rescued (Deep-link to Donated)<br/>• In-Transit Claims (Deep-link to Received)<br/>• CO₂e Avoided (UNEP/FAO calculation)"]
+    end
+
+    subgraph MultiTenant ["Pan-India & Multi-Role Governance"]
+        RolePills["1-Click Role Filter Pills<br/>[All Users] [Donors] [Recipients] [Volunteers] [Admins]"]
+        StateOversight["Pan-India State Filter<br/>• Admin bypasses state isolation<br/>• Audits Delhi, Maharashtra, Karnataka, etc."]
+    end
+
+    subgraph ModerationLedger ["Real-Time Operational Ledgers"]
+        Users["User Accounts Ledger<br/>• Add, activate, deactivate, or delete accounts"]
+        Surplus["Surplus Inventory Ledger ('Who Donated')<br/>• Inspect batch photos, allergens, timestamps"]
+        Distribution["Distribution Claims Ledger ('Who Received')<br/>• Live tracking with courier attribution"]
+        SafetyQueue["Safety Reports & Grievance Moderation<br/>• Urgent incident banner<br/>• Actions: Dismiss, Resolve, Sanction"]
+    end
+
+    Nav --> KPIs
+    KPIs --> RolePills
+    RolePills --> StateOversight
+    StateOversight --> Users
+    StateOversight --> Surplus
+    StateOversight --> Distribution
+    StateOversight --> SafetyQueue
+```
+
+---
+
+### 10. Resilient Hybrid Authentication & Domain Security Fallback
+
+SharePlate balances enterprise Firebase OAuth security with immediate hackathon judge accessibility. When running on deployed domains (such as `pratitdedhia.github.io`), the client gracefully catches unauthorized-domain configurations and provides 1-click seeded persona fallbacks:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as User / Judge
+    participant UI as SharePlate Portal (#/login)
+    participant FB as Firebase Authentication
+    participant Store as In-Browser DemoStore
+
+    alt Standard Google OAuth Flow
+        User->>UI: Clicks "Continue with Google as [Role]"
+        UI->>FB: signInWithPopup(auth, GoogleAuthProvider)
+        Note over FB: Checks Authorized Domains Whitelist
+        alt Domain Authorized (localhost or pratitdedhia.github.io)
+            FB-->>UI: Authenticated Credential (User UID, Email, Photo)
+            UI->>UI: Syncs Firestore User Profile & Redirects to Role Dashboard
+        else Domain Not Authorized or Popup Closed
+            FB-->>UI: auth/unauthorized-domain or popup-closed
+            UI->>UI: Displays clear alert banner explaining domain whitelisting
+            UI->>UI: Shows 1-click "⚡ Instant Demo Access as [Role]" button
+        end
+    else Immediate 1-Click Demo Preset (Zero Waiting)
+        User->>UI: Clicks Demo Preset ([Donor], [Recipient], [Volunteer], [Admin])
+        UI->>Store: Ingests verified demo persona & generates mock session token
+        UI->>UI: Redirects immediately to target Dashboard with active mock datasets
+    end
+```
+
+---
+
 ## ⚡ Quickstart & Local Installation
 
 ### Prerequisites
@@ -381,7 +491,7 @@ Open **`http://localhost:5173`** in your browser.
 
 ## 🧪 Automated Testing & Verification
 
-All 104 automated tests pass (102 frontend across 7 Vitest suites + 2 backend), verified on the latest `main`:
+All 105 automated tests pass (103 frontend across 7 Vitest suites + 2 backend), verified on the latest `main`:
 
 ### Run Backend API Tests:
 ```bash
@@ -392,13 +502,13 @@ npm test --workspace=@shareplate/api
 ### Run Frontend Unit & Integration Tests:
 ```bash
 npm test --workspace=@shareplate/web
-# Result: 102 passed, 0 failed (App, Impact Math, Donor Rewards Ledger, Volunteer Multi-Stop Route Partitioning, Two-Party Pickup & Delivery OTP Flow, Cross-Portal Sync, State on Registration & Strict Regional State Listing Isolation, Restaurant Grievance & Admin Moderation Queue Flagging, Role-Based Authentication & Google Sign-In, Profile City Persistence, Upload Fallback & Error Handling, Features Suite, Render Safety)
+# Result: 103 passed, 0 failed (App, Impact Math, Donor Rewards Ledger, Volunteer Multi-Stop Route Partitioning, Volunteer Active Orders Filter, Two-Party Pickup & Delivery OTP Flow, Cross-Portal Sync, State on Registration & Strict Regional State Listing Isolation, Restaurant Grievance & Admin Moderation Queue Flagging, Role-Based Authentication & Google Sign-In with Authorized Domain Fallback, Profile City Persistence, Upload Fallback & Error Handling, Features Suite, Render Safety)
 ```
 
 ### Run All Workspace Tests:
 ```bash
 npm test
-# Total: 104 passed, 0 failed (100% clean)
+# Total: 105 passed, 0 failed (100% clean)
 ```
 
 ### Verify Production Compilation:
@@ -412,13 +522,23 @@ npm run build:web
 ## 🎬 Recommended 2–3 Minute Evaluation Demo Script
 
 1. **Homepage & Mission Context:** Open `https://pratitdedhia.github.io/SharePlate/`. Review the mission statement, demonstration trust metrics (derived via single calculation engine), and food safety guidance.
-2. **List Surplus Food (Donor):** Switch to the **Canteen / Donor** persona using the top navigation role switcher. Click **+ Donate Food** (`#/donations/new`). Upload a photo via Cloudinary (or select an evaluation preset). Observe the smart content-aware auto-crop preview (`g_auto` across 4:3, 16:9, and 1:1) and real measured bandwidth savings. Enter 45 portions of *Vegetable Pulao*, set dietary tag *Veg*, allergen tags, and a 4-hour pickup deadline.
-3. **Reserve Portions (NGO):** Switch persona to **NGO / Recipient** (Robin Hood Army). Browse `#/donations`. Claim 20 portions. Observe the available count drop from 45 to 25 immediately.
-4. **Commute Trip Planning & Multi-Stop Route (Volunteer):** Switch to **Volunteer Courier** (Youth For Food Relief). Open **Trip Planner** tab (`#/dashboard/volunteer`), enter commute origin and destination, select the rescue task, inspect the sequential stop order, and click **Open Route in Google Maps** (handles waypoint partitioning for legs $>9$ stops).
-5. **Two-Party OTP Handover & Verification:**
-   - At pickup, volunteer initiates handover (generating 4-digit OTP). Switch to **Donor** to verify the code and release food.
-   - At delivery, volunteer initiates handoff. Switch to **Recipient** to confirm received portions and verify the OTP.
-6. **Donor Rewards & Impact Dashboards:**
+2. **List Surplus Food (Donor):** Switch to the **Canteen / Donor** persona (Priya Sharma - DTU Campus). Click **+ Donate Food** (`#/donations/new`). Upload a photo via Cloudinary (or select an evaluation preset). Observe the smart content-aware auto-crop preview (`g_auto` across 4:3, 16:9, and 1:1) and real measured bandwidth savings. Enter portions of *Fresh Vegetable Biryani*, set dietary tag *Veg*, allergen tags, and a pickup deadline.
+3. **State-Isolated Food Reservation (NGO):** Switch persona to **NGO / Recipient** (Rajesh Kumar - Robin Hood Army, Delhi Chapter). Browse `#/donations`. Notice that only Delhi NCR listings appear; out-of-state listings (like Pune bread loaves) are isolated and protected. Claim 20 portions. Observe the available count decrement in real time.
+4. **Active Orders Corridor Routing (Volunteer):** Switch to **Volunteer Courier** (Ananya Sen - Youth For Food Relief). Open **Trip Planner** tab (`#/dashboard/volunteer`). Select the commute corridor (e.g. DTU Rohini → Connaught Place). Notice the task checklist surfaces *only* active, reserved claims (`claimed` | `collected`), eliminating ghost orders. Select the tasks, inspect the sequential stop order, and click **Open Route in Google Maps** (handles waypoint partitioning for legs $>9$ stops).
+5. **Two-Party OTP Handover (Zero-PIN Leakage):**
+   - At pickup, the volunteer arrives at the loading dock. Switch to **Donor** (`#/dashboard/donor`) to view the private 4-digit **Pickup PIN** (e.g. `4821`) and authorize handover.
+   - In transit, the status updates to `collected`.
+   - At delivery, the volunteer arrives at the community shelter. Switch to **Recipient** (`#/dashboard/recipient` or `#/my-claims`). Notice the recipient sees *only* their private **Delivery PIN** (e.g. `7392`) and *never* the donor's pickup PIN. Verify portions and confirm the delivery OTP.
+6. **Safety Complaint & Escalation:**
+   - On a delivered claim in `#/dashboard/recipient` or `#/my-claims`, click **Report Issue / Complaint**.
+   - Select an issue category (e.g. *Food Temperature / Hygiene*) and submit. An alert banner immediately marks the claim card as *Flagged to Admin*.
+7. **Overhauled Executive Admin Command Center:**
+   - Click the single unified **Dashboard** link as Admin (`#/dashboard/admin`).
+   - Review the dark gradient command strip with live sync status.
+   - Use the 1-click **Role Filter Pills** (`All`, `Donors`, `Recipients`, `Volunteers`, `Admins`) to filter registered users.
+   - Inspect the **Urgent Safety Alert Banner** displaying the newly flagged restaurant incident.
+   - Open the **Safety Reports & Moderation** tab to review the incident, inspect details, and resolve or dismiss it with administrative audit notes.
+8. **Donor Rewards & Impact Dashboards:**
    - Switch back to **Donor** and review the **Donor Rewards Ledger** (`#/dashboard/donor`) to see points awarded strictly upon recipient delivery confirmation.
    - Open `#/impact`. Show the real-time portion funnel updating and the CO₂e avoided metric recalculating dynamically based on FAO/UNEP factors.
 
