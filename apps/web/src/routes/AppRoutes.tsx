@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { HomePage } from '../pages/HomePage';
 import { DonationsPage } from '../pages/DonationsPage';
 import { DonationDetailPage } from '../pages/DonationDetailPage';
@@ -114,13 +114,7 @@ export const AppRoutes: React.FC = () => {
       />
       <Route
         path="/my-donations"
-        element={
-          <ProtectedRoute>
-            <RoleGuard allowedRoles={['donor', 'admin']}>
-              <MyDonationsPage />
-            </RoleGuard>
-          </ProtectedRoute>
-        }
+        element={<Navigate to="/dashboard" replace />}
       />
       <Route
         path="/my-claims"

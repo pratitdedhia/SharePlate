@@ -753,12 +753,15 @@ export const DonorDashboard: React.FC = () => {
                     <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-warm-100 text-stone-700">
                       {filteredDonations.length} {filteredDonations.length === 1 ? 'batch' : 'batches'}
                     </span>
-                    <Link
-                      to="/my-donations"
-                      className="text-xs font-bold text-forest-900 hover:text-forest-950 flex items-center gap-1"
-                    >
-                      View All <ArrowRight className="w-3.5 h-3.5" />
-                    </Link>
+                    {statusFilter !== 'all' && (
+                      <button
+                        type="button"
+                        onClick={() => setStatusFilter('all')}
+                        className="text-xs font-bold text-forest-900 hover:text-forest-950 flex items-center gap-1 cursor-pointer"
+                      >
+                        View All <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
 

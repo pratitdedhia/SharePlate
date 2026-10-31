@@ -89,7 +89,7 @@ export const MyClaimsPage: React.FC = () => {
           }
           icon={Utensils}
           actionText={isDonor ? 'Check Listings' : 'Browse Available Food'}
-          actionHref={isDonor ? '/my-donations' : '/donations'}
+          actionHref={isDonor ? '/dashboard/donor' : '/donations'}
         />
       ) : (
         <div className="space-y-5">

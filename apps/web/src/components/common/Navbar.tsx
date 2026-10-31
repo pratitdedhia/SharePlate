@@ -128,19 +128,6 @@ export const Navbar: React.FC = () => {
               </Link>
             )}
 
-            {/* Donor specific listings */}
-            {user && (isDonor || isAdmin) && (
-              <Link
-                to="/my-donations"
-                className={`px-3 py-2 rounded-xl text-sm font-semibold transition ${
-                  isActive('/my-donations')
-                    ? 'bg-forest-900 text-white'
-                    : 'text-stone-700 hover:text-stone-900 hover:bg-warm-200'
-                }`}
-              >
-                {isAdmin ? 'All Listings' : 'My Listings'}
-              </Link>
-            )}
 
             {/* Recipient & Volunteer specific claims/deliveries */}
             {user && (isRecipient || isVolunteer || isAdmin) && (
@@ -187,18 +174,6 @@ export const Navbar: React.FC = () => {
               </Link>
             )}
 
-            {/* Project Journey Notion: Hidden for Donor, Recipient, Volunteer */}
-            {(!user || isAdmin) && hasNotionUrl && (
-              <a
-                href={notionUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-3 py-2 rounded-xl text-sm font-semibold text-emerald-800 hover:text-forest-950 hover:bg-emerald-50 transition inline-flex items-center gap-1.5"
-              >
-                <BookOpen className="w-4 h-4 text-emerald-600" />
-                <span>Project Journey (Notion)</span>
-              </a>
-            )}
           </nav>
 
           {/* Right Action / Auth Container */}
@@ -448,19 +423,6 @@ export const Navbar: React.FC = () => {
               </Link>
             )}
 
-            {/* Notion: Hidden for Donor, Recipient, Volunteer; visible for Guests & Admin */}
-            {(!user || isAdmin) && hasNotionUrl && (
-              <a
-                href={notionUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => setMobileMenuOpen(false)}
-                className="px-3 py-2 rounded-xl text-emerald-800 hover:bg-emerald-50 font-semibold flex items-center justify-between"
-              >
-                <span>Project Journey (Notion)</span>
-                <BookOpen className="w-4 h-4 text-emerald-600" />
-              </a>
-            )}
 
             {user && (
               <>
@@ -473,15 +435,6 @@ export const Navbar: React.FC = () => {
                   Dashboard ({user.role})
                 </Link>
 
-                {(isDonor || isAdmin) && (
-                  <Link
-                    to="/my-donations"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="px-3 py-2 rounded-xl text-stone-800 hover:bg-warm-100"
-                  >
-                    My Listings
-                  </Link>
-                )}
 
                 {(isRecipient || isVolunteer || isAdmin) && (
                   <Link
