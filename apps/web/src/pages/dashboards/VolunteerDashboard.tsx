@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -127,6 +127,44 @@ export const VolunteerDashboard: React.FC = () => {
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [availableTasks, setAvailableTasks] = useState<RescueTask[]>([]);
   const [activeTripPlan, setActiveTripPlan] = useState<VolunteerTripPlan | null>(null);
+
+  // Clickable stat card focus & filter states
+  const [statFocus, setStatFocus] = useState<'opportunities' | 'pending' | 'released' | 'rescues' | null>('opportunities');
+  const [checklistFilter, setChecklistFilter] = useState<'all' | 'pending' | 'in_transit' | 'verified'>('all');
+  const [rewardsFilter, setRewardsFilter] = useState<'all' | 'released' | 'forfeited' | 'pending'>('all');
+
+  const tasksSectionRef = useRef<HTMLDivElement>(null);
+  const verificationEngineRef = useRef<HTMLDivElement>(null);
+  const rewardsLedgerRef = useRef<HTMLDivElement>(null);
+  const milestonesRef = useRef<HTMLDivElement>(null);
+
+  const handleStatCardClick = (card: 'opportunities' | 'pending' | 'released' | 'rescues') => {
+    setStatFocus(card);
+    if (card === 'opportunities') {
+      setActiveTab('planner');
+      setTimeout(() => {
+        tasksSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 50);
+    } else if (card === 'pending') {
+      setActiveTab('checklist');
+      setChecklistFilter('pending');
+      setTimeout(() => {
+        verificationEngineRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 50);
+    } else if (card === 'released') {
+      setActiveTab('rewards');
+      setRewardsFilter('released');
+      setTimeout(() => {
+        rewardsLedgerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 50);
+    } else if (card === 'rescues') {
+      setActiveTab('rewards');
+      setRewardsFilter('all');
+      setTimeout(() => {
+        milestonesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 50);
+    }
+  };
 
   // Align corridor and route inputs to volunteer's registered operating city/state
   useEffect(() => {
@@ -505,63 +543,163 @@ export const VolunteerDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Quick Stats Strip */}
+      {/* Quick Stats Strip (Interactive Clickable Triggers) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Available Pickup Tasks */}
-        <div className="bg-white p-5 rounded-2xl border border-warm-200 shadow-xs space-y-1">
+        {/* Card 1: Rescue Opportunities */}
+        <button
+          type="button"
+          onClick={() => handleStatCardClick('opportunities')}
+          className={`p-5 rounded-2xl border text-left transition-all cursor-pointer space-y-1 relative group ${
+            activeTab === 'planner'
+              ? 'bg-emerald-50/70 border-forest-900 ring-2 ring-forest-900 shadow-sm'
+              : 'bg-white border-warm-200 hover:border-emerald-500 hover:shadow-xs'
+          }`}
+          title="Click to view rescue opportunities along your commute corridor"
+        >
           <div className="flex items-center justify-between text-stone-500 text-xs font-semibold">
-            <span>Rescue Opportunities</span>
-            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-forest-900 flex items-center justify-center">
+            <span className={activeTab === 'planner' ? 'text-forest-950 font-bold' : ''}>
+              Rescue Opportunities
+            </span>
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition ${
+              activeTab === 'planner' ? 'bg-forest-900 text-white' : 'bg-emerald-50 text-forest-900'
+            }`}>
               <Bike className="w-4 h-4" />
             </div>
           </div>
           <div className="text-2xl sm:text-3xl font-black text-stone-900">{availableTasks.length}</div>
-          <div className="text-[11px] text-stone-500">Tasks near your planned trip</div>
-        </div>
+          <div className="text-[11px] text-stone-500 font-medium">Tasks near your planned trip</div>
+          <div className="pt-1.5 flex items-center gap-1 text-[11px] font-bold">
+            {activeTab === 'planner' ? (
+              <span className="text-forest-900 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-forest-900 animate-pulse"></span>
+                Viewing corridor tasks
+              </span>
+            ) : (
+              <span className="text-stone-400 group-hover:text-emerald-700 transition flex items-center gap-0.5">
+                View corridor tasks →
+              </span>
+            )}
+          </div>
+        </button>
 
-        {/* Pending Points */}
-        <div className="bg-white p-5 rounded-2xl border border-warm-200 shadow-xs space-y-1">
+        {/* Card 2: Pending Points */}
+        <button
+          type="button"
+          onClick={() => handleStatCardClick('pending')}
+          className={`p-5 rounded-2xl border text-left transition-all cursor-pointer space-y-1 relative group ${
+            activeTab === 'checklist' && checklistFilter === 'pending'
+              ? 'bg-amber-50/70 border-amber-600 ring-2 ring-amber-600 shadow-sm'
+              : 'bg-white border-warm-200 hover:border-amber-500 hover:shadow-xs'
+          }`}
+          title="Click to view points held in escrow awaiting two-party verification"
+        >
           <div className="flex items-center justify-between text-stone-500 text-xs font-semibold">
-            <span>Pending Points</span>
-            <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-800 flex items-center justify-center">
+            <span className={activeTab === 'checklist' && checklistFilter === 'pending' ? 'text-amber-950 font-bold' : ''}>
+              Pending Points
+            </span>
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition ${
+              activeTab === 'checklist' && checklistFilter === 'pending' ? 'bg-amber-600 text-white' : 'bg-amber-50 text-amber-800'
+            }`}>
               <Clock className="w-4 h-4" />
             </div>
           </div>
           <div className="text-2xl sm:text-3xl font-black text-amber-700">
             {rewardsSummary?.points_pending || 0} pts
           </div>
-          <div className="text-[11px] text-stone-500">Awaiting two-party sign-off</div>
-        </div>
+          <div className="text-[11px] text-stone-500 font-medium">Awaiting two-party sign-off</div>
+          <div className="pt-1.5 flex items-center gap-1 text-[11px] font-bold">
+            {activeTab === 'checklist' && checklistFilter === 'pending' ? (
+              <span className="text-amber-900 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse"></span>
+                Viewing pending escrow
+              </span>
+            ) : (
+              <span className="text-stone-400 group-hover:text-amber-700 transition flex items-center gap-0.5">
+                View pending escrow →
+              </span>
+            )}
+          </div>
+        </button>
 
-        {/* Released Banked Points */}
-        <div className="bg-white p-5 rounded-2xl border border-warm-200 shadow-xs space-y-1">
+        {/* Card 3: Released Points */}
+        <button
+          type="button"
+          onClick={() => handleStatCardClick('released')}
+          className={`p-5 rounded-2xl border text-left transition-all cursor-pointer space-y-1 relative group ${
+            activeTab === 'rewards' && rewardsFilter === 'released'
+              ? 'bg-emerald-50/70 border-emerald-700 ring-2 ring-emerald-700 shadow-sm'
+              : 'bg-white border-warm-200 hover:border-emerald-500 hover:shadow-xs'
+          }`}
+          title="Click to view released banked points in your audit ledger"
+        >
           <div className="flex items-center justify-between text-stone-500 text-xs font-semibold">
-            <span>Released Points</span>
-            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-800 flex items-center justify-center">
+            <span className={activeTab === 'rewards' && rewardsFilter === 'released' ? 'text-forest-950 font-bold' : ''}>
+              Released Points
+            </span>
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition ${
+              activeTab === 'rewards' && rewardsFilter === 'released' ? 'bg-emerald-700 text-white' : 'bg-emerald-50 text-emerald-800'
+            }`}>
               <ShieldCheck className="w-4 h-4" />
             </div>
           </div>
           <div className="text-2xl sm:text-3xl font-black text-forest-900">
             {rewardsSummary?.points_released || 0} pts
           </div>
-          <div className="text-[11px] text-stone-500">Verified by donor & NGO</div>
-        </div>
+          <div className="text-[11px] text-stone-500 font-medium">Verified by donor & NGO</div>
+          <div className="pt-1.5 flex items-center gap-1 text-[11px] font-bold">
+            {activeTab === 'rewards' && rewardsFilter === 'released' ? (
+              <span className="text-forest-900 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-700 animate-pulse"></span>
+                Viewing released ledger
+              </span>
+            ) : (
+              <span className="text-stone-400 group-hover:text-emerald-700 transition flex items-center gap-0.5">
+                View points ledger →
+              </span>
+            )}
+          </div>
+        </button>
 
-        {/* Confirmed Rescues */}
-        <div className="bg-white p-5 rounded-2xl border border-warm-200 shadow-xs space-y-1">
+        {/* Card 4: Verified Rescues */}
+        <button
+          type="button"
+          onClick={() => handleStatCardClick('rescues')}
+          className={`p-5 rounded-2xl border text-left transition-all cursor-pointer space-y-1 relative group ${
+            activeTab === 'rewards' && statFocus === 'rescues'
+              ? 'bg-purple-50/70 border-purple-700 ring-2 ring-purple-700 shadow-sm'
+              : 'bg-white border-warm-200 hover:border-purple-500 hover:shadow-xs'
+          }`}
+          title="Click to view completed rescue milestones and impact"
+        >
           <div className="flex items-center justify-between text-stone-500 text-xs font-semibold">
-            <span>Verified Rescues</span>
-            <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-800 flex items-center justify-center">
+            <span className={activeTab === 'rewards' && statFocus === 'rescues' ? 'text-purple-950 font-bold' : ''}>
+              Verified Rescues
+            </span>
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition ${
+              activeTab === 'rewards' && statFocus === 'rescues' ? 'bg-purple-700 text-white' : 'bg-purple-50 text-purple-800'
+            }`}>
               <PackageCheck className="w-4 h-4" />
             </div>
           </div>
           <div className="text-2xl sm:text-3xl font-black text-purple-900">
             {rewardsSummary?.verified_deliveries_count || 0}
           </div>
-          <div className="text-[11px] text-stone-500">
+          <div className="text-[11px] text-stone-500 font-medium">
             {rewardsSummary?.portions_transported_count || 0} portions delivered
           </div>
-        </div>
+          <div className="pt-1.5 flex items-center gap-1 text-[11px] font-bold">
+            {activeTab === 'rewards' && statFocus === 'rescues' ? (
+              <span className="text-purple-900 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-purple-700 animate-pulse"></span>
+                Viewing rescue impact
+              </span>
+            ) : (
+              <span className="text-stone-400 group-hover:text-purple-700 transition flex items-center gap-0.5">
+                View rescue impact →
+              </span>
+            )}
+          </div>
+        </button>
       </div>
 
       {/* ============================================================== */}
@@ -656,7 +794,30 @@ export const VolunteerDashboard: React.FC = () => {
           </div>
 
           {/* Available Rescue Tasks along Corridor */}
-          <div className="bg-white rounded-3xl border border-warm-200 p-6 shadow-xs space-y-4">
+          <div ref={tasksSectionRef} className="space-y-4">
+            {/* Designated Info Banner for Rescue Opportunities */}
+            <div className="p-4 sm:p-5 rounded-3xl bg-emerald-50/90 border border-emerald-300 text-forest-950 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-200 text-forest-950">
+                    Active Commute Corridor Tasks
+                  </span>
+                  <span className="text-xs font-bold text-forest-900">
+                    {availableTasks.length} rescue {availableTasks.length === 1 ? 'opportunity' : 'opportunities'} available
+                  </span>
+                </div>
+                <p className="text-xs text-stone-600 leading-relaxed">
+                  Select one or more checkboxes below to bundle surplus meal batches into your travel corridor. You'll earn up to <strong>150 pts</strong> per verified delivery!
+                </p>
+              </div>
+              <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
+                <span className="text-xs font-bold text-emerald-900 bg-white px-3 py-1.5 rounded-xl border border-emerald-200 whitespace-nowrap shadow-3xs">
+                  {selectedTaskIds.length} of {availableTasks.length} selected
+                </span>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-3xl border border-warm-200 p-6 shadow-xs space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-warm-100 pb-3">
               <div>
                 <h3 className="text-base font-black text-stone-900 flex items-center gap-2">
@@ -795,6 +956,7 @@ export const VolunteerDashboard: React.FC = () => {
                 })}
               </div>
             )}
+          </div>
           </div>
 
           {/* Interactive Route Stop Sequence & Map Schematic */}
@@ -1367,23 +1529,106 @@ export const VolunteerDashboard: React.FC = () => {
           )}
 
           {/* TWO-PARTY VERIFICATION & HANDOVER PANELS */}
-          <div className="space-y-4">
-            <div className="border-b border-warm-200 pb-2">
-              <h2 className="text-lg font-black text-stone-900 flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-emerald-700" />
-                <span>Two-Party Verification Engine</span>
-              </h2>
-              <p className="text-xs text-stone-600">
-                <strong>Strict Verification Rule:</strong> Points are NOT released when a volunteer accepts a route or clicks complete. Release requires separate, attributable confirmations from the donor at pickup and the recipient NGO at drop-off.
-              </p>
+          <div ref={verificationEngineRef} className="space-y-4">
+            {/* Designated Info Banner for Pending Points & Two-Party Sign-off */}
+            <div className="p-4 sm:p-5 rounded-3xl bg-amber-50/90 border border-amber-300 text-amber-950 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-200 text-amber-950">
+                    Points In Escrow
+                  </span>
+                  <span className="text-xs font-bold text-amber-900">
+                    {rewardsSummary?.points_pending || 0} pts awaiting two-party verification
+                  </span>
+                </div>
+                <p className="text-xs text-amber-900/85 leading-relaxed">
+                  Points are held in pending status until the recipient shelter confirms delivery and verifies portion counts with their 4-digit Delivery PIN. Complete the donor kitchen pickup and recipient drop-off below to release your banked rewards.
+                </p>
+              </div>
+              <div className="text-[11px] font-semibold text-amber-900 bg-amber-100 px-3 py-2 rounded-xl border border-amber-300/80 whitespace-nowrap shrink-0 self-start sm:self-center flex items-center gap-1.5">
+                <Clock className="w-4 h-4 text-amber-700 shrink-0" />
+                <span>Two-Party Security Active</span>
+              </div>
             </div>
 
-            {activeClaims.length === 0 ? (
+            <div className="border-b border-warm-200 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-black text-stone-900 flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5 text-emerald-700" />
+                  <span>Two-Party Verification Engine</span>
+                </h2>
+                <p className="text-xs text-stone-600">
+                  <strong>Strict Verification Rule:</strong> Points are NOT released when a volunteer accepts a route or clicks complete. Release requires separate, attributable confirmations from the donor at pickup and the recipient NGO at drop-off.
+                </p>
+              </div>
+
+              {/* Checklist Filter Pills */}
+              <div className="flex items-center gap-1.5 flex-wrap shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setChecklistFilter('all')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                    checklistFilter === 'all'
+                      ? 'bg-forest-900 text-white shadow-xs'
+                      : 'bg-warm-100 text-stone-600 hover:bg-warm-200'
+                  }`}
+                >
+                  All ({activeClaims.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setChecklistFilter('pending')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                    checklistFilter === 'pending'
+                      ? 'bg-amber-600 text-white shadow-xs'
+                      : 'bg-warm-100 text-stone-600 hover:bg-amber-50 hover:text-amber-800'
+                  }`}
+                >
+                  Pending Sign-off ({activeClaims.filter((c) => c.verification_status !== 'verified').length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setChecklistFilter('in_transit')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                    checklistFilter === 'in_transit'
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'bg-warm-100 text-stone-600 hover:bg-blue-50 hover:text-blue-800'
+                  }`}
+                >
+                  In Transit ({activeClaims.filter((c) => c.verification_status === 'in_transit' || c.status === 'collected').length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setChecklistFilter('verified')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                    checklistFilter === 'verified'
+                      ? 'bg-emerald-700 text-white shadow-xs'
+                      : 'bg-warm-100 text-stone-600 hover:bg-emerald-50 hover:text-emerald-800'
+                  }`}
+                >
+                  Verified ({activeClaims.filter((c) => c.verification_status === 'verified').length})
+                </button>
+              </div>
+            </div>
+
+            {activeClaims.filter((claim) => {
+              if (checklistFilter === 'pending') return claim.verification_status !== 'verified';
+              if (checklistFilter === 'in_transit') return claim.verification_status === 'in_transit' || claim.status === 'collected';
+              if (checklistFilter === 'verified') return claim.verification_status === 'verified';
+              return true;
+            }).length === 0 ? (
               <div className="bg-white rounded-3xl border border-warm-200 p-8 text-center text-xs text-stone-500">
-                No active delivery claims assigned. Accept a route in the Trip Planner tab to start.
+                {checklistFilter === 'all'
+                  ? 'No active delivery claims assigned. Accept a route in the Trip Planner tab to start.'
+                  : `No claims currently in "${checklistFilter}" status.`}
               </div>
             ) : (
-              activeClaims.map((claim) => {
+              activeClaims.filter((claim) => {
+                if (checklistFilter === 'pending') return claim.verification_status !== 'verified';
+                if (checklistFilter === 'in_transit') return claim.verification_status === 'in_transit' || claim.status === 'collected';
+                if (checklistFilter === 'verified') return claim.verification_status === 'verified';
+                return true;
+              }).map((claim) => {
                 const isVerified = claim.verification_status === 'verified';
                 const isDisputed = claim.is_disputed || claim.verification_status === 'disputed';
                 const isPickupPending =
@@ -1605,7 +1850,7 @@ export const VolunteerDashboard: React.FC = () => {
       {activeTab === 'rewards' && (
         <div className="space-y-6">
           {/* Milestone & Tier Progression */}
-          <div className="bg-gradient-to-r from-forest-950 via-purple-950 to-stone-900 text-white rounded-3xl p-6 sm:p-7 shadow-lg border border-purple-800/30 space-y-4">
+          <div ref={milestonesRef} className="bg-gradient-to-r from-forest-950 via-purple-950 to-stone-900 text-white rounded-3xl p-6 sm:p-7 shadow-lg border border-purple-800/30 space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="space-y-1">
                 <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-bold bg-purple-500/20 text-purple-300 border border-purple-400/30">
@@ -1706,22 +1951,83 @@ export const VolunteerDashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Points History Ledger Table */}
-          <div className="bg-white rounded-3xl border border-warm-200 shadow-xs overflow-hidden">
-            <div className="p-6 border-b border-warm-100 flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-black text-stone-900">Points History & Audit Ledger</h3>
-                <p className="text-xs text-stone-500">
-                  Immutable record of two-party verified deliveries and points awarded.
+          {/* Designated Info Banner for Released Points & Verified Rescues */}
+          <div ref={rewardsLedgerRef} className="space-y-4">
+            <div className="p-4 sm:p-5 rounded-3xl bg-emerald-50/90 border border-emerald-300 text-forest-950 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-200 text-forest-950">
+                    {statFocus === 'rescues' ? 'Verified Rescue Milestones' : 'Released Points Ledger'}
+                  </span>
+                  <span className="text-xs font-bold text-forest-900">
+                    {rewardsSummary?.points_released || 0} pts banked · {rewardsSummary?.verified_deliveries_count || 0} verified rescues
+                  </span>
+                </div>
+                <p className="text-xs text-stone-600 leading-relaxed">
+                  {statFocus === 'rescues'
+                    ? `You have transported ${rewardsSummary?.portions_transported_count || 0} portions of surplus food, directly feeding families in community shelters and avoiding ~${Math.round((rewardsSummary?.portions_transported_count || 0) * 0.4)} kg CO₂e.`
+                    : 'These points have passed strict two-party verification from both donor kitchens and recipient shelters. They are permanently banked towards your recognition rank.'}
                 </p>
               </div>
-              <span className="text-xs font-bold text-stone-500">
-                {rewardsSummary?.history.length || 0} entries
-              </span>
+              <div className="text-xs font-bold text-emerald-900 bg-white px-3 py-1.5 rounded-xl border border-emerald-200 whitespace-nowrap shrink-0 self-start sm:self-center shadow-3xs">
+                Rank: {rewardsSummary?.current_tier || 'Bronze Courier'}
+              </div>
             </div>
 
-            <div className="divide-y divide-warm-100">
-              {rewardsSummary?.history.map((record) => (
+            {/* Points History Ledger Table */}
+            <div className="bg-white rounded-3xl border border-warm-200 shadow-xs overflow-hidden">
+              <div className="p-6 border-b border-warm-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-base font-black text-stone-900">Points History & Audit Ledger</h3>
+                  <p className="text-xs text-stone-500">
+                    Immutable record of two-party verified deliveries and points awarded.
+                  </p>
+                </div>
+                {/* Rewards Filter Pills */}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => setRewardsFilter('all')}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      rewardsFilter === 'all'
+                        ? 'bg-forest-900 text-white shadow-xs'
+                        : 'bg-warm-100 text-stone-600 hover:bg-warm-200'
+                    }`}
+                  >
+                    All ({(rewardsSummary?.history || []).length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRewardsFilter('released')}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      rewardsFilter === 'released'
+                        ? 'bg-emerald-700 text-white shadow-xs'
+                        : 'bg-warm-100 text-stone-600 hover:bg-emerald-50 hover:text-emerald-900'
+                    }`}
+                  >
+                    Released ({(rewardsSummary?.history || []).filter((r) => r.status === 'released').length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRewardsFilter('forfeited')}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      rewardsFilter === 'forfeited'
+                        ? 'bg-rose-700 text-white shadow-xs'
+                        : 'bg-warm-100 text-stone-600 hover:bg-rose-50 hover:text-rose-900'
+                    }`}
+                  >
+                    Forfeited ({(rewardsSummary?.history || []).filter((r) => r.status === 'forfeited').length})
+                  </button>
+                </div>
+              </div>
+
+              <div className="divide-y divide-warm-100">
+                {(rewardsSummary?.history || []).filter((r) => {
+                  if (rewardsFilter === 'released') return r.status === 'released';
+                  if (rewardsFilter === 'forfeited') return r.status === 'forfeited';
+                  if (rewardsFilter === 'pending') return r.status === 'pending';
+                  return true;
+                }).map((record) => (
                 <div
                   key={record.id}
                   className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-warm-50/50 transition"
@@ -1771,6 +2077,7 @@ export const VolunteerDashboard: React.FC = () => {
                 </div>
               ))}
             </div>
+          </div>
           </div>
         </div>
       )}
