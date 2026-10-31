@@ -8,6 +8,7 @@ import {
   onAuthStateChanged,
   GoogleAuthProvider,
   signInWithPopup,
+  browserPopupRedirectResolver,
 } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { DEMO_PROFILES, demoStore } from '../lib/mockData';
@@ -180,7 +181,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (isFirebaseConfigured && auth) {
         const provider = new GoogleAuthProvider();
         provider.setCustomParameters({ prompt: 'select_account' });
-        const cred = await signInWithPopup(auth, provider);
+        const cred = await signInWithPopup(auth, provider, browserPopupRedirectResolver);
         const fbUser = cred.user;
         const token = await fbUser.getIdToken();
         localStorage.setItem('shareplate_token', token);

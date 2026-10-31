@@ -1582,5 +1582,47 @@ describe('Volunteer Routing & Personal Travel Segregation Regression', () => {
       expect(deliveryResult.claim.verification_status).toBe('verified');
       expect(deliveryResult.pointsAwarded).toBeGreaterThan(0);
     });
+
+    it('strictly isolates volunteer pickup tasks by state and city (Delhi volunteer receives 0 Pune/Mumbai tasks)', () => {
+      // Delhi volunteer querying Delhi NCR
+      const delhiTasks = demoStore.getRescueTasks('Delhi North-West Corridor', 'Delhi NCR', false);
+      expect(delhiTasks.length).toBeGreaterThan(0);
+
+      delhiTasks.forEach((t) => {
+        const text = `${t.city || ''} ${t.pickup_location} ${t.pickup_address}`.toLowerCase();
+        expect(text).not.toContain('pune');
+        expect(text).not.toContain('mumbai');
+        expect(text).not.toContain('fc road');
+        expect(text).not.toContain('deccan');
+        expect(text).not.toContain('bkc');
+      });
+
+      // Querying all tasks in Delhi NCR
+      const allDelhiTasks = demoStore.getRescueTasks('all', 'Delhi NCR', false);
+      allDelhiTasks.forEach((t) => {
+        const text = `${t.city || ''} ${t.pickup_location} ${t.pickup_address}`.toLowerCase();
+        expect(text).not.toContain('pune');
+        expect(text).not.toContain('mumbai');
+      });
+
+      // Pune query receives only Pune tasks
+      const puneTasks = demoStore.getRescueTasks('Pune University Corridor', 'Pune', false);
+      expect(puneTasks.length).toBeGreaterThan(0);
+      puneTasks.forEach((t) => {
+        const text = `${t.city || ''} ${t.pickup_location} ${t.pickup_address}`.toLowerCase();
+        expect(text).not.toContain('delhi');
+        expect(text).not.toContain('mumbai');
+      });
+    });
+
+    it('prevents cross-state claims between recipients and food donations', () => {
+      // Delhi recipient attempting to claim Pune donation
+      const puneDonationId = 'd0000000-0000-0000-0000-000000000003';
+      const delhiRecipientId = 'b0000000-0000-0000-0000-000000000001';
+
+      expect(() => {
+        demoStore.claimDonation(puneDonationId, delhiRecipientId, 5);
+      }).toThrow(/State mismatch/i);
+    });
   });
 });

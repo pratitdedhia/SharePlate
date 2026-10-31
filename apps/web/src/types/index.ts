@@ -189,6 +189,8 @@ export interface RescueTask {
   portions: number;
   pickup_location: string;
   pickup_address: string;
+  city?: string;
+  state?: string;
   pickup_deadline: string;
   pickup_instructions?: string;
   donor_name: string;

@@ -71,7 +71,7 @@ describe('Comprehensive Feature Suite for SharePlate', () => {
 
   describe('2. Claims & Reserve Service Lifecycle', () => {
     it('creates a claim reservation, decrements availability, and can be retrieved', async () => {
-      const donationId = 'd0000000-0000-0000-0000-000000000002';
+      const donationId = 'd0000000-0000-0000-0000-000000000001';
       const before = await donationsService.getDonationById(donationId);
       const initialAvailable = before.quantity_available;
 
@@ -119,7 +119,7 @@ describe('Comprehensive Feature Suite for SharePlate', () => {
     });
 
     it('allows cancelling an active claim and restores portion inventory', async () => {
-      const donationId = 'd0000000-0000-0000-0000-000000000003';
+      const donationId = 'd0000000-0000-0000-0000-000000000001';
       const before = await donationsService.getDonationById(donationId);
       const initialAvailable = before.quantity_available;
 

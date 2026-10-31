@@ -127,10 +127,10 @@ export const DonorDashboard: React.FC = () => {
   const activeClaimedDonations = donations.filter(
     (d) => d.status === 'reserved' || d.status === 'claimed' || d.status === 'collected'
   );
-  const claimedDonations = Math.max(activeIncomingClaims.length, activeClaimedDonations.length);
+  const claimedDonations = activeClaimedDonations.length;
   const deliveredIncomingClaims = incomingClaims.filter((c) => c.status === 'delivered');
   const deliveredDonations = donations.filter((d) => d.status === 'delivered');
-  const completedRescues = Math.max(deliveredIncomingClaims.length, deliveredDonations.length);
+  const completedRescues = deliveredDonations.length;
   const totalPoints = rewardsSummary?.points_balance || 0;
 
   // Filtered donations based on statusFilter and searchQuery

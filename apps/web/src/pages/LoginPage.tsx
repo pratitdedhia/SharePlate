@@ -49,7 +49,7 @@ export const LoginPage: React.FC = () => {
         setGoogleAuthNotice(msg);
       } else if (err.code === 'auth/popup-closed-by-user') {
         if (isCustomDomain) {
-          const msg = `Google popup closed. If it showed "The requested action is invalid", domain "${window.location.hostname}" must be added to Firebase Console > Authentication > Settings > Authorized domains. Alternatively, use the 1-click Demo below!`;
+          const msg = `Google popup closed. If it showed "The requested action is invalid", please ensure: (1) Google is enabled under Firebase Console > Authentication > Sign-in method with a project support email, and (2) Google Cloud Console API key restrictions allow this domain. You can also use the 1-click Demo below for instant evaluation!`;
           error(msg);
           setGoogleAuthNotice(msg);
         } else {

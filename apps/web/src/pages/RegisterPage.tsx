@@ -183,7 +183,7 @@ export const RegisterPage: React.FC = () => {
         setGoogleAuthNotice(msg);
       } else if (err.code === 'auth/popup-closed-by-user') {
         if (isCustomDomain) {
-          const msg = `Google popup closed. If it showed "The requested action is invalid", add "${window.location.hostname}" to Firebase Console > Authentication > Settings > Authorized domains.`;
+          const msg = `Google popup closed. If it showed "The requested action is invalid", ensure Google is enabled under Firebase Console > Authentication > Sign-in method with a support email, and Google Cloud Console API key restrictions allow this domain.`;
           error(msg);
           setGoogleAuthNotice(msg);
         } else {

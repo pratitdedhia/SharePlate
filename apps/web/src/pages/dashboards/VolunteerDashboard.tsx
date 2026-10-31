@@ -16,6 +16,7 @@ import {
   calculateClaimPoints,
 } from '../../types';
 import { StatusBadge } from '../../components/common/StatusBadge';
+import { areStatesCompatible, inferStateFromCity } from '../../lib/utils';
 import { DemoAccountBanner } from '../../components/common/DemoAccountBanner';
 import {
   Bike,
@@ -209,8 +210,25 @@ export const VolunteerDashboard: React.FC = () => {
     try {
       // 1. Load tasks for corridor (strictly active recipient claims awaiting dispatch)
       const tasks = await claimsService.getRescueTasks(selectedCorridor, user.city, true);
-      setAvailableTasks(tasks);
-      setSelectedTaskIds((prev) => prev.filter((id) => tasks.some((t) => t.id === id)));
+      const userState = user.state || inferStateFromCity(user.city);
+      const userCity = (user.city || '').toLowerCase();
+      const localTasks = tasks.filter((t) => {
+        const taskState = t.state || inferStateFromCity(t.city || t.pickup_address || t.pickup_location);
+        if (!areStatesCompatible(userState, taskState)) return false;
+        const pickupText = `${t.city || ''} ${t.pickup_location} ${t.pickup_address}`.toLowerCase();
+        if ((userCity.includes('delhi') || userCity.includes('ncr')) && (pickupText.includes('pune') || pickupText.includes('mumbai'))) {
+          return false;
+        }
+        if (userCity.includes('pune') && (pickupText.includes('delhi') || pickupText.includes('mumbai'))) {
+          return false;
+        }
+        if (userCity.includes('mumbai') && (pickupText.includes('delhi') || pickupText.includes('pune'))) {
+          return false;
+        }
+        return true;
+      });
+      setAvailableTasks(localTasks);
+      setSelectedTaskIds((prev) => prev.filter((id) => localTasks.some((t) => t.id === id)));
 
       // 2. Load active trip plan
       const plan = await claimsService.getVolunteerTripPlan(user.id);

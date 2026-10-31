@@ -317,6 +317,8 @@ export const SAMPLE_RESCUE_TASKS: RescueTask[] = [
     portions: 45,
     pickup_location: 'DTU Campus Canteen (Rohini)',
     pickup_address: 'Gate 2 Loading Bay, DTU, Shahbad Daulatpur, Rohini Sector 17, Delhi 110042',
+    city: 'Delhi NCR',
+    state: 'Delhi',
     pickup_deadline: new Date(Date.now() + 5 * 3600000).toISOString(),
     pickup_instructions: 'Thermal containers ready on loading pallet. Check temperature seal with canteen supervisor.',
     donor_name: 'Priya Sharma (DTU Canteen)',
@@ -337,6 +339,8 @@ export const SAMPLE_RESCUE_TASKS: RescueTask[] = [
     portions: 30,
     pickup_location: 'Golden Crust Bakery (Pitampura)',
     pickup_address: 'Plot 14, Commercial Complex, Rani Bagh, Pitampura, Delhi 110034',
+    city: 'Delhi NCR',
+    state: 'Delhi',
     pickup_deadline: new Date(Date.now() + 8 * 3600000).toISOString(),
     pickup_instructions: 'Stack bread crates upright in vehicle boot. Do not compress loaves.',
     donor_name: 'Sunil Verma (Bakery Manager)',
@@ -357,6 +361,8 @@ export const SAMPLE_RESCUE_TASKS: RescueTask[] = [
     portions: 35,
     pickup_location: 'Dilli Haat Food Corner (Netaji Subhash Place)',
     pickup_address: 'Food Stall 12, NSP Complex, Pitampura, Delhi 110034',
+    city: 'Delhi NCR',
+    state: 'Delhi',
     pickup_deadline: new Date(Date.now() + 3 * 3600000).toISOString(),
     pickup_instructions: 'Hot foil trays require insulated carrying thermal bag.',
     donor_name: 'Chef Harjeet Singh',
@@ -377,6 +383,8 @@ export const SAMPLE_RESCUE_TASKS: RescueTask[] = [
     portions: 40,
     pickup_location: 'Annapurna Grand Caterers (BKC)',
     pickup_address: 'Trade World Building, Loading Dock C, Bandra Kurla Complex, Mumbai 400051',
+    city: 'Mumbai',
+    state: 'Maharashtra',
     pickup_deadline: new Date(Date.now() + 4 * 3600000).toISOString(),
     pickup_instructions: 'Report to Dock C supervisor Ramesh. Food pre-packed in 40 individual boxes.',
     donor_name: 'Chef Vikram Malhotra',
@@ -397,6 +405,8 @@ export const SAMPLE_RESCUE_TASKS: RescueTask[] = [
     portions: 50,
     pickup_location: 'Annapurna Kitchen (Sakinaka, Andheri)',
     pickup_address: 'Andheri-Ghatkopar Link Road, Sakinaka, Mumbai 400072',
+    city: 'Mumbai',
+    state: 'Maharashtra',
     pickup_deadline: new Date(Date.now() + 24 * 3600000).toISOString(),
     pickup_instructions: 'Ventilated fruit crates. Clean and dry.',
     donor_name: 'Chef Vikram Malhotra',
@@ -417,6 +427,8 @@ export const SAMPLE_RESCUE_TASKS: RescueTask[] = [
     portions: 35,
     pickup_location: 'Green Leaf Bistro (Deccan Gymkhana, FC Road)',
     pickup_address: '1205/3 Fergusson College Road, Shivajinagar, Pune 411004',
+    city: 'Pune',
+    state: 'Maharashtra',
     pickup_deadline: new Date(Date.now() + 12 * 3600000).toISOString(),
     pickup_instructions: 'Back alley bakery dock. Brown paper wrapped loaves.',
     donor_name: 'Amit Deshmukh',
@@ -750,6 +762,24 @@ class DemoStore {
     this.donorRewardRecords = loadDemoStorage(DEMO_STORAGE_KEYS.DONOR_REWARDS, this.donorRewardRecords);
     this.users = loadDemoStorage(DEMO_STORAGE_KEYS.USERS, this.users);
     this.reports = loadDemoStorage(DEMO_STORAGE_KEYS.REPORTS, this.reports);
+
+    // Sanitize any legacy cross-state claims (e.g. Delhi recipient claiming Pune/Mumbai food)
+    let claimsMutated = false;
+    this.claims = this.claims.filter((c) => {
+      const rec = c.recipient || this.users.find((u) => u.id === c.recipient_id);
+      const don = c.donation || this.donations.find((d) => d.id === c.donation_id);
+      if (!rec || !don) return true;
+      const rState = rec.state || inferStateFromCity(rec.city);
+      const dState = don.state || inferStateFromCity(don.city);
+      if (!areStatesCompatible(rState, dState)) {
+        claimsMutated = true;
+        return false;
+      }
+      return true;
+    });
+    if (claimsMutated) {
+      saveDemoStorage(DEMO_STORAGE_KEYS.CLAIMS, this.claims);
+    }
   }
 
   /**
@@ -909,13 +939,23 @@ class DemoStore {
       );
     }
 
+    const recipientUser = this.users.find((u) => u.id === recipientId) || DEMO_PROFILES.recipient;
+
+    // Enforce strict state-level compatibility for perishable food rescues
+    const recipientState = recipientUser.state || inferStateFromCity(recipientUser.city);
+    const donationState = donation.state || inferStateFromCity(donation.city);
+    if (!areStatesCompatible(recipientState, donationState)) {
+      throw new Error(
+        `State mismatch: You are registered in ${recipientState || recipientUser.city}, but this food donation is located in ${donationState || donation.city}. Perishable food rescues must remain within the same state.`
+      );
+    }
+
     // Atomic deduction in memory
     donation.quantity_available -= quantity;
     if (donation.quantity_available === 0) {
       donation.status = 'reserved';
     }
 
-    const recipientUser = this.users.find((u) => u.id === recipientId) || DEMO_PROFILES.recipient;
     const newClaim: Claim = {
       id: `claim-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       donation_id: donationId,
@@ -1342,6 +1382,8 @@ class DemoStore {
             portions: d.quantity_total,
             pickup_location: d.location_label || d.city || 'Pickup Location',
             pickup_address: `${d.location_label || ''}${d.location_label && d.city ? ', ' : ''}${d.city || ''}`.trim() || 'Specified pickup location',
+            city: d.city,
+            state: d.state || inferStateFromCity(d.city),
             pickup_deadline: d.pickup_deadline,
             pickup_instructions:
               d.pickup_instructions ||
@@ -1423,6 +1465,8 @@ class DemoStore {
           portions: claim.quantity_claimed,
           pickup_location: donation.location_label || donation.city || 'Pickup Location',
           pickup_address: `${donation.location_label || ''}${donation.location_label && donation.city ? ', ' : ''}${donation.city || ''}`.trim() || 'Specified pickup location',
+          city: donation.city,
+          state: donation.state || inferStateFromCity(donation.city),
           pickup_deadline: donation.pickup_deadline,
           pickup_instructions:
             donation.pickup_instructions ||
@@ -1445,28 +1489,77 @@ class DemoStore {
       tasks = [...this.rescueTasks];
     }
 
-    // If city is specified, filter tasks strictly to this operating city
+    // Strict State and City isolation
+    // The pickup origin defines where physical food is situated.
     if (city && city !== 'all') {
-      const c = city.toLowerCase();
+      const c = city.toLowerCase().trim();
+      const targetState = inferStateFromCity(c);
+
       tasks = tasks.filter((t) => {
-        const fullInfo = `${t.corridor} ${t.pickup_location} ${t.pickup_address} ${t.dropoff_location} ${t.dropoff_address}`.toLowerCase();
-        if (c.includes('mumbai') || c.includes('maharashtra')) {
+        const taskPickupState = t.state || inferStateFromCity(t.city || t.pickup_address || t.pickup_location);
+
+        // 1. Strict state compatibility (e.g. Delhi volunteer CANNOT be shown Pune/Mumbai pickups)
+        if (!areStatesCompatible(targetState, taskPickupState)) {
+          return false;
+        }
+
+        // 2. City / regional filter strictly on PICKUP origin (never check recipient dropoff)
+        const pickupInfo = `${t.city || ''} ${t.pickup_location} ${t.pickup_address}`.toLowerCase();
+
+        if (c.includes('delhi') || c.includes('noida')) {
+          if (
+            pickupInfo.includes('pune') ||
+            pickupInfo.includes('mumbai') ||
+            pickupInfo.includes('bkc') ||
+            pickupInfo.includes('kurla') ||
+            pickupInfo.includes('fc road') ||
+            pickupInfo.includes('deccan')
+          ) {
+            return false;
+          }
           return (
-            fullInfo.includes('mumbai') ||
-            fullInfo.includes('bkc') ||
-            fullInfo.includes('kurla') ||
-            fullInfo.includes('andheri') ||
-            fullInfo.includes('andheir') ||
-            fullInfo.includes('ghatkopar')
+            pickupInfo.includes('delhi') ||
+            pickupInfo.includes('noida') ||
+            pickupInfo.includes('rohini') ||
+            pickupInfo.includes('connaught') ||
+            pickupInfo.includes('pitampura') ||
+            t.corridor.toLowerCase().includes('delhi')
           );
         }
+
         if (c.includes('pune')) {
-          return fullInfo.includes('pune') || fullInfo.includes('shivajinagar') || fullInfo.includes('fc road') || fullInfo.includes('deccan');
+          if (pickupInfo.includes('delhi') || pickupInfo.includes('mumbai') || pickupInfo.includes('bkc')) {
+            return false;
+          }
+          return (
+            pickupInfo.includes('pune') ||
+            pickupInfo.includes('shivajinagar') ||
+            pickupInfo.includes('fc road') ||
+            pickupInfo.includes('deccan') ||
+            t.corridor.toLowerCase().includes('pune')
+          );
         }
-        if (c.includes('delhi') || c.includes('noida')) {
-          return fullInfo.includes('delhi') || fullInfo.includes('rohini') || fullInfo.includes('noida') || fullInfo.includes('connaught') || fullInfo.includes('pitampura');
+
+        if (c.includes('mumbai') || c.includes('maharashtra')) {
+          if (pickupInfo.includes('delhi')) return false;
+          if (
+            c.includes('mumbai') &&
+            (pickupInfo.includes('pune') || pickupInfo.includes('fc road') || pickupInfo.includes('deccan'))
+          ) {
+            return false;
+          }
+          return (
+            pickupInfo.includes('mumbai') ||
+            pickupInfo.includes('bkc') ||
+            pickupInfo.includes('kurla') ||
+            pickupInfo.includes('andheri') ||
+            pickupInfo.includes('andheir') ||
+            pickupInfo.includes('ghatkopar') ||
+            t.corridor.toLowerCase().includes('mumbai')
+          );
         }
-        return fullInfo.includes(c);
+
+        return pickupInfo.includes(c);
       });
     }
 
@@ -1479,7 +1572,7 @@ class DemoStore {
       // 1. Direct corridor substring match
       if (t.corridor.toLowerCase().includes(q)) return true;
 
-      // 2. City / Transit corridor cross matching
+      // 2. City / Transit corridor cross matching on PICKUP origin
       const isMumbaiQuery =
         q.includes('mumbai') ||
         q.includes('bkc') ||
@@ -1487,28 +1580,30 @@ class DemoStore {
         q.includes('andheri') ||
         q.includes('andheir') ||
         q.includes('ghatkopar');
-      const isMumbaiTask =
+      const isMumbaiPickup =
         t.corridor.toLowerCase().includes('mumbai') ||
         t.pickup_location.toLowerCase().includes('andheir') ||
         t.pickup_location.toLowerCase().includes('andheri') ||
         t.pickup_location.toLowerCase().includes('mumbai') ||
         t.pickup_address.toLowerCase().includes('mumbai') ||
         t.pickup_address.toLowerCase().includes('andheri') ||
-        t.pickup_address.toLowerCase().includes('andheir');
+        t.pickup_address.toLowerCase().includes('andheir') ||
+        Boolean(t.city && t.city.toLowerCase().includes('mumbai'));
 
-      if (isMumbaiQuery && isMumbaiTask) return true;
+      if (isMumbaiQuery && isMumbaiPickup) return true;
 
       const isPuneQuery =
         q.includes('pune') ||
         q.includes('shivajinagar') ||
         q.includes('fc road') ||
         q.includes('deccan');
-      const isPuneTask =
+      const isPunePickup =
         t.corridor.toLowerCase().includes('pune') ||
         t.pickup_location.toLowerCase().includes('pune') ||
-        t.pickup_address.toLowerCase().includes('pune');
+        t.pickup_address.toLowerCase().includes('pune') ||
+        Boolean(t.city && t.city.toLowerCase().includes('pune'));
 
-      if (isPuneQuery && isPuneTask) return true;
+      if (isPuneQuery && isPunePickup) return true;
 
       const isDelhiQuery =
         q.includes('delhi') ||
@@ -1516,18 +1611,19 @@ class DemoStore {
         q.includes('connaught') ||
         q.includes('pitampura') ||
         q.includes('noida');
-      const isDelhiTask =
+      const isDelhiPickup =
         t.corridor.toLowerCase().includes('delhi') ||
         t.pickup_location.toLowerCase().includes('delhi') ||
-        t.pickup_address.toLowerCase().includes('delhi');
+        t.pickup_address.toLowerCase().includes('delhi') ||
+        t.pickup_location.toLowerCase().includes('rohini') ||
+        Boolean(t.city && t.city.toLowerCase().includes('delhi'));
 
-      if (isDelhiQuery && isDelhiTask) return true;
+      if (isDelhiQuery && isDelhiPickup) return true;
 
-      // 3. Fallback to location, address, dropoff, or title matches
+      // 3. Fallback strictly to pickup location, address, or title matches (NEVER dropoff location!)
       return (
         t.pickup_location.toLowerCase().includes(q) ||
         t.pickup_address.toLowerCase().includes(q) ||
-        t.dropoff_location.toLowerCase().includes(q) ||
         t.title.toLowerCase().includes(q)
       );
     });
