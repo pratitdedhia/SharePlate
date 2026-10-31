@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -23,6 +23,8 @@ import {
   Phone,
   AlertCircle,
   ShieldAlert,
+  RotateCcw,
+  Filter,
 } from 'lucide-react';
 
 export const RecipientDashboard: React.FC = () => {
@@ -35,6 +37,9 @@ export const RecipientDashboard: React.FC = () => {
   const [deliveryCodeInput, setDeliveryCodeInput] = useState<Record<string, string>>({});
   const [portionsInput, setPortionsInput] = useState<Record<string, number>>({});
   const [confirmingClaimId, setConfirmingClaimId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'claimed' | 'collected' | 'delivered'>('all');
+  const availableSectionRef = useRef<HTMLDivElement>(null);
+  const claimsSectionRef = useRef<HTMLDivElement>(null);
 
   const loadData = async () => {
     if (!user) return;
@@ -115,6 +120,11 @@ export const RecipientDashboard: React.FC = () => {
   const collectedDonations = myClaims.filter((c) => c.status === 'collected').length;
   const completedRescues = myClaims.filter((c) => c.status === 'delivered').length;
 
+  const filteredClaims = myClaims.filter((c) => {
+    if (statusFilter === 'all') return true;
+    return c.status === statusFilter;
+  });
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       {/* Demo Account Indicator */}
@@ -149,64 +159,167 @@ export const RecipientDashboard: React.FC = () => {
         </Link>
       </div>
 
-      {/* Metrics Row */}
+      {/* Metrics Row (Interactive Filter Cards) */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
         {/* Available Donations */}
-        <div className="bg-white p-5 rounded-2xl border border-warm-200 shadow-xs space-y-1">
-          <div className="text-stone-500 text-xs font-semibold">Available in {user?.state || inferStateFromCity(user?.city) || 'Your State'}</div>
+        <button
+          type="button"
+          onClick={() => availableSectionRef.current?.scrollIntoView({ behavior: 'smooth' })}
+          className="bg-white hover:bg-emerald-50/50 p-5 rounded-2xl border border-warm-200 hover:border-emerald-600 shadow-xs space-y-1 text-left transition cursor-pointer group"
+          title="Scroll to view available donations in your state"
+        >
+          <div className="text-stone-500 text-xs font-semibold flex items-center justify-between">
+            <span>Available in {user?.state || inferStateFromCity(user?.city) || 'Your State'}</span>
+            <ArrowRight className="w-3.5 h-3.5 text-stone-400 group-hover:text-emerald-700 transition" />
+          </div>
           <div className="text-2xl sm:text-3xl font-black text-emerald-700">{availableCount}</div>
-          <div className="text-[11px] text-stone-500">Listings ready to claim</div>
-        </div>
+          <div className="text-[11px] text-stone-500">Listings ready to claim &rarr;</div>
+        </button>
 
         {/* My Claims */}
-        <div className="bg-white p-5 rounded-2xl border border-warm-200 shadow-xs space-y-1">
+        <button
+          type="button"
+          onClick={() => {
+            setStatusFilter('all');
+            claimsSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+          }}
+          className={`p-5 rounded-2xl border text-left transition cursor-pointer space-y-1 ${
+            statusFilter === 'all'
+              ? 'bg-emerald-50/70 border-forest-900 ring-2 ring-forest-900 shadow-sm'
+              : 'bg-white border-warm-200 hover:border-emerald-500 shadow-xs'
+          }`}
+          title="Click to view all claimed rescues"
+        >
           <div className="text-stone-500 text-xs font-semibold">My Active Claims</div>
           <div className="text-2xl sm:text-3xl font-black text-stone-900">{activeClaimsCount}</div>
           <div className="text-[11px] text-stone-500">Reserved portions</div>
-        </div>
+        </button>
 
         {/* Upcoming Pickups */}
-        <div className="bg-white p-5 rounded-2xl border border-warm-200 shadow-xs space-y-1">
+        <button
+          type="button"
+          onClick={() => {
+            setStatusFilter('claimed');
+            claimsSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+          }}
+          className={`p-5 rounded-2xl border text-left transition cursor-pointer space-y-1 ${
+            statusFilter === 'claimed'
+              ? 'bg-amber-50/70 border-amber-600 ring-2 ring-amber-600 shadow-sm'
+              : 'bg-white border-warm-200 hover:border-amber-500 shadow-xs'
+          }`}
+          title="Click to filter upcoming pickups awaiting courier"
+        >
           <div className="text-stone-500 text-xs font-semibold">Upcoming Pickups</div>
           <div className="text-2xl sm:text-3xl font-black text-amber-700">{upcomingPickups}</div>
           <div className="text-[11px] text-stone-500">Awaiting kitchen collection</div>
-        </div>
+        </button>
 
         {/* Collected Donations */}
-        <div className="bg-white p-5 rounded-2xl border border-warm-200 shadow-xs space-y-1">
+        <button
+          type="button"
+          onClick={() => {
+            setStatusFilter('collected');
+            claimsSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+          }}
+          className={`p-5 rounded-2xl border text-left transition cursor-pointer space-y-1 ${
+            statusFilter === 'collected'
+              ? 'bg-blue-50/70 border-blue-600 ring-2 ring-blue-600 shadow-sm'
+              : 'bg-white border-warm-200 hover:border-blue-500 shadow-xs'
+          }`}
+          title="Click to filter donations collected and in-transit"
+        >
           <div className="text-stone-500 text-xs font-semibold">Collected in Transit</div>
           <div className="text-2xl sm:text-3xl font-black text-blue-700">{collectedDonations}</div>
           <div className="text-[11px] text-stone-500">En route to distribution</div>
-        </div>
+        </button>
 
         {/* Completed Rescues */}
-        <div className="bg-white p-5 rounded-2xl border border-warm-200 shadow-xs space-y-1 col-span-2 sm:col-span-1">
+        <button
+          type="button"
+          onClick={() => {
+            setStatusFilter('delivered');
+            claimsSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+          }}
+          className={`p-5 rounded-2xl border text-left transition cursor-pointer space-y-1 col-span-2 sm:col-span-1 ${
+            statusFilter === 'delivered'
+              ? 'bg-emerald-50/70 border-emerald-700 ring-2 ring-emerald-700 shadow-sm'
+              : 'bg-white border-warm-200 hover:border-emerald-500 shadow-xs'
+          }`}
+          title="Click to filter delivered and verified rescues"
+        >
           <div className="text-stone-500 text-xs font-semibold">Completed Rescues</div>
           <div className="text-2xl sm:text-3xl font-black text-forest-900">{completedRescues}</div>
           <div className="text-[11px] text-stone-500">Meals served to people</div>
-        </div>
+        </button>
       </div>
 
       {/* Main Grid: My Claims Table & Nearby Available Food */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left Column: My Claims (2 cols) */}
-        <div className="lg:col-span-2 space-y-6">
+        <div ref={claimsSectionRef} className="lg:col-span-2 space-y-6">
           <div className="bg-white rounded-3xl border border-warm-200 shadow-xs overflow-hidden">
-            <div className="p-6 border-b border-warm-100 flex items-center justify-between">
+            <div className="p-6 border-b border-warm-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <h2 className="text-lg font-black text-stone-900">My Claimed Rescues</h2>
-                <p className="text-xs text-stone-500">Monitor pickup deadlines and logistics</p>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-black text-stone-900">My Claimed Rescues</h2>
+                  <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-warm-100 text-stone-700">
+                    {filteredClaims.length}
+                  </span>
+                </div>
+                <p className="text-xs text-stone-500">Monitor pickup deadlines, courier transit, and confirm delivery</p>
               </div>
-              <Link
-                to="/my-claims"
-                className="text-xs font-bold text-forest-900 hover:text-forest-950 flex items-center gap-1"
-              >
-                View Full History <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
+
+              {/* Status Filter Pills */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('all')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                    statusFilter === 'all'
+                      ? 'bg-forest-900 text-white shadow-xs'
+                      : 'bg-warm-100 text-stone-600 hover:bg-warm-200'
+                  }`}
+                >
+                  All ({myClaims.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('claimed')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                    statusFilter === 'claimed'
+                      ? 'bg-amber-600 text-white shadow-xs'
+                      : 'bg-warm-100 text-stone-600 hover:bg-amber-50 hover:text-amber-900'
+                  }`}
+                >
+                  Pickups ({upcomingPickups})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('collected')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                    statusFilter === 'collected'
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'bg-warm-100 text-stone-600 hover:bg-blue-50 hover:text-blue-900'
+                  }`}
+                >
+                  In Transit ({collectedDonations})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('delivered')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                    statusFilter === 'delivered'
+                      ? 'bg-emerald-700 text-white shadow-xs'
+                      : 'bg-warm-100 text-stone-600 hover:bg-emerald-50 hover:text-emerald-900'
+                  }`}
+                >
+                  Delivered ({completedRescues})
+                </button>
+              </div>
             </div>
 
             <div className="divide-y divide-warm-100">
-              {myClaims.length === 0 ? (
+              {filteredClaims.length === 0 ? (
                 <div className="p-8 text-center text-xs text-stone-500 space-y-3">
                   <p>You have not claimed any surplus food yet.</p>
                   <Link
@@ -217,7 +330,7 @@ export const RecipientDashboard: React.FC = () => {
                   </Link>
                 </div>
               ) : (
-                myClaims.map((claim) => (
+                filteredClaims.map((claim) => (
                   <div key={claim.id} className="p-5 flex flex-col xl:flex-row xl:items-center justify-between gap-4 hover:bg-warm-50/50 transition">
                     <div className="flex items-start gap-3.5 min-w-0">
                       <CloudinaryImage
@@ -369,7 +482,7 @@ export const RecipientDashboard: React.FC = () => {
         </div>
 
         {/* Right Column: Fast 1-Click Available Food Feed */}
-        <div className="space-y-6">
+        <div ref={availableSectionRef} className="space-y-6">
           <div className="bg-white rounded-3xl border border-warm-200 shadow-xs p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-warm-100 pb-3">
               <h2 className="text-sm font-black text-stone-900 uppercase tracking-wide">
