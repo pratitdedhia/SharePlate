@@ -25,6 +25,8 @@ import {
   Lock,
   LogIn,
   Sparkles,
+  Ban,
+  X,
 } from 'lucide-react';
 
 export const DonationDetailPage: React.FC = () => {
@@ -40,6 +42,9 @@ export const DonationDetailPage: React.FC = () => {
   const [claimNotes, setClaimNotes] = useState<string>('');
   const [claiming, setClaiming] = useState<boolean>(false);
   const [showClaimModal, setShowClaimModal] = useState<boolean>(false);
+  const [showDelistModal, setShowDelistModal] = useState<boolean>(false);
+  const [delistReason, setDelistReason] = useState<string>('Administrative moderation / quality policy check');
+  const [isDelisting, setIsDelisting] = useState<boolean>(false);
 
   const fetchDonation = async () => {
     if (!id) return;
@@ -115,6 +120,21 @@ export const DonationDetailPage: React.FC = () => {
       error(err.message || 'Failed to reserve donation');
     } finally {
       setClaiming(false);
+    }
+  };
+
+  const handleConfirmDelist = async () => {
+    if (!donation || !user) return;
+    setIsDelisting(true);
+    try {
+      await donationsService.delistDonation(donation.id, delistReason, user.id);
+      success(`Food batch "${donation.title}" has been delisted without penalizing donor or volunteer.`);
+      setShowDelistModal(false);
+      await fetchDonation();
+    } catch (err: any) {
+      error(err.message || 'Failed to delist food donation');
+    } finally {
+      setIsDelisting(false);
     }
   };
 
@@ -360,6 +380,18 @@ export const DonationDetailPage: React.FC = () => {
                 Sign in as an authorized NGO or community kitchen to reserve food.
               </div>
             )}
+
+            {isAdmin && donation.status !== 'delisted' && (
+              <button
+                type="button"
+                onClick={() => setShowDelistModal(true)}
+                className="w-full py-3 rounded-2xl text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs mt-2"
+              >
+                <Ban className="w-4 h-4 text-rose-600" />
+                <span>Delist Food Batch (Admin Moderation)</span>
+              </button>
+            )}
+            
           </div>
 
           {/* Donor & Location Card */}
@@ -479,6 +511,78 @@ export const DonationDetailPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {showDelistModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in"
+        >
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-warm-200 space-y-4">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center">
+                  <Ban className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-stone-900">Delist Food Batch (Admin)</h3>
+                  <p className="text-xs text-stone-500">Moderation removal from public listings</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDelistModal(false)}
+                className="text-stone-400 hover:text-stone-700 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="bg-amber-50 p-3.5 rounded-2xl border border-amber-200 text-xs text-amber-950 space-y-1">
+              <div className="font-bold flex items-center gap-1.5 text-amber-900">
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>Harmless Administrative Action</span>
+              </div>
+              <p className="text-[11px] text-amber-900/90 leading-relaxed">
+                Delisting removes this food item from public browsing immediately. Any active claims will be cancelled harmlessly without penalizing the donor kitchen or volunteer courier.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-stone-700 block">
+                Reason for delisting:
+              </label>
+              <textarea
+                rows={3}
+                value={delistReason}
+                onChange={(e) => setDelistReason(e.target.value)}
+                placeholder="e.g. Duplicate listing, food safety moderation, kitchen request..."
+                className="w-full p-3 rounded-xl border border-stone-300 text-xs text-stone-900 focus:outline-hidden focus:border-rose-600 resize-none"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowDelistModal(false)}
+                className="px-4 py-2.5 rounded-xl text-xs font-semibold text-stone-600 hover:bg-stone-100 transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDelisting}
+                onClick={handleConfirmDelist}
+                className="px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-rose-700 hover:bg-rose-800 transition cursor-pointer shadow-xs disabled:opacity-50 flex items-center gap-1.5"
+              >
+                <Ban className="w-4 h-4" />
+                <span>{isDelisting ? 'Delisting...' : 'Confirm Delist Food'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

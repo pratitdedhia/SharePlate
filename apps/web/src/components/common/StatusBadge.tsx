@@ -52,6 +52,12 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, size = 'md' })
       text: 'text-rose-800',
       dot: 'bg-rose-500',
     },
+    delisted: {
+      label: 'Delisted',
+      bg: 'bg-rose-50 border-rose-200',
+      text: 'text-rose-800',
+      dot: 'bg-rose-500',
+    },
   };
 
   const current = configMap[normalized] || {

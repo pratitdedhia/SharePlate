@@ -469,6 +469,29 @@ export const VolunteerDashboard: React.FC = () => {
   // Cancel / Abandon active route (release items back to feed)
   const handleCancelRoute = async () => {
     if (!user) return;
+    const isBooked = Boolean(activeTripPlan && (activeTripPlan.status === 'accepted' || activeTripPlan.status === 'in_progress'));
+    const warningMessage = isBooked
+      ? '⚠️ RELIABILITY PENALTY WARNING:\nThis delivery route was booked for recipient shelters. If you cancel an accepted route now, a 50-point reliability penalty will be deducted from your volunteer points ledger.\n\nAre you sure you want to cancel and abandon this route?'
+      : 'Are you sure you want to cancel and remove this active delivery? Any incomplete items will be returned to the rescue feed.';
+    if (!window.confirm(warningMessage)) return;
+    try {
+      const res = await claimsService.cancelVolunteerTripPlan(user.id, activeTripPlan?.id);
+      setActiveTripPlan(null);
+      if (res.penaltyApplied) {
+        error(`Active delivery route cancelled. A ${res.penaltyPoints}-point reliability penalty was applied to your volunteer profile.`);
+      } else {
+        success('Active delivery route has been cancelled and cleared.');
+      }
+      setActiveTab('planner');
+      await loadDashboardData();
+    } catch (err: any) {
+      error(err.message || 'Failed to cancel active delivery route');
+    }
+    return;
+  };
+
+  const _legacyUnusedCancel = async () => {
+    if (!user) return;
     const confirmCancel = window.confirm(
       'Are you sure you want to cancel and remove this active delivery? Any incomplete items will be returned to the rescue feed.'
     );

@@ -14,6 +14,7 @@ import {
   REWARD_RULES,
   calculateDonorRewardPoints,
   DONOR_REWARD_RULES,
+  PENALTY_RULES,
 } from '../types';
 import { getCloudinaryUrl } from './cloudinary';
 import { calculateImpactMetrics } from './impactMath';
@@ -1014,6 +1015,205 @@ class DemoStore {
     return claim;
   }
 
+  cancelDonation(
+    id: string,
+    cancelledByUserId?: string,
+    userRole?: string
+  ): { donation: Donation; penaltyApplied: boolean; penaltyPoints: number } {
+    this.reloadFromStorage();
+    const donation = this.donations.find((d) => d.id === id);
+    if (!donation) throw new Error('Donation listing not found');
+
+    const activeClaims = this.claims.filter(
+      (c) => c.donation_id === id && (c.status === 'claimed' || c.status === 'collected')
+    );
+    const hasBookedClaims =
+      activeClaims.length > 0 || donation.status === 'reserved' || donation.status === 'claimed';
+
+    let penaltyApplied = false;
+    let penaltyPoints = 0;
+
+    // Impose penalty if cancelled by donor after it was booked by recipient
+    const isAdmin = userRole === 'admin';
+    if (!isAdmin && hasBookedClaims) {
+      penaltyPoints = PENALTY_RULES.DONOR_CANCELLATION_PENALTY;
+      penaltyApplied = true;
+
+      this.donorRewardRecords.unshift({
+        id: `pen-d-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        donor_id: donation.donor_id,
+        donation_id: donation.id,
+        claim_id: activeClaims[0]?.id || 'booked-batch-cancelled',
+        donation_title: donation.title,
+        recipient_name: activeClaims[0]?.recipient?.organization_name || 'Reserved Recipient Shelter',
+        points: -penaltyPoints,
+        status: 'awarded',
+        portions_confirmed: 0,
+        confirmed_at: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        reason: `Reliability penalty: Donor cancelled surplus food batch after recipient reservation (-${penaltyPoints} pts)`,
+      });
+    }
+
+    // Cancel any open claims
+    for (const c of activeClaims) {
+      c.status = 'cancelled';
+      c.cancelled_at = new Date().toISOString();
+      c.notes = (c.notes ? `${c.notes} | ` : '') + (isAdmin ? 'Admin Override (Harmless)' : 'Cancelled due to donor withdrawal');
+      c.points_pending = 0;
+      if (c.volunteer_id) {
+        c.volunteer_id = undefined;
+        c.volunteer = undefined;
+        c.verification_status = 'unassigned';
+      }
+    }
+
+    donation.status = 'cancelled';
+
+    // Reset associated rescue tasks
+    for (const t of this.rescueTasks) {
+      if (t.donation_id === id) {
+        t.status = 'available';
+        t.claim_id = undefined;
+      }
+    }
+
+    this.addActivityLog('donation_cancelled', {
+      donation_id: id,
+      cancelled_by: cancelledByUserId || 'system',
+      penalty_applied: penaltyApplied,
+      penalty_points: penaltyPoints,
+    });
+
+    this.persist();
+    return { donation, penaltyApplied, penaltyPoints };
+  }
+
+  adminDelistDonation(
+    donationId: string,
+    reason = 'Administrative moderation',
+    adminUserId?: string
+  ): Donation {
+    this.reloadFromStorage();
+    const donation = this.donations.find((d) => d.id === donationId);
+    if (!donation) throw new Error('Donation not found');
+
+    donation.status = 'delisted';
+
+    // Cancel active claims peacefully without penalizing restaurant or volunteer
+    const activeClaims = this.claims.filter(
+      (c) => c.donation_id === donationId && (c.status === 'claimed' || c.status === 'collected')
+    );
+    for (const c of activeClaims) {
+      c.status = 'cancelled';
+      c.cancelled_at = new Date().toISOString();
+      c.notes = (c.notes ? `${c.notes} | ` : '') + `Delisted by Administrator: ${reason} (No penalty)`;
+      c.points_pending = 0;
+      if (c.volunteer_id) {
+        c.volunteer_id = undefined;
+        c.volunteer = undefined;
+        c.verification_status = 'unassigned';
+      }
+    }
+
+    // Remove from rescue tasks
+    this.rescueTasks = this.rescueTasks.filter((t) => t.donation_id !== donationId);
+
+    this.addActivityLog('admin_delisted_donation', {
+      donation_id: donationId,
+      reason,
+      admin_user: adminUserId || 'admin',
+      harmless: true,
+    });
+
+    this.persist();
+    return donation;
+  }
+
+  adminCancelClaim(
+    claimId: string,
+    reason = 'Operational adjustment',
+    adminUserId?: string
+  ): Claim {
+    this.reloadFromStorage();
+    const claim = this.claims.find((c) => c.id === claimId);
+    if (!claim) throw new Error('Claim not found');
+
+    claim.status = 'cancelled';
+    claim.cancelled_at = new Date().toISOString();
+    claim.notes = (claim.notes ? `${claim.notes} | ` : '') + `Admin Override: ${reason} (Harmless - No penalty)`;
+    claim.points_pending = 0;
+
+    // Safely restore food portions to donor without harming restaurant or volunteer
+    const donation = this.donations.find((d) => d.id === claim.donation_id);
+    if (donation) {
+      donation.quantity_available += claim.quantity_claimed;
+      if (donation.status === 'reserved' || donation.status === 'claimed') {
+        donation.status = 'available';
+      }
+    }
+
+    // Unassign volunteer peacefully without penalty
+    if (claim.volunteer_id) {
+      claim.volunteer_id = undefined;
+      claim.volunteer = undefined;
+      claim.verification_status = 'unassigned';
+    }
+
+    const matchingTask = this.rescueTasks.find((t) => t.claim_id === claimId);
+    if (matchingTask) {
+      matchingTask.status = 'available';
+      matchingTask.claim_id = undefined;
+    }
+
+    this.addActivityLog('admin_cancelled_claim', {
+      claim_id: claimId,
+      reason,
+      admin_user: adminUserId || 'admin',
+      harmless: true,
+    });
+
+    this.persist();
+    return claim;
+  }
+
+  adminDeleteClaim(
+    claimId: string,
+    reason = 'Administrative deletion',
+    adminUserId?: string
+  ): void {
+    this.reloadFromStorage();
+    const index = this.claims.findIndex((c) => c.id === claimId);
+    if (index === -1) throw new Error('Claim not found');
+    const claim = this.claims[index];
+
+    // Safely return food portions back to kitchen
+    const donation = this.donations.find((d) => d.id === claim.donation_id);
+    if (donation && claim.status !== 'delivered' && claim.status !== 'cancelled') {
+      donation.quantity_available += claim.quantity_claimed;
+      if (donation.status === 'reserved' || donation.status === 'claimed') {
+        donation.status = 'available';
+      }
+    }
+
+    const matchingTask = this.rescueTasks.find((t) => t.claim_id === claimId);
+    if (matchingTask) {
+      matchingTask.status = 'available';
+      matchingTask.claim_id = undefined;
+    }
+
+    this.claims.splice(index, 1);
+
+    this.addActivityLog('admin_deleted_claim', {
+      claim_id: claimId,
+      reason,
+      admin_user: adminUserId || 'admin',
+      harmless: true,
+    });
+
+    this.persist();
+  }
+
   updateClaimStatus(claimId: string, newStatus: 'collected' | 'delivered'): Claim {
     this.reloadFromStorage();
     const claim = this.claims.find((c) => c.id === claimId);
@@ -1734,15 +1934,34 @@ class DemoStore {
     return plan;
   }
 
-  cancelVolunteerTripPlan(volunteerId: string, planId?: string): boolean {
+  cancelVolunteerTripPlan(volunteerId: string, planId?: string, isHarmlessAdminOverride = false): { success: boolean; cancelled: boolean; penaltyApplied: boolean; penaltyPoints: number } {
     this.reloadFromStorage();
     let cancelledAny = false;
+    let penaltyApplied = false;
+    let penaltyPoints = 0;
     for (const plan of this.tripPlans) {
       if (
         plan.volunteer_id === volunteerId &&
         (!planId || plan.id === planId) &&
         (plan.status === 'accepted' || plan.status === 'in_progress' || plan.status === 'draft')
       ) {
+        if (!isHarmlessAdminOverride && (plan.status === 'accepted' || plan.status === 'in_progress')) {
+          penaltyPoints = PENALTY_RULES.VOLUNTEER_CANCELLATION_PENALTY;
+          penaltyApplied = true;
+
+          this.rewardRecords.unshift({
+            id: `pen-v-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            volunteer_id: volunteerId,
+            claim_id: (plan.task_ids && plan.task_ids[0]) || 'route-cancelled',
+            donation_title: plan.corridor_label || 'Rescue Delivery Plan',
+            recipient_name: 'Recipient Shelter Community',
+            points: -penaltyPoints,
+            status: 'released',
+            portions_confirmed: 0,
+            created_at: new Date().toISOString(),
+            reason: `Reliability penalty: Courier cancelled accepted rescue route after recipient reservation (-${penaltyPoints} pts)`,
+          });
+        }
         plan.status = 'cancelled';
         plan.cancelled_at = new Date().toISOString();
         cancelledAny = true;
@@ -1784,7 +2003,7 @@ class DemoStore {
       });
       this.persist();
     }
-    return cancelledAny;
+    return { success: cancelledAny, cancelled: cancelledAny, penaltyApplied, penaltyPoints };
   }
 
   simulateDonorPickupConfirmation(claimId: string): Claim {

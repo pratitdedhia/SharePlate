@@ -42,7 +42,15 @@ export const MyDonationsPage: React.FC = () => {
 
   const handleCancelDonation = async (donationId: string) => {
     try {
-      await donationsService.cancelDonation(donationId);
+      const res = await donationsService.cancelDonation(donationId, user?.id, user?.role);
+      if (res.penaltyApplied) {
+        error(`Donation cancelled. A ${res.penaltyPoints}-point reliability penalty was deducted because portions were booked by an NGO.`);
+      } else {
+        success('Donation listing cancelled.');
+      }
+      setCancelTargetId(null);
+      fetchMyDonations();
+      return;
       success('Donation listing cancelled.');
       setCancelTargetId(null);
       fetchMyDonations();
@@ -142,7 +150,7 @@ export const MyDonationsPage: React.FC = () => {
       <ConfirmDialog
         isOpen={Boolean(cancelTargetId)}
         title="Cancel This Food Listing?"
-        message="Are you sure you want to cancel this surplus food listing? It will no longer be visible for community claims."
+        message={(() => { const target = donations.find((d) => d.id === cancelTargetId); return target && (target.quantity_available < target.quantity_total || target.status === 'claimed' || target.status === 'reserved') ? '⚠️ RELIABILITY PENALTY: This food batch has active shelter reservations. If you cancel after a recipient has booked portions, a 50-point reliability penalty will be applied to your kitchen rewards profile.' : 'Are you sure you want to cancel this surplus food listing? It will no longer be visible for community claims.'; })()}
         confirmText="Yes, Cancel Listing"
         isDestructive={true}
         onCancel={() => setCancelTargetId(null)}

@@ -1557,7 +1557,7 @@ describe('Volunteer Routing & Personal Travel Segregation Regression', () => {
       expect(demoStore.getVolunteerTripPlan(volunteerId)).not.toBeNull();
 
       const cancelled = demoStore.cancelVolunteerTripPlan(volunteerId, plan.id);
-      expect(cancelled).toBe(true);
+      expect(cancelled.cancelled).toBe(true);
       expect(demoStore.getVolunteerTripPlan(volunteerId)).toBeNull();
     });
 
@@ -1625,4 +1625,153 @@ describe('Volunteer Routing & Personal Travel Segregation Regression', () => {
       }).toThrow(/State mismatch/i);
     });
   });
+
+  describe('Administrative Moderation & Cancellation Penalties', () => {
+    it('allows Admin to delist any food donation harmlessly without penalizing donor or volunteer', () => {
+      const donationId = 'd0000000-0000-0000-0000-000000000001';
+      const recipientId = 'b0000000-0000-0000-0000-000000000001';
+      const volunteerId = 'c0000000-0000-0000-0000-000000000001';
+
+      // 1. Book a portion and assign a courier
+      const claim = demoStore.claimDonation(donationId, recipientId, 10);
+      demoStore.assignVolunteerToClaim(claim.id, volunteerId);
+
+      const donorBefore = demoStore.getDonorRewards('a0000000-0000-0000-0000-000000000001');
+      const volBefore = demoStore.getVolunteerRewards(volunteerId);
+
+      // 2. Admin delists the batch
+      const delisted = demoStore.adminDelistDonation(donationId, 'Admin moderation test', 'admin-id');
+      expect(delisted.status).toBe('delisted');
+
+      // Active claims should be cancelled harmlessly
+      const updatedClaim = demoStore.getAllClaims().find((c) => c.id === claim.id);
+      expect(updatedClaim?.status).toBe('cancelled');
+      expect(updatedClaim?.notes).toContain('No penalty');
+
+      // Neither donor nor volunteer should receive penalties
+      const donorAfter = demoStore.getDonorRewards('a0000000-0000-0000-0000-000000000001');
+      const volAfter = demoStore.getVolunteerRewards(volunteerId);
+
+      expect(donorAfter.points_balance).toBe(donorBefore.points_balance);
+      expect(volAfter.points_released).toBe(volBefore.points_released);
+    });
+
+    it('allows Admin to cancel any claim harmlessly with portions restored to kitchen', () => {
+      const donationId = 'd0000000-0000-0000-0000-000000000001';
+      const recipientId = 'b0000000-0000-0000-0000-000000000001';
+      const initialDonation = demoStore.getDonationById(donationId);
+      const initialAvailable = initialDonation!.quantity_available;
+
+      // Create claim
+      const claim = demoStore.claimDonation(donationId, recipientId, 15);
+      expect(demoStore.getDonationById(donationId)!.quantity_available).toBe(initialAvailable - 15);
+
+      // Admin cancels claim harmlessly
+      const cancelled = demoStore.adminCancelClaim(claim.id, 'Logistical reschedule', 'admin-id');
+      expect(cancelled.status).toBe('cancelled');
+      expect(cancelled.notes).toContain('Harmless - No penalty');
+
+      // Portions are restored back to the donor
+      expect(demoStore.getDonationById(donationId)!.quantity_available).toBe(initialAvailable);
+    });
+
+    it('allows Admin to delete any claim harmlessly from ledger', () => {
+      const donationId = 'd0000000-0000-0000-0000-000000000001';
+      const recipientId = 'b0000000-0000-0000-0000-000000000001';
+      const initialDonation = demoStore.getDonationById(donationId);
+      const initialAvailable = initialDonation!.quantity_available;
+
+      const claim = demoStore.claimDonation(donationId, recipientId, 12);
+      expect(demoStore.getAllClaims().some((c) => c.id === claim.id)).toBe(true);
+
+      // Admin deletes claim
+      demoStore.adminDeleteClaim(claim.id, 'Erroneous duplicate entry', 'admin-id');
+
+      // Claim record purged from ledger
+      expect(demoStore.getAllClaims().some((c) => c.id === claim.id)).toBe(false);
+
+      // Portions restored safely
+      expect(demoStore.getDonationById(donationId)!.quantity_available).toBe(initialAvailable);
+    });
+
+    it('imposes 50-point reliability penalty on volunteer if they cancel an accepted route', () => {
+      const volunteerId = 'c0000000-0000-0000-0000-000000000001';
+      const summaryBefore = demoStore.getVolunteerRewards(volunteerId);
+
+      const plan = demoStore.createTripPlan({
+        volunteer_id: volunteerId,
+        origin: 'Start Point',
+        destination: 'End Point',
+        corridor_label: 'Delhi Transit',
+        task_ids: ['task-delhi-01'],
+        stops: [],
+      });
+      demoStore.acceptTripPlan(plan.id);
+
+      // Volunteer cancels route
+      const res = demoStore.cancelVolunteerTripPlan(volunteerId, plan.id, false);
+      expect(res.cancelled).toBe(true);
+      expect(res.penaltyApplied).toBe(true);
+      expect(res.penaltyPoints).toBe(50);
+
+      // Rewards ledger shows -50 deduction
+      const summaryAfter = demoStore.getVolunteerRewards(volunteerId);
+      expect(summaryAfter.points_released).toBe(summaryBefore.points_released - 50);
+
+      const latestRecord = summaryAfter.history[0];
+      expect(latestRecord.points).toBe(-50);
+      expect(latestRecord.reason).toContain('Reliability penalty');
+    });
+
+    it('imposes 50-point reliability penalty on donor if they cancel a food batch after recipient booked it', () => {
+      const donationId = 'd0000000-0000-0000-0000-000000000001';
+      const recipientId = 'b0000000-0000-0000-0000-000000000001';
+      const donorId = 'a0000000-0000-0000-0000-000000000001';
+
+      // Shelter reserves food
+      demoStore.claimDonation(donationId, recipientId, 10);
+      const donorBefore = demoStore.getDonorRewards(donorId);
+
+      // Donor cancels batch
+      const cancelRes = demoStore.cancelDonation(donationId, donorId, 'donor');
+      expect(cancelRes.penaltyApplied).toBe(true);
+      expect(cancelRes.penaltyPoints).toBe(50);
+
+      const donorAfter = demoStore.getDonorRewards(donorId);
+      expect(donorAfter.points_balance).toBe(donorBefore.points_balance - 50);
+
+      const latestRecord = donorAfter.history[0];
+      expect(latestRecord.points).toBe(-50);
+      expect(latestRecord.reason).toContain('Reliability penalty');
+    });
+
+    it('does NOT penalize donor if they cancel an unreserved surplus batch', () => {
+      // Create a fresh unbooked donation
+      const newDonation = demoStore.createDonation({
+        donor_id: 'a0000000-0000-0000-0000-000000000001',
+        title: 'Unclaimed Surplus Salad',
+        description: 'Fresh salads ready for collection',
+        category: 'produce',
+        quantity_total: 20,
+        quantity_unit: 'portions',
+        pickup_deadline: new Date(Date.now() + 36000000).toISOString(),
+        city: 'Delhi NCR',
+        state: 'Delhi',
+        location_label: 'DTU Canteen',
+        dietary_type: 'veg',
+
+      });
+
+      const donorBefore = demoStore.getDonorRewards('a0000000-0000-0000-0000-000000000001');
+
+      // Cancel unbooked donation
+      const cancelRes = demoStore.cancelDonation(newDonation.id, 'a0000000-0000-0000-0000-000000000001', 'donor');
+      expect(cancelRes.penaltyApplied).toBe(false);
+      expect(cancelRes.penaltyPoints).toBe(0);
+
+      const donorAfter = demoStore.getDonorRewards('a0000000-0000-0000-0000-000000000001');
+      expect(donorAfter.points_balance).toBe(donorBefore.points_balance);
+    });
+  });
+
 });

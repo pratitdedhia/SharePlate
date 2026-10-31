@@ -10,6 +10,7 @@ import { Donation, Claim, DonorRewardsSummary, DONOR_REWARD_RULES } from '../../
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { DemoAccountBanner } from '../../components/common/DemoAccountBanner';
 import { CloudinaryImage } from '../../components/common/CloudinaryImage';
+import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 import {
   Truck,
   RotateCcw,
@@ -48,6 +49,8 @@ export const DonorDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [pickupCodeInput, setPickupCodeInput] = useState<Record<string, string>>({});
   const [verifyingClaimId, setVerifyingClaimId] = useState<string | null>(null);
+  const [cancelDonationTarget, setCancelDonationTarget] = useState<Donation | null>(null);
+  const [isCancellingDonation, setIsCancellingDonation] = useState(false);
 
   const contentSectionRef = useRef<HTMLDivElement>(null);
 
@@ -113,6 +116,25 @@ export const DonorDashboard: React.FC = () => {
       error(err.message || 'Pickup verification failed.');
     } finally {
       setVerifyingClaimId(null);
+    }
+  };
+
+  const handleConfirmCancelDonation = async () => {
+    if (!cancelDonationTarget || !user) return;
+    setIsCancellingDonation(true);
+    try {
+      const res = await donationsService.cancelDonation(cancelDonationTarget.id, user.id, user.role);
+      if (res.penaltyApplied) {
+        error(`Donation batch cancelled. A ${res.penaltyPoints}-point reliability penalty was deducted because portions were booked by an NGO.`);
+      } else {
+        success('Surplus food batch has been cancelled.');
+      }
+      setCancelDonationTarget(null);
+      await loadData();
+    } catch (err: any) {
+      error(err.message || 'Failed to cancel donation listing');
+    } finally {
+      setIsCancellingDonation(false);
     }
   };
 
@@ -639,7 +661,7 @@ export const DonorDashboard: React.FC = () => {
                         </div>
                       ) : (
                         filteredIncomingClaims.map((claim) => (
-                          <div key={claim.id} className="p-5 flex flex-col xl:flex-row xl:items-center justify-between gap-4 hover:bg-warm-50/50 transition">
+                          <div key={claim.id} className="p-4 sm:p-5 flex flex-col 2xl:flex-row 2xl:items-center justify-between gap-4 hover:bg-warm-50/50 transition">
                             <div className="space-y-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <StatusBadge status={claim.status} />
@@ -658,10 +680,10 @@ export const DonorDashboard: React.FC = () => {
                               </div>
                             </div>
 
-                            <div className="w-full xl:w-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-2 self-start xl:self-center shrink-0">
+                            <div className="w-full 2xl:w-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-2 self-stretch 2xl:self-center">
                               {claim.status === 'claimed' && (
-                                <div className="w-full xl:w-auto bg-emerald-50/90 p-3 rounded-2xl border border-emerald-300 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
-                                  <div className="flex items-center gap-2">
+                                <div className="w-full 2xl:w-auto bg-emerald-50/90 p-3 rounded-2xl border border-emerald-300 shadow-2xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                                  <div className="flex items-center gap-2 flex-wrap">
                                     <span className="text-[10px] font-black uppercase tracking-wider text-forest-900 block whitespace-nowrap">
                                       Volunteer Arrived · Enter OTP:
                                     </span>
@@ -672,7 +694,7 @@ export const DonorDashboard: React.FC = () => {
                                     )}
                                   </div>
                                   <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-                                    <div className="flex items-center gap-1.5">
+                                    <div className="flex items-center gap-1.5 shrink-0">
                                       <input
                                         type="text"
                                         maxLength={4}
@@ -681,7 +703,7 @@ export const DonorDashboard: React.FC = () => {
                                         onChange={(e) =>
                                           setPickupCodeInput((prev) => ({
                                             ...prev,
-                                            [claim.id]: e.target.value.replace(/D/g, ''),
+                                            [claim.id]: e.target.value.replace(/\D/g, ''),
                                           }))
                                         }
                                         className="w-24 px-2.5 py-1.5 text-xs font-mono font-bold text-center border border-emerald-300 rounded-xl focus:border-forest-900 focus:outline-hidden bg-white text-stone-900 shadow-2xs"
@@ -707,7 +729,7 @@ export const DonorDashboard: React.FC = () => {
                                       type="button"
                                       onClick={() => handleVerifyPickupHandoff(claim.id)}
                                       disabled={verifyingClaimId === claim.id}
-                                      className="px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-forest-900 hover:bg-forest-800 active:bg-forest-950 transition cursor-pointer shadow-xs disabled:opacity-50 flex items-center justify-center gap-1.5 shrink-0 whitespace-nowrap"
+                                      className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-forest-900 hover:bg-forest-800 active:bg-forest-950 transition cursor-pointer shadow-xs disabled:opacity-50 flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 min-w-fit"
                                     >
                                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300 shrink-0" />
                                       <span>{verifyingClaimId === claim.id ? 'Verifying...' : 'Verify & Release Food'}</span>
@@ -829,6 +851,16 @@ export const DonorDashboard: React.FC = () => {
                           >
                             Inspect
                           </Link>
+                          {d.status !== 'cancelled' && d.status !== 'delivered' && d.status !== 'delisted' && (
+                            <button
+                              type="button"
+                              onClick={() => setCancelDonationTarget(d)}
+                              className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition cursor-pointer"
+                              title="Cancel this donation batch"
+                            >
+                              Cancel
+                            </button>
+                          )}
                         </div>
                       </div>
                     ))
@@ -867,7 +899,7 @@ export const DonorDashboard: React.FC = () => {
                       </div>
                     ) : (
                       filteredIncomingClaims.map((claim) => (
-                        <div key={claim.id} className="p-5 flex flex-col xl:flex-row xl:items-center justify-between gap-4 hover:bg-warm-50/50 transition">
+                        <div key={claim.id} className="p-4 sm:p-5 flex flex-col 2xl:flex-row 2xl:items-center justify-between gap-4 hover:bg-warm-50/50 transition">
                           <div className="space-y-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                               <StatusBadge status={claim.status} />
@@ -886,10 +918,10 @@ export const DonorDashboard: React.FC = () => {
                             </div>
                           </div>
 
-                          <div className="w-full xl:w-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-2 self-start xl:self-center shrink-0">
+                          <div className="w-full 2xl:w-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-2 self-stretch 2xl:self-center">
                             {claim.status === 'claimed' && (
-                              <div className="w-full xl:w-auto bg-emerald-50/90 p-3 rounded-2xl border border-emerald-300 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
-                                <div className="flex items-center gap-2">
+                              <div className="w-full 2xl:w-auto bg-emerald-50/90 p-3 rounded-2xl border border-emerald-300 shadow-2xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                                <div className="flex items-center gap-2 flex-wrap">
                                   <span className="text-[10px] font-black uppercase tracking-wider text-forest-900 block whitespace-nowrap">
                                     Volunteer Arrived · Enter OTP:
                                   </span>
@@ -900,7 +932,7 @@ export const DonorDashboard: React.FC = () => {
                                   )}
                                 </div>
                                 <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-                                  <div className="flex items-center gap-1.5">
+                                  <div className="flex items-center gap-1.5 shrink-0">
                                     <input
                                       type="text"
                                       maxLength={4}
@@ -909,7 +941,7 @@ export const DonorDashboard: React.FC = () => {
                                       onChange={(e) =>
                                         setPickupCodeInput((prev) => ({
                                           ...prev,
-                                          [claim.id]: e.target.value.replace(/D/g, ''),
+                                          [claim.id]: e.target.value.replace(/\D/g, ''),
                                         }))
                                       }
                                       className="w-24 px-2.5 py-1.5 text-xs font-mono font-bold text-center border border-emerald-300 rounded-xl focus:border-forest-900 focus:outline-hidden bg-white text-stone-900 shadow-2xs"
@@ -935,7 +967,7 @@ export const DonorDashboard: React.FC = () => {
                                     type="button"
                                     onClick={() => handleVerifyPickupHandoff(claim.id)}
                                     disabled={verifyingClaimId === claim.id}
-                                    className="px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-forest-900 hover:bg-forest-800 active:bg-forest-950 transition cursor-pointer shadow-xs disabled:opacity-50 flex items-center justify-center gap-1.5 shrink-0 whitespace-nowrap"
+                                    className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-forest-900 hover:bg-forest-800 active:bg-forest-950 transition cursor-pointer shadow-xs disabled:opacity-50 flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 min-w-fit"
                                   >
                                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300 shrink-0" />
                                     <span>{verifyingClaimId === claim.id ? 'Verifying...' : 'Verify & Release Food'}</span>
@@ -1303,6 +1335,25 @@ export const DonorDashboard: React.FC = () => {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={Boolean(cancelDonationTarget)}
+        title="Cancel Food Donation Batch?"
+        message={
+          cancelDonationTarget && (cancelDonationTarget.quantity_available < cancelDonationTarget.quantity_total || cancelDonationTarget.status === 'claimed' || cancelDonationTarget.status === 'reserved')
+            ? '⚠️ RELIABILITY PENALTY: This surplus batch already has active reservations booked by recipient shelters. If you cancel now, a 50-point reliability penalty will be deducted from your donor rewards profile to safeguard community trust.'
+            : 'Are you sure you want to cancel this surplus food batch? It will be removed from available listings.'
+        }
+        confirmText={
+          cancelDonationTarget && (cancelDonationTarget.quantity_available < cancelDonationTarget.quantity_total || cancelDonationTarget.status === 'claimed' || cancelDonationTarget.status === 'reserved')
+            ? 'Acknowledge Penalty & Cancel'
+            : 'Yes, Cancel Batch'
+        }
+        cancelText="Keep Listing"
+        isDestructive={true}
+        onCancel={() => setCancelDonationTarget(null)}
+        onConfirm={handleConfirmCancelDonation}
+      />
     </div>
   );
 };

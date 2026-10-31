@@ -38,7 +38,8 @@ export type DonationStatus =
   | 'collected'
   | 'delivered'
   | 'expired'
-  | 'cancelled';
+  | 'cancelled'
+  | 'delisted';
 
 export interface Donation {
   id: string;
@@ -269,6 +270,11 @@ export const DONOR_REWARD_RULES = {
   BASE_POINTS_PER_DELIVERY: 30,
   POINTS_PER_PORTION: 2,
   MAX_POINTS_PER_DELIVERY: 200,
+} as const;
+
+export const PENALTY_RULES = {
+  VOLUNTEER_CANCELLATION_PENALTY: 50,
+  DONOR_CANCELLATION_PENALTY: 50,
 } as const;
 
 export function calculateDonorRewardPoints(portionsConfirmed: number, isDisputed = false): number {

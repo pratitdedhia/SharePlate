@@ -157,6 +157,23 @@ export const adminService = {
     liveUpdatesService.notifyChange('claims', 'UPDATE', { restaurant_name: restaurantName });
   },
 
+  async delistDonation(donationId: string, reason?: string, adminUserId?: string) {
+    const res = demoStore.adminDelistDonation(donationId, reason, adminUserId);
+    liveUpdatesService.notifyChange('donations', 'UPDATE', { id: donationId, status: 'delisted' });
+    return res;
+  },
+
+  async cancelClaim(claimId: string, reason?: string, adminUserId?: string) {
+    const res = demoStore.adminCancelClaim(claimId, reason, adminUserId);
+    liveUpdatesService.notifyChange('claims', 'UPDATE', res);
+    return res;
+  },
+
+  async deleteClaim(claimId: string, reason?: string, adminUserId?: string) {
+    demoStore.adminDeleteClaim(claimId, reason, adminUserId);
+    liveUpdatesService.notifyChange('claims', 'DELETE', { id: claimId });
+  },
+
   async getActivityLogs(): Promise<ActivityLog[]> {
     if (isDemoMode()) {
       return demoStore.getActivityLogs();

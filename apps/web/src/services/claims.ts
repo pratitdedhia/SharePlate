@@ -361,10 +361,36 @@ export const claimsService = {
     return updated;
   },
 
-  async cancelVolunteerTripPlan(volunteerId: string, planId?: string): Promise<boolean> {
-    const success = demoStore.cancelVolunteerTripPlan(volunteerId, planId);
+  async cancelVolunteerTripPlan(
+    volunteerId: string,
+    planId?: string,
+    isHarmlessAdminOverride = false
+  ): Promise<{ success: boolean; cancelled: boolean; penaltyApplied: boolean; penaltyPoints: number }> {
+    const res = demoStore.cancelVolunteerTripPlan(volunteerId, planId, isHarmlessAdminOverride);
     liveUpdatesService.notifyChange('claims', 'UPDATE', { volunteer_id: volunteerId });
-    return success;
+    return res;
+  },
+
+  async adminCancelClaim(claimId: string, reason?: string, adminUserId?: string): Promise<Claim> {
+    const claim = demoStore.adminCancelClaim(claimId, reason, adminUserId);
+    if (db && isFirebaseConfigured) {
+      try {
+        await updateDoc(doc(db, 'claims', claimId), {
+          status: 'cancelled',
+          notes: claim.notes,
+          updated_at: new Date().toISOString(),
+        });
+      } catch (err: any) {
+        console.warn('[Firebase] Firestore adminCancelClaim notice:', err.message);
+      }
+    }
+    liveUpdatesService.notifyChange('claims', 'UPDATE', claim);
+    return claim;
+  },
+
+  async adminDeleteClaim(claimId: string, reason?: string, adminUserId?: string): Promise<void> {
+    demoStore.adminDeleteClaim(claimId, reason, adminUserId);
+    liveUpdatesService.notifyChange('claims', 'DELETE', { id: claimId });
   },
 
   async simulateDonorPickup(claimId: string): Promise<Claim> {

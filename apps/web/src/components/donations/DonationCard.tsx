@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Clock, MapPin, Building, AlertCircle, ArrowRight, ShieldAlert } from 'lucide-react';
+import { Clock, MapPin, Building, AlertCircle, ArrowRight, ShieldAlert, Ban } from 'lucide-react';
 import { Donation } from '../../types';
 import { StatusBadge } from '../common/StatusBadge';
 import { CloudinaryImage } from '../common/CloudinaryImage';
@@ -8,12 +8,13 @@ import { formatTimeRemaining, getCategoryLabel } from '../../lib/utils';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface DonationCardProps {
+  onDelist?: (donation: Donation) => void;
   donation: Donation;
 }
 
-export const DonationCard: React.FC<DonationCardProps> = ({ donation }) => {
+export const DonationCard: React.FC<DonationCardProps> = ({ donation, onDelist }) => {
   const navigate = useNavigate();
-  const { user, isDonor, isVolunteer } = useAuth();
+  const { user, isDonor, isVolunteer, isAdmin } = useAuth();
   const timeInfo = formatTimeRemaining(donation.pickup_deadline);
   const isExpired = donation.status === 'expired' || timeInfo.isExpired;
 
@@ -158,6 +159,20 @@ export const DonationCard: React.FC<DonationCardProps> = ({ donation }) => {
           >
             {getCardCtaLabel()} {!isExpired && <ArrowRight className="w-3.5 h-3.5" />}
           </button>
+
+          {isAdmin && donation.status !== 'delisted' && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelist?.(donation);
+              }}
+              className="w-full mt-2 py-2 px-3 rounded-xl text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+            >
+              <Ban className="w-3.5 h-3.5 text-rose-600" />
+              <span>Delist Food (Admin)</span>
+            </button>
+          )}
         </div>
       </div>
     </div>

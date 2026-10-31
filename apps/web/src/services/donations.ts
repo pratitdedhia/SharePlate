@@ -125,9 +125,12 @@ export const donationsService = {
     return created;
   },
 
-  async cancelDonation(id: string): Promise<void> {
-    const d = demoStore.getDonationById(id);
-    if (d) d.status = 'cancelled';
+  async cancelDonation(
+    id: string,
+    cancelledByUserId?: string,
+    userRole?: string
+  ): Promise<{ donation: Donation; penaltyApplied: boolean; penaltyPoints: number }> {
+    const res = demoStore.cancelDonation(id, cancelledByUserId, userRole);
 
     if (db && isFirebaseConfigured) {
       try {
@@ -141,5 +144,28 @@ export const donationsService = {
     }
 
     liveUpdatesService.notifyChange('donations', 'UPDATE', { id, status: 'cancelled' });
+    return res;
+  },
+
+  async delistDonation(
+    id: string,
+    reason = 'Administrative moderation',
+    adminUserId?: string
+  ): Promise<Donation> {
+    const delisted = demoStore.adminDelistDonation(id, reason, adminUserId);
+
+    if (db && isFirebaseConfigured) {
+      try {
+        await updateDoc(doc(db, 'donations', id), {
+          status: 'delisted',
+          updated_at: new Date().toISOString(),
+        });
+      } catch (err: any) {
+        console.warn('[Firebase] Firestore delistDonation notice:', err.message);
+      }
+    }
+
+    liveUpdatesService.notifyChange('donations', 'UPDATE', { id, status: 'delisted' });
+    return delisted;
   },
 };
