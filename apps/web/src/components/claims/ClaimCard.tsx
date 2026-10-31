@@ -413,9 +413,9 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
                 type="button"
                 onClick={handleDonorConfirmHandover}
                 disabled={loading}
-                className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-forest-900 hover:bg-forest-800 transition flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
+                className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-forest-900 hover:bg-forest-800 transition flex items-center justify-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50 whitespace-nowrap shrink-0"
               >
-                <CheckCircle className="w-3.5 h-3.5 text-emerald-300" />
+                <CheckCircle className="w-3.5 h-3.5 text-emerald-300 shrink-0" />
                 <span>Verify & Release Food</span>
               </button>
             </div>

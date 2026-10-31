@@ -218,8 +218,8 @@ export const RecipientDashboard: React.FC = () => {
                 </div>
               ) : (
                 myClaims.map((claim) => (
-                  <div key={claim.id} className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-warm-50/50 transition">
-                    <div className="flex items-start gap-3.5">
+                  <div key={claim.id} className="p-5 flex flex-col xl:flex-row xl:items-center justify-between gap-4 hover:bg-warm-50/50 transition">
+                    <div className="flex items-start gap-3.5 min-w-0">
                       <CloudinaryImage
                         publicId={claim.donation?.cloudinary_public_id}
                         src={claim.donation?.image_url || undefined}
@@ -228,8 +228,8 @@ export const RecipientDashboard: React.FC = () => {
                         className="w-14 h-14 rounded-2xl object-cover shrink-0 border border-warm-200"
                         containerClassName="w-14 h-14 rounded-2xl overflow-hidden shrink-0"
                       />
-                      <div>
-                        <div className="flex items-center gap-2">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <StatusBadge status={claim.status} />
                           <span className="text-xs font-bold text-stone-900">
                             {claim.quantity_claimed} portions
@@ -245,19 +245,19 @@ export const RecipientDashboard: React.FC = () => {
                         </h3>
                         <div className="text-xs text-stone-500 mt-0.5 space-y-0.5">
                           <div className="flex items-center gap-1.5">
-                            <Building2 className="w-3.5 h-3.5 text-stone-400" />
-                            <span>
+                            <Building2 className="w-3.5 h-3.5 text-stone-400 shrink-0" />
+                            <span className="truncate">
                               {claim.donation?.donor?.organization_name || claim.donation?.donor?.full_name || 'Donor Kitchen'}
                             </span>
                           </div>
-                          <div className="flex items-center gap-1.5 text-stone-400 text-[11px]">
-                            <MapPin className="w-3.5 h-3.5" />
+                          <div className="flex items-center gap-1.5 text-stone-400 text-[11px] flex-wrap">
+                            <MapPin className="w-3.5 h-3.5 shrink-0" />
                             <span>{claim.donation?.location_label || claim.donation?.city}</span>
                             {claim.donation?.donor?.phone && (
                               <>
                                 <span>•</span>
                                 <span className="flex items-center gap-1">
-                                  <Phone className="w-3 h-3" /> {claim.donation.donor.phone}
+                                  <Phone className="w-3 h-3 shrink-0" /> {claim.donation.donor.phone}
                                 </span>
                               </>
                             )}
@@ -266,16 +266,16 @@ export const RecipientDashboard: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 self-end sm:self-center">
+                    <div className="w-full xl:w-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-2 self-start xl:self-center shrink-0">
                       {claim.status === 'claimed' && (
-                        <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2">
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                           {claim.donation && !areStatesCompatible(user?.state || inferStateFromCity(user?.city), claim.donation?.state || inferStateFromCity(claim.donation?.city)) && (
                             <span className="text-[10px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200" title="This claimed food is in a different state than your organization">
                               ⚠️ Out-of-State ({claim.donation.state || claim.donation.city})
                             </span>
                           )}
                           <span className="text-xs font-semibold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 flex items-center gap-1">
-                            <Clock className="w-3.5 h-3.5 text-amber-600" /> Reserved · Awaiting Volunteer Pickup
+                            <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" /> Reserved · Awaiting Volunteer Pickup
                           </span>
                           <button
                             type="button"
@@ -289,14 +289,14 @@ export const RecipientDashboard: React.FC = () => {
                       )}
                       {claim.status === 'collected' && (
                         claim.verification_status === 'delivery_pending' ? (
-                          <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 bg-blue-50/80 p-2.5 rounded-xl border border-blue-300">
-                            <div className="text-right sm:text-left">
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-blue-900 block">
+                          <div className="w-full xl:w-auto bg-blue-50/90 p-3 rounded-2xl border border-blue-300 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+                            <div className="text-left">
+                              <span className="text-[10px] font-black uppercase tracking-wider text-blue-900 block whitespace-nowrap">
                                 Volunteer Arrived · Confirm Receipt:
                               </span>
                             </div>
-                            <div className="flex items-center gap-1.5">
-                              <div className="flex items-center gap-1">
+                            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                              <div className="flex items-center gap-1.5">
                                 <label className="text-[10px] font-bold text-stone-600">Portions:</label>
                                 <input
                                   type="number"
@@ -309,7 +309,7 @@ export const RecipientDashboard: React.FC = () => {
                                       [claim.id]: parseInt(e.target.value) || 1,
                                     }))
                                   }
-                                  className="w-16 px-2 py-1 text-xs font-bold text-center border border-blue-300 rounded-lg bg-white"
+                                  className="w-16 px-2 py-1.5 text-xs font-bold text-center border border-blue-300 rounded-xl bg-white text-stone-900 shadow-2xs"
                                   title="Confirmed portions received"
                                 />
                               </div>
@@ -324,30 +324,30 @@ export const RecipientDashboard: React.FC = () => {
                                     [claim.id]: e.target.value.replace(/\D/g, ''),
                                   }))
                                 }
-                                className="w-24 px-2 py-1 text-xs font-mono font-bold text-center border border-blue-300 rounded-lg focus:border-blue-700 focus:outline-hidden bg-white text-stone-900 shadow-2xs"
+                                className="w-24 px-2.5 py-1.5 text-xs font-mono font-bold text-center border border-blue-300 rounded-xl focus:border-blue-700 focus:outline-hidden bg-white text-stone-900 shadow-2xs"
                                 title="Enter 4-digit OTP shown on volunteer's screen"
                               />
                               <button
                                 type="button"
                                 onClick={() => handleVerifyDeliveryReceipt(claim)}
                                 disabled={confirmingClaimId === claim.id}
-                                className="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-blue-700 hover:bg-blue-800 transition cursor-pointer shadow-xs disabled:opacity-50 flex items-center gap-1 shrink-0"
+                                className="px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-blue-700 hover:bg-blue-800 active:bg-blue-900 transition cursor-pointer shadow-xs disabled:opacity-50 flex items-center justify-center gap-1.5 shrink-0 whitespace-nowrap"
                               >
-                                <CheckCircle2 className="w-3.5 h-3.5 text-blue-200" />
+                                <CheckCircle2 className="w-3.5 h-3.5 text-blue-200 shrink-0" />
                                 <span>{confirmingClaimId === claim.id ? 'Verifying...' : 'Verify Receipt & Release Points'}</span>
                               </button>
                             </div>
                           </div>
                         ) : (
-                          <span className="text-xs font-semibold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200 flex items-center gap-1">
-                            <Clock className="w-3.5 h-3.5 text-blue-600" /> In Transit · Awaiting Volunteer Arrival
+                          <span className="text-xs font-semibold text-blue-700 bg-blue-50 px-3 py-1.5 rounded-xl border border-blue-200 flex items-center gap-1.5 shrink-0">
+                            <Clock className="w-3.5 h-3.5 text-blue-600 shrink-0" /> In Transit · Awaiting Volunteer Arrival
                           </span>
                         )
                       )}
                       {claim.status === 'delivered' && (
-                        <div className="text-right space-y-1">
-                          <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 flex items-center gap-1">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Delivered to Community
+                        <div className="text-left xl:text-right space-y-1 shrink-0">
+                          <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 inline-flex items-center gap-1.5">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" /> Delivered to Community
                           </span>
                           <span className="text-[10px] text-stone-500 block">
                             {claim.portions_delivered_confirmed || claim.quantity_claimed} portions received & verified

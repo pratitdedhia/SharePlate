@@ -348,91 +348,93 @@ export const DonorDashboard: React.FC = () => {
                   </div>
                 ) : (
                   incomingClaims.map((claim) => (
-                    <div key={claim.id} className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-warm-50/50 transition">
-                      <div>
-                        <div className="flex items-center gap-2">
+                    <div key={claim.id} className="p-5 flex flex-col xl:flex-row xl:items-center justify-between gap-4 hover:bg-warm-50/50 transition">
+                      <div className="space-y-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <StatusBadge status={claim.status} />
                           <span className="text-xs font-bold text-stone-900">
                             {claim.recipient?.organization_name || claim.recipient?.full_name || 'Community Recipient'}
                           </span>
                         </div>
-                        <p className="text-xs text-stone-600 mt-1">
+                        <p className="text-xs text-stone-600">
                           Reserved <strong>{claim.quantity_claimed} portions</strong> of{' '}
                           <em>{claim.donation?.title || 'Food batch'}</em>
                         </p>
-                        <div className="text-[11px] text-stone-400 mt-1 flex items-center gap-2">
+                        <div className="text-[11px] text-stone-400 flex items-center gap-2 flex-wrap">
                           <span>Contact: {claim.recipient?.phone || '+91 98711 22334'}</span>
                           <span>•</span>
                           <span>Reserved {new Date(claim.claimed_at).toLocaleDateString()}</span>
                         </div>
                       </div>
 
-                      <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 self-end sm:self-center">
+                      <div className="w-full xl:w-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-2 self-start xl:self-center shrink-0">
                         {claim.status === 'claimed' && (
-                          <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 bg-emerald-50/80 p-2.5 rounded-xl border border-emerald-300">
-                            <div className="text-right sm:text-left">
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-forest-900 block">
+                          <div className="w-full xl:w-auto bg-emerald-50/90 p-3 rounded-2xl border border-emerald-300 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-black uppercase tracking-wider text-forest-900 block whitespace-nowrap">
                                 Volunteer Arrived · Enter OTP:
                               </span>
                               {claim.pickup_code && (
-                                <span className="text-[10px] text-emerald-800 font-semibold block">
-                                  Code: <strong className="font-mono text-emerald-950 font-bold">{claim.pickup_code}</strong>
+                                <span className="text-[11px] font-mono font-black text-emerald-950 bg-white px-2 py-0.5 rounded-md border border-emerald-300 shadow-3xs shrink-0">
+                                  {claim.pickup_code}
                                 </span>
                               )}
                             </div>
-                            <div className="flex items-center gap-1.5">
-                              <input
-                                type="text"
-                                maxLength={4}
-                                placeholder={claim.pickup_code || "4-digit OTP"}
-                                value={pickupCodeInput[claim.id] || ''}
-                                onChange={(e) =>
-                                  setPickupCodeInput((prev) => ({
-                                    ...prev,
-                                    [claim.id]: e.target.value.replace(/\D/g, ''),
-                                  }))
-                                }
-                                className="w-24 px-2 py-1.5 text-xs font-mono font-bold text-center border border-emerald-300 rounded-lg focus:border-forest-900 focus:outline-hidden bg-white text-stone-900 shadow-2xs"
-                                title="Enter the 4-digit code shown on volunteer's screen"
-                              />
-                              {claim.pickup_code && pickupCodeInput[claim.id] !== claim.pickup_code && (
-                                <button
-                                  type="button"
-                                  onClick={() =>
+                            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                              <div className="flex items-center gap-1.5">
+                                <input
+                                  type="text"
+                                  maxLength={4}
+                                  placeholder={claim.pickup_code || "4-digit OTP"}
+                                  value={pickupCodeInput[claim.id] || ''}
+                                  onChange={(e) =>
                                     setPickupCodeInput((prev) => ({
                                       ...prev,
-                                      [claim.id]: claim.pickup_code || '',
+                                      [claim.id]: e.target.value.replace(/\D/g, ''),
                                     }))
                                   }
-                                  className="text-[10px] font-bold text-emerald-800 hover:text-emerald-950 underline px-1 py-0.5 cursor-pointer"
-                                  title="Quick fill code from volunteer screen"
-                                >
-                                  Auto-fill
-                                </button>
-                              )}
+                                  className="w-24 px-2.5 py-1.5 text-xs font-mono font-bold text-center border border-emerald-300 rounded-xl focus:border-forest-900 focus:outline-hidden bg-white text-stone-900 shadow-2xs"
+                                  title="Enter the 4-digit code shown on volunteer's screen"
+                                />
+                                {claim.pickup_code && pickupCodeInput[claim.id] !== claim.pickup_code && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setPickupCodeInput((prev) => ({
+                                        ...prev,
+                                        [claim.id]: claim.pickup_code || '',
+                                      }))
+                                    }
+                                    className="text-[11px] font-bold text-emerald-800 hover:text-emerald-950 underline px-1 py-0.5 cursor-pointer whitespace-nowrap"
+                                    title="Quick fill code from volunteer screen"
+                                  >
+                                    Auto-fill
+                                  </button>
+                                )}
+                              </div>
                               <button
                                 type="button"
                                 onClick={() => handleVerifyPickupHandoff(claim.id)}
                                 disabled={verifyingClaimId === claim.id}
-                                className="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-forest-900 hover:bg-forest-800 transition cursor-pointer shadow-xs disabled:opacity-50 flex items-center gap-1 shrink-0"
+                                className="px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-forest-900 hover:bg-forest-800 active:bg-forest-950 transition cursor-pointer shadow-xs disabled:opacity-50 flex items-center justify-center gap-1.5 shrink-0 whitespace-nowrap"
                               >
-                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300" />
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300 shrink-0" />
                                 <span>{verifyingClaimId === claim.id ? 'Verifying...' : 'Verify & Release Food'}</span>
                               </button>
                             </div>
                           </div>
                         )}
                         {claim.status === 'collected' && (
-                          <span className="text-xs font-semibold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200 flex items-center gap-1">
+                          <span className="text-xs font-semibold text-blue-700 bg-blue-50 px-3 py-1.5 rounded-xl border border-blue-200 flex items-center gap-1.5 shrink-0">
                             <Clock className="w-3.5 h-3.5 text-blue-600" /> Handed Over · In Transit
                           </span>
                         )}
                         {claim.status === 'delivered' && (
-                          <div className="text-right">
-                            <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 flex items-center gap-1">
+                          <div className="text-left xl:text-right shrink-0">
+                            <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 inline-flex items-center gap-1.5">
                               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Verified by NGO
                             </span>
-                            <span className="text-[10px] text-forest-900 font-bold block mt-0.5">
+                            <span className="text-[10px] text-forest-900 font-bold block mt-1">
                               +{Math.min(200, 30 + (claim.portions_delivered_confirmed || claim.quantity_claimed) * 2)} pts in Rewards
                             </span>
                           </div>
